@@ -1,0 +1,2 @@
+# Keep vendored AI tooling out of GitHub language stats
+.claude/** linguist-vendored

@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules/
+dist/
+build/
+.expo/
+web-build/
+coverage/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Claude Code: personal settings stay local
+.claude/settings.local.json
+
+# Playwright CLI working files
+.playwright-cli/
+
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
