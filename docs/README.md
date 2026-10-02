@@ -29,6 +29,7 @@ A document counts as approved only when its author can explain every decision in
 | Design | 11 | `02-design/security-privacy.md` | What could go wrong with grade, money and health data, and the defences | Data-flow diagram, threat model | Not started |
 | Plan | 12 | `03-plan/test-plan.md` | How we prove it works, including black-box test cases | Requirements traceability matrix | Not started |
 | Plan | 13 | `03-plan/implementation-plan.md` | Order of work: milestones, tasks, definition of done, risks, running costs | Roadmap | Not started |
+| All | | [engineering-principles.md](engineering-principles.md) | Which engineering principles the project follows, where and why | | In review |
 | All | | `adr/NNNN-title.md` | Why each big decision was made | | Ongoing |
 
 ## How planning connects to testing
