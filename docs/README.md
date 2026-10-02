@@ -17,7 +17,7 @@ A document counts as approved only when its author can explain every decision in
 | Stage | # | Document | Answers | Diagrams | Status |
 |---|---|---|---|---|---|
 | Concept | 1 | `00-concept/concept-brief.md` | What problem, for whom, what success looks like, what is out of scope | | Not started |
-| Concept | 2 | `00-concept/capability-map.md` | Which modules exist, how they depend on each other, build order | Module dependency graph | In review |
+| Concept | 2 | [00-concept/capability-map.md](00-concept/capability-map.md) | Which modules exist, how they depend on each other, build order | Module dependency graph | Approved |
 | Concept | 3 | `00-concept/research.md` (optional, recommended) | What already exists, what other Monash students want | | Not started |
 | Requirements | 4 | `01-requirements/prd.md` | What each module must do: user stories, acceptance criteria, non-functional requirements, release slices | | Not started |
 | Requirements | 5 | `01-requirements/use-cases.md` | Who does what with the system | UML use-case diagram | Not started |
