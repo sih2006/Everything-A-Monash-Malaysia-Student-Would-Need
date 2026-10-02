@@ -17,6 +17,10 @@ There is no app code yet. The planning hub is [docs/README.md](docs/README.md). 
 - Requirements get stable IDs (for example `ACA-01`) so tests and issues can trace back to them.
 - Diagrams: Mermaid inside Markdown. draw.io (`.drawio.svg`) in `docs/diagrams/` for use-case, deployment and AWS diagrams. Wireframes and mockups in Claude Design artifacts.
 
+## Engineering principles
+
+The project follows [docs/engineering-principles.md](docs/engineering-principles.md). When a principle or practice is put into practice, change its status there from Planned to Applied and link the evidence. Only create extension points (interfaces meant for future variation) where that document lists them.
+
 ## Skill routing
 
 Use the matching skill whenever a task fits. Don't wait to be asked.
