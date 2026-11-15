@@ -109,6 +109,12 @@ window.FAKE = {
       { name: 'Fun', spent: 164.8, limit: 150 },
       { name: 'Study', spent: 65, limit: 100 }
     ],
+    // Spending in each finished week. Adds up to the category totals above.
+    weeks: [
+      { name: 'Week 1', days: 'Days 1 to 7', spent: 338.2 },
+      { name: 'Week 2', days: 'Days 8 to 14', spent: 371.9 },
+      { name: 'Week 3', days: 'Days 15 to 21', spent: 374.4 }
+    ],
     // Already counted in the category totals above.
     recent: [
       { what: 'Nasi lemak, campus canteen', category: 'Food', amount: 8.5, when: 'Today' },

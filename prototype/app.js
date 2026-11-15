@@ -603,16 +603,141 @@
       <path d="M${from} 0 C${from} 22, ${to} 18, ${to} 40"/>
     </svg>`;
 
-  function viewMap() {
+  // Which map is showing: studies, budget, food or health.
+  let mapKind = 'studies';
+
+  const CHECK = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+  // One line of steps inside the "you are here" box. Done steps are filled, steps to do are dashed.
+  const taskBlock = (title, state, done, todo, note) => `
+    <div class="task">
+      <div class="head"><strong>${esc(title)}</strong>${state}</div>
+      <ol class="steps">
+        ${done.map((text) => `<li>${esc(text)}</li>`).join('')}
+        ${todo.map((text) => `<li class="todo">${esc(text)}</li>`).join('')}
+      </ol>
+      ${note ? `<p class="note">${note}</p>` : ''}
+    </div>`;
+
+  // Each map is a list of stops: finished ones, "now", ones still ahead, and the goal at the end.
+  function studiesMap() {
     const gs = gradeSummary();
     const total = D.student.totalUnits;
     const finished = D.past.reduce((n, t) => n + t.units.length, 0);
+    const stops = D.past.map((t) => {
+      const gpa = f2(gpaOf(t.units));
+      return { kind: 'done', pin: hidden ? '···' : gpa, title: t.term, note: `Finished · GPA ${g(gpa)} · ${t.units.length} units` };
+    });
+    stops.push({
+      kind: 'now', title: `${D.term.name}, week ${D.term.week} of ${D.term.weeks}`,
+      note: `Projected GPA ${g(f2(gs.semGpa))}. Your default target is ${g(f2(gs.goalNeed))}.`,
+      body: gs.stats.map((s) => taskBlock(
+        s.u.code,
+        s.onCourse ? chip('On course', 'good') : s.possible ? chip('Not realistic', 'warn') : chip('Out of reach', 'warn'),
+        s.u.assessments.filter((a) => a.mark !== null).map((a) => a.name + (hidden ? '' : ' · ' + a.mark + '%')),
+        s.u.assessments.filter((a) => a.mark === null).map((a) => a.name + (hidden ? '' : s.possible ? ' · need ' + pct(s.need) : ' · target out of reach')),
+        `Leads to your ${g(s.u.target.grade)} target in this unit.`)).join('')
+    });
+    D.futureTerms.forEach((name, i) => stops.push({
+      kind: 'ahead', pin: String(D.past.length + 2 + i), title: name,
+      note: `${D.units.length} units · aim for GPA ${g(f2(gs.goalNeed))}`
+    }));
+    stops.push({
+      kind: 'goal', top: D.goal.measure, big: hidden ? '···' : f2(D.goal.value), bottom: 'your goal', title: 'Graduation',
+      note: "Your final goal. Goals after graduation, such as a master's, can be added here later."
+    });
+    return {
+      chain: ['Assessment', 'Unit grade', 'Semester GPA', 'CGPA', 'Final goal'],
+      summary: `${finished} of ${total} units finished. One grade step in one unit moves your final CGPA by about ${f2(1 / total)}.`,
+      progress: finished / total * 100, tone: '', stops
+    };
+  }
 
+  function budgetMap() {
+    const b = D.budget;
+    const bs = budgetSummary();
+    const stops = b.weeks.map((w, i) => ({ kind: 'done', pin: String(i + 1), title: w.name, note: `${w.days} · ${rm(w.spent)} spent` }));
+    stops.push({
+      kind: 'now', title: `${b.month}, day ${b.day} of ${b.days}`,
+      note: bs.over ? `You are over your limit by ${rm(-bs.left)}.` : `${rm(bs.left)} left. Each category below is part of your monthly limit.`,
+      body: b.categories.map((c) => {
+        const over = c.spent > c.limit;
+        return taskBlock(c.name, chip(over ? 'Over' : 'Inside', over ? 'warn' : 'good'),
+          [`${rm(c.spent)} spent`], [over ? `Over by ${rm(c.spent - c.limit)}` : `${rm(c.limit - c.spent)} left`], '');
+      }).join('')
+    });
+    stops.push({ kind: 'ahead', pin: String(b.weeks.length + 1), title: `The last ${bs.daysLeft} days`, note: `Spend ${rm(bs.perDay)} a day or less` });
+    stops.push({ kind: 'goal', top: 'Limit', big: 'RM ' + num(b.limit), small: true, bottom: 'this month', title: `End of ${b.month}`, note: 'Your goal: finish the month inside your limit.' });
+    return {
+      chain: ['Each purchase', 'Category total', 'Month total', 'Monthly limit'],
+      summary: `Day ${b.day} of ${b.days}. ${Math.round(bs.spentPct)}% of your limit is spent.`,
+      progress: bs.spentPct, tone: bs.tone === 'warn' ? 'warn' : '', stops
+    };
+  }
+
+  function foodMap() {
+    const f = D.food;
+    const fs = foodSummary();
+    const meals = [];
+    f.log.forEach((m) => {
+      let meal = meals.find((x) => x.when === m.when);
+      if (!meal) { meal = { when: m.when, kcal: 0, protein: 0, foods: [] }; meals.push(meal); }
+      meal.kcal += m.kcal; meal.protein += m.protein; meal.foods.push(m.food);
+    });
+    const stops = meals.map((m) => ({ kind: 'done', pin: CHECK, title: m.when, note: `${esc(m.foods.join(', '))} · ${num(m.kcal)} kcal · ${m.protein} g protein` }));
+    stops.push({
+      kind: 'now', title: 'Today so far',
+      note: `${num(fs.kcal)} kcal and ${fs.protein} g of protein eaten.`,
+      body: taskBlock('Calories', chip(fs.verdict, fs.tone), [`${num(fs.kcal)} kcal eaten`], [fs.over ? `Over by ${num(-fs.left)} kcal` : `${num(fs.left)} kcal left`], '')
+        + taskBlock('Protein', chip(fs.proteinLeft > 0 ? 'Short so far' : 'Target reached', fs.proteinLeft > 0 ? 'warn' : 'good'),
+          [`${fs.protein} g eaten`], fs.proteinLeft > 0 ? [`${fs.proteinLeft} g to go`] : [], '')
+    });
+    stops.push({ kind: 'ahead', pin: 'Next', title: 'Your next meal', note: fs.over ? 'You are already over your calorie target' : `Up to ${num(fs.left)} kcal, with ${Math.max(0, fs.proteinLeft)} g of protein to find` });
+    stops.push({ kind: 'goal', top: 'Today', big: num(f.targetKcal), bottom: 'kcal', title: 'End of the day', note: `Your goal: ${num(f.targetKcal)} kcal and ${f.targetProtein} g of protein.` });
+    return {
+      chain: ['Each meal', 'Day total', 'Daily target'],
+      summary: `${num(fs.kcal)} of ${num(f.targetKcal)} kcal eaten today.`,
+      progress: fs.kcal / f.targetKcal * 100, tone: fs.over ? 'warn' : '', stops
+    };
+  }
+
+  function healthMap() {
+    const h = D.health;
+    const hs = healthSummary();
     const stops = [];
-    D.past.forEach((t) => stops.push({ kind: 'done', term: t }));
-    stops.push({ kind: 'now' });
-    D.futureTerms.forEach((name) => stops.push({ kind: 'ahead', name }));
-    stops.push({ kind: 'goal' });
+    h.steps.forEach((d) => {
+      if (d.today) {
+        stops.push({
+          kind: 'now', title: `Today, ${d.day}`,
+          note: 'Three things count towards your week.',
+          body: taskBlock('Steps', chip(hs.stepsOk ? 'Target reached' : 'Behind', hs.stepsOk ? 'good' : 'warn'),
+              [`${num(hs.steps)} walked`], hs.stepsOk ? [] : [`${num(hs.stepsLeft)} to go`], '')
+            + taskBlock('Sleep', chip(hs.sleepShort > 0 ? 'Under target' : 'Target reached', hs.sleepShort > 0 ? 'warn' : 'good'),
+              [`${hm(hs.sleep)} last night`], [`Aim for ${hm(h.sleepTargetMin)} tonight`], '')
+            + taskBlock('Workouts', chip(h.workouts.done >= h.workouts.target ? 'Target reached' : `${h.workouts.target - h.workouts.done} to go`, h.workouts.done >= h.workouts.target ? 'good' : ''),
+              [`${h.workouts.done} done this week`], h.workouts.done >= h.workouts.target ? [] : [`${h.workouts.target - h.workouts.done} more this week`], '')
+        });
+      } else if (d.value !== null) {
+        const hit = d.value >= h.stepTarget;
+        stops.push({ kind: 'done', pin: d.day, title: `${num(d.value)} steps`, note: hit ? 'Target reached' : `${num(h.stepTarget - d.value)} short of your target` });
+      } else {
+        stops.push({ kind: 'ahead', pin: d.day, title: 'Still to come', note: `Aim for ${num(h.stepTarget)} steps` });
+      }
+    });
+    const daysDone = h.steps.filter((d) => d.value !== null && !d.today).length;
+    stops.push({ kind: 'goal', top: 'Each day', big: num(h.stepTarget), bottom: 'steps', title: 'End of the week', note: `Your goal: ${num(h.stepTarget)} steps a day, ${hm(h.sleepTargetMin)} of sleep and ${h.workouts.target} workouts.` });
+    return {
+      chain: ['Each day', 'Week total', 'Weekly targets'],
+      summary: `${daysDone} of ${h.steps.length} days finished this week. ${h.workouts.done} of ${h.workouts.target} workouts done.`,
+      progress: daysDone / h.steps.length * 100, tone: '', stops
+    };
+  }
+
+  const MAPS = { studies: studiesMap, budget: budgetMap, food: foodMap, health: healthMap };
+
+  function viewMap() {
+    const m = MAPS[mapKind]();
+    const stops = m.stops;
 
     // Stops swing left and right along the path. "Now" and the goal sit in the middle.
     let side = 25;
@@ -621,85 +746,66 @@
       stop.at = side;
       side = side === 25 ? 75 : 25;
     });
+    const nowIndex = stops.findIndex((s) => s.kind === 'now');
 
-    const nowIndex = D.past.length;
-
-    const task = (s) => {
-      const state = s.onCourse ? chip('On course', 'good') : s.possible ? chip('Not realistic', 'warn') : chip('Out of reach', 'warn');
-      return `
-        <div class="task">
-          <div class="head"><strong>${esc(s.u.code)}</strong>${state}</div>
-          <ol class="steps">
-            ${s.u.assessments.map((a) => a.mark !== null
-              ? `<li>${esc(a.name)}${hidden ? '' : ' · ' + a.mark + '%'}</li>`
-              : `<li class="todo">${esc(a.name)}${hidden ? '' : s.possible ? ' · need ' + pct(s.need) : ' · target out of reach'}</li>`).join('')}
-          </ol>
-          <p class="note">Leads to your ${g(s.u.target.grade)} target in this unit.</p>
-        </div>`;
-    };
-
-    const stopHtml = (stop, i) => {
-      if (stop.kind === 'done') {
-        const gpa = f2(gpaOf(stop.term.units));
-        return `
-          <div class="stop at-${stop.at}">
-            <div class="pin done" aria-hidden="true">${hidden ? '···' : gpa}</div>
-            <div class="about"><strong>${esc(stop.term.term)}</strong>
-              <span class="note">Finished · GPA ${g(gpa)} · ${stop.term.units.length} units</span></div>
-          </div>`;
-      }
+    const stopHtml = (stop) => {
       if (stop.kind === 'now') {
         return `
           <div class="stop at-50">
             <div class="pin now"><span>You are here</span></div>
             <div class="here">
               <div>
-                <h2>${esc(D.term.name)}, week ${D.term.week} of ${D.term.weeks}</h2>
-                <p class="note">Projected GPA ${g(f2(gs.semGpa))}. Your default target is ${g(f2(gs.goalNeed))}. Filled steps are done. Dashed steps are still to do.</p>
+                <h2>${esc(stop.title)}</h2>
+                <p class="note">${stop.note} Filled steps are done. Dashed steps are still to do.</p>
               </div>
-              ${gs.stats.map(task).join('')}
+              ${stop.body}
             </div>
           </div>`;
       }
-      if (stop.kind === 'ahead') {
+      if (stop.kind === 'goal') {
         return `
-          <div class="stop at-${stop.at}">
-            <div class="pin" aria-hidden="true">${i + 1}</div>
-            <div class="about"><strong>${esc(stop.name)}</strong>
-              <span class="note">${D.units.length} units · aim for GPA ${g(f2(gs.goalNeed))}</span></div>
+          <div class="stop at-50">
+            <div class="pin goal" style="clip-path:${FLOWER}">
+              <div class="core"><span>${esc(stop.top)}</span><b class="${stop.small ? 'small' : ''}">${esc(stop.big)}</b><span>${esc(stop.bottom)}</span></div>
+            </div>
+            <div class="about" style="text-align:center; align-items:center">
+              <strong>${esc(stop.title)}</strong>
+              <span class="note">${esc(stop.note)}</span>
+            </div>
           </div>`;
       }
       return `
-        <div class="stop at-50">
-          <div class="pin goal" style="clip-path:${FLOWER}">
-            <div class="core"><span>${D.goal.measure}</span><b>${hidden ? '···' : f2(D.goal.value)}</b><span>your goal</span></div>
-          </div>
-          <div class="about" style="text-align:center; align-items:center">
-            <strong>Graduation</strong>
-            <span class="note">Your final goal. Goals after graduation, such as a master's, can be added here later.</span>
-          </div>
+        <div class="stop at-${stop.at}">
+          <div class="pin ${stop.kind === 'done' ? 'done' : ''}" aria-hidden="true">${stop.pin}</div>
+          <div class="about"><strong>${esc(stop.title)}</strong><span class="note">${stop.note}</span></div>
         </div>`;
     };
+
+    const kinds = [['studies', 'Studies'], ['budget', 'Budget'], ['food', 'Food'], ['health', 'Health']];
 
     return `
       <div class="page-head">
         <div class="text">
           <h1 class="page-title">Map</h1>
-          <p class="sub">How every task leads to your final goal.</p>
+          <p class="sub">How every task leads to your goal. Pick a path.</p>
         </div>
+      </div>
+
+      <div class="seg" role="group" aria-label="Choose a map">
+        ${kinds.map(([id, label]) => `<button type="button" data-map="${id}" aria-pressed="${mapKind === id}">${label}</button>`).join('')}
       </div>
 
       <section class="card">
         <div class="chain" aria-label="How a task reaches your goal">
-          <span>Assessment</span>${ARROW}<span>Unit grade</span>${ARROW}<span>Semester GPA</span>${ARROW}<span>CGPA</span>${ARROW}<span>Final goal</span>
+          ${m.chain.map((step) => `<span>${esc(step)}</span>`).join(ARROW)}
         </div>
-        <p>${finished} of ${total} units finished. One grade step in one unit moves your final CGPA by about ${f2(1 / total)}.</p>
-        ${bar(finished / total * 100)}
+        <p>${esc(m.summary)}</p>
+        ${bar(m.progress, m.tone)}
       </section>
 
-      <ol class="map" aria-label="Your path to graduation">
+      <ol class="map" aria-label="Your path to the goal">
         ${stops.map((stop, i) => `
-          <li>${i === 0 ? '' : trail(stops[i - 1].at, stop.at, i <= nowIndex)}${stopHtml(stop, i)}</li>`).join('')}
+          <li>${i === 0 ? '' : trail(stops[i - 1].at, stop.at, i <= nowIndex)}${stopHtml(stop)}</li>`).join('')}
       </ol>`;
   }
 
@@ -771,6 +877,8 @@
   });
 
   view.addEventListener('click', (e) => {
+    const pick = e.target.closest('[data-map]');
+    if (pick) { mapKind = pick.dataset.map; render(); return; }
     const add = e.target.closest('[data-add-food]');
     if (!add) return;
     const item = D.food.quickAdd[Number(add.dataset.addFood)];
