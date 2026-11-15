@@ -250,7 +250,7 @@
         ${[2, 3, 4].map((v) => `<line class="gridline" x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}"/>
           <text class="axis" x="${left - 10}" y="${y(v) + 5}" text-anchor="end">${v}.0</text>`).join('')}
         <line class="goal" x1="${left}" x2="${W - right}" y1="${y(goal)}" y2="${y(goal)}"/>
-        <polyline class="series" points="${points}"/>
+        <polyline class="series" points="${points}" pathLength="1"/>
         ${trend.map((t, i) => `
           <circle class="dot ${t.projected ? 'proj' : ''}" cx="${x(i)}" cy="${y(t.gpa)}" r="6"/>
           <text x="${x(i)}" y="${y(t.gpa) + 26}" text-anchor="${i === 0 ? 'start' : i === trend.length - 1 ? 'end' : 'middle'}">${f2(t.gpa)}</text>
@@ -413,7 +413,7 @@
         <h2>${bs.verdict}</h2>
         <p>${Math.round(bs.monthPct)}% of the month has passed and ${Math.round(bs.spentPct)}% of your limit is spent.</p>
         ${bar(bs.spentPct, bs.tone, bs.monthPct)}
-        <p>The dark line marks today.</p>
+        <p>The triangle points at today.</p>
       </section>
 
       <section class="grid wide">
@@ -999,7 +999,12 @@
     }
   }
 
-  window.addEventListener('hashchange', () => render({ navigated: true }));
+  const calm = matchMedia('(prefers-reduced-motion: reduce)');
+  window.addEventListener('hashchange', () => {
+    // Browsers that can do it cross-fade from the old screen to the new one.
+    if (document.startViewTransition && !calm.matches) document.startViewTransition(() => render({ navigated: true }));
+    else render({ navigated: true });
+  });
 
   // ---------- Top-level controls ----------
 

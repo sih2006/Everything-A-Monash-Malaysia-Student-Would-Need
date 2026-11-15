@@ -165,8 +165,36 @@ select.tool { padding: 0 var(--s2); max-width: 7rem; justify-content: flex-start
   display: flex; flex-direction: column; gap: var(--s6);
   outline: none;
 }
-#view.enter { animation: enter var(--slow) var(--ease); }
-@keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+/* A new screen arrives piece by piece: each block rises in a moment after the one above it. */
+#view.enter > * { animation: rise 520ms var(--ease) backwards; }
+#view.enter > :nth-child(2) { animation-delay: 60ms; }
+#view.enter > :nth-child(3) { animation-delay: 120ms; }
+#view.enter > :nth-child(4) { animation-delay: 180ms; }
+#view.enter > :nth-child(5) { animation-delay: 240ms; }
+#view.enter > :nth-child(n + 6) { animation-delay: 300ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+
+/* Bars, columns and the GPA line grow from nothing when a screen opens. */
+#view.enter .bar > i { transform-origin: left; animation: grow-x 800ms var(--ease) 260ms backwards; }
+#view.enter .col .mark { transform-origin: bottom; animation: grow-y 700ms var(--ease) 260ms backwards; }
+#view.enter .col:nth-child(3) .mark { animation-delay: 310ms; }
+#view.enter .col:nth-child(4) .mark { animation-delay: 360ms; }
+#view.enter .col:nth-child(5) .mark { animation-delay: 410ms; }
+#view.enter .col:nth-child(6) .mark { animation-delay: 460ms; }
+#view.enter .linechart .series { stroke-dasharray: 1; animation: draw 1100ms var(--ease) 300ms backwards; }
+#view.enter .linechart .dot { animation: fade 400ms ease-out 1000ms backwards; }
+@keyframes grow-x { from { transform: scaleX(0); } }
+@keyframes grow-y { from { transform: scaleY(0); } }
+@keyframes draw { from { stroke-dashoffset: 1; } }
+@keyframes fade { from { opacity: 0; } }
+
+/* Changing screens: the old one fades out fast, the new one fades in. */
+::view-transition-old(root) { animation: 140ms ease-in both fade-out; }
+::view-transition-new(root) { animation: 260ms ease-out both fade; }
+@keyframes fade-out { to { opacity: 0; } }
+
+/* Colours ease across when the look or dark mode changes. */
+body, .side, .nav, .card, .petal, .banner, .mapview, .here { transition: background-color 320ms ease, color 320ms ease, border-color 320ms ease; }
 
 /* ---------- Desktop: sidebar ---------- */
 
@@ -233,11 +261,16 @@ h2 { font-size: 1.4rem; line-height: 1.2; font-weight: 700; }
 .hero::before {
   width: 300px; height: 300px; right: -150px; bottom: 150px;
   border-radius: 0 62% 0 62%; background: var(--sunset); transform: rotate(-14deg);
+  animation: sway-a 9s ease-in-out infinite alternate;
 }
 .hero::after {
   width: 260px; height: 260px; left: -150px; bottom: -120px;
   border-radius: 62% 0 62% 0; background: var(--lagoon); transform: rotate(18deg);
+  animation: sway-b 11s ease-in-out infinite alternate;
 }
+/* The leaves sway a little, like plants in a light wind. */
+@keyframes sway-a { to { transform: rotate(-8deg) translate(-6px, 12px); } }
+@keyframes sway-b { to { transform: rotate(12deg) translate(8px, -10px); } }
 .hero h1 { font-size: clamp(2.3rem, 5.6vw, 3.9rem); line-height: 1.06; font-weight: 700; text-wrap: balance; }
 .hero h1 em { font-style: normal; color: var(--mango); text-decoration: underline wavy var(--mango) 3px; text-underline-offset: 10px; }
 .hero .lede { color: var(--hero-soft); font-size: 1.15rem; max-width: 31em; }
@@ -284,11 +317,11 @@ h2 { font-size: 1.4rem; line-height: 1.2; font-weight: 700; }
   padding: 4px 14px 4px 10px; border-radius: 999px; font-weight: 700; font-size: 0.89rem; white-space: nowrap;
   background: var(--track); color: var(--ink);
 }
-/* Good = a small leaf. Needs attention = a diamond. Shape, not only colour. */
+/* Good = a small leaf. Needs attention = a warning triangle. Shape, not only colour. */
 .chip::before { content: ''; width: 11px; height: 11px; background: currentColor; border-radius: 0 70% 0 70%; }
 .chip.good { background: var(--good-bg); color: var(--good-fg); }
 .chip.warn { background: var(--warn-bg); color: var(--warn-fg); }
-.chip.warn::before { width: 9px; height: 9px; border-radius: 1px; transform: rotate(45deg); }
+.chip.warn::before { width: 13px; height: 12px; border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 
 /* ---------- Cards and grids ---------- */
 
@@ -372,6 +405,7 @@ h2 { font-size: 1.4rem; line-height: 1.2; font-weight: 700; }
 .mood small { font-size: 0.83rem; }
 
 .banner { border-radius: 36px 36px 0 0; padding: var(--s5) var(--s6); display: flex; flex-direction: column; gap: var(--s2); }
+.banner .bar { margin-top: var(--s3); }
 .banner.good { background: var(--good-bg); color: var(--good-fg); }
 .banner.warn { background: var(--warn-bg); color: var(--warn-fg); }
 .banner h2, .banner p { color: inherit; }
@@ -394,7 +428,8 @@ h2 { font-size: 1.4rem; line-height: 1.2; font-weight: 700; }
 .bar { position: relative; height: 14px; background: var(--track); border-radius: 7px; }
 .bar > i { display: block; height: 100%; border-radius: 7px; background: var(--mark); min-width: 8px; }
 .bar.warn > i { background: var(--mark-warn); }
-.bar .today { position: absolute; top: -6px; bottom: -6px; width: 3px; border-radius: 2px; background: var(--ink); }
+/* Today is marked by a triangle that points down at the bar. */
+.bar .today { position: absolute; top: -14px; width: 18px; height: 12px; margin-left: -9px; background: var(--ink); clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .banner .bar { background: rgba(255, 250, 240, 0.7); }
 [data-theme="dark"] .banner .bar { background: rgba(13, 33, 28, 0.5); }
 .banner .bar .today { background: currentColor; }
@@ -518,7 +553,17 @@ details > summary { cursor: pointer; font-weight: 700; min-height: var(--tap); d
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   background: none; border: 0; cursor: pointer; color: var(--ink); text-align: center;
 }
+.mstop { animation: pop 520ms var(--ease) backwards; animation-delay: calc(var(--i) * 70ms + 200ms); }
+.route path.walked { animation: draw 1200ms var(--ease) 150ms backwards; }
+.route polygon { animation: fade 400ms ease-out 900ms backwards; }
+@keyframes pop { from { opacity: 0; transform: scale(0.6); } }
 .mstop .pin { transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
+.pin.now { position: relative; }
+.pin.now::after {
+  content: ''; position: absolute; inset: -11px; border-radius: 50%; border: 3px solid var(--mango);
+  animation: ping 2600ms var(--ease) infinite;
+}
+@keyframes ping { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.45); } }
 .mstop:hover .pin { transform: scale(1.07); }
 .mstop:active .pin { transform: scale(0.96); }
 .mstop[aria-pressed="true"] .pin:not(.now):not(.goal) { box-shadow: 0 0 0 5px var(--surface), 0 0 0 9px var(--mango); }

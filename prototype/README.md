@@ -15,6 +15,7 @@ Open `index.html` in a browser. There is nothing to install.
 - **Food:** tap a food to log it.
 - **Health:** steps, sleep, heart rate and workouts.
 - **Hide grades:** hides every mark, grade and target.
+- **Movement:** screens fade and rise in, bars and charts grow, and the map path draws itself. All of it is turned off if your device asks for less motion.
 - **Look:** switch between four looks: tropical print, sticker book, night market and classic.
 - **Dark mode:** switches between light and dark.
 
