@@ -271,7 +271,7 @@ Every pull request runs linting, type checks and tests, and cannot be merged whi
 
 **Purposeful motion.** Mascot animations communicate a change in state rather than decorate, and users who turn on reduced motion get still images instead. *Planned (UI/UX brief).*
 
-**User-owned goals.** The app never decides what "good" means. Every target is set by the user, and the app only suggests defaults. *Applied ([assumption 8](00-concept/capability-map.md#assumptions-this-map-rests-on)).*
+**User-owned goals.** Every target and final goal is set by the user. The app may offer a default target worked out from the user's own final goal, and it gives the verdict on progress against a target (on track or not, realistic or not), but it never chooses the goal itself. *Applied ([assumption 8](00-concept/capability-map.md#assumptions-this-map-rests-on)).*
 
 ## 11. Cost and operations
 

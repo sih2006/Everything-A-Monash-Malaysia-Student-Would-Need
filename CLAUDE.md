@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository.
 
 ## Project
 
-A personal companion app for one Monash University Malaysia student (working title; final name still to be picked). Modules: grades and Monash GPA, budget, calories, and later health (steps, heart rate, sleep). Each module has a mascot whose mood shows whether the user is on target: a penguin egg (grades), a crab (budget) and Joel the gym-bro (calories). The mascot art is drawn by the user's artist friend. The user sets every target; the app never hardcodes what "good" means.
+A personal companion app for one Monash University Malaysia student (working title; final name still to be picked). Modules: grades and Monash GPA, budget, calories, and later health (steps, heart rate, sleep). Each module has a mascot whose mood shows whether the user is on target: a penguin egg (grades), a crab (budget) and Joel the gym-bro (calories). The mascot art is drawn by the user's artist friend. The user sets every target and final goal. The app gives the verdict on progress against a target (on track or not, realistic or not) and may offer a default target worked out from the user's own final goal, but it never chooses the goal itself.
 
 Runs on Android (Samsung Galaxy S24 Ultra) and in a desktop browser. Free tiers only.
 
