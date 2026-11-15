@@ -1,6 +1,6 @@
 # Product backlog: academics tracker
 
-**Status:** Draft, written on 15 November 2026 from the author's interview answers. Not approved. The author reviews and edits every story before it counts.
+**Status:** Draft, written on 15 November 2026 from the author's interview answers and updated on 16 November 2026. Not approved. The author reviews and edits every story before it counts.
 
 This backlog covers the academics tracker only: the `gpa` and `academics` modules from the [capability map](../00-concept/capability-map.md), written in C++ ([ADR-0001](../adr/0001-cpp-core-for-academics-tracker.md)).
 
@@ -17,6 +17,16 @@ This backlog covers the academics tracker only: the `gpa` and `academics` module
 | 0.3 onwards | Handbook lookup, an AI plan for reaching a target, and future goals such as postgraduate entry requirements. |
 
 **Out of scope for this backlog:** reading Moodle directly, phone and browser screens, mascots, login and cloud sync, and the budget, calorie and health modules.
+
+**The prototype.** A clickable example of the screens lives in [prototype/](../../prototype/). It uses made-up data and is not the real app. It was used to find stories for this backlog (the "what if" check, the attention list and the map) and it shows how the later screens could look.
+
+## Tracking
+
+Each story below is also a GitHub issue, so work can be followed on a public board.
+
+- The issue title starts with the story ID, for example `ACA-01: Add a unit`.
+- Labels show the priority, size, module and epic. The milestone shows the release.
+- This file is the source. Change a story here, not in the issue. The script [tools/backlog_sync.py](../../tools/backlog_sync.py) copies this file to the issues, and a GitHub Action runs it each time this file changes on `main`.
 
 ## How to read this backlog
 
@@ -62,6 +72,8 @@ Each of these is unconfirmed until the author approves this document.
 | ACA-10 | As a student, I want to know whether my target is still mathematically possible, so that I can adjust it if not. | Reports one of: already secured, possible (with the mark needed), or not possible (more than 100% needed). When not possible, shows the highest grade still reachable. | Must | S |
 | ACA-14 | As a student, I want to know whether my target is realistic, shown separately from whether it is mathematically possible, so that I am not misled by a target that needs near-perfect marks. | The tracker gives its own verdict, "realistic" or "not realistic", using a built-in rule (realistic when the mark needed is no more than 10 points above my average so far in the unit), shown next to the mathematical result and labelled separately. It also shows the mark needed and my own average so far, so the verdict can be checked. A target that is not mathematically possible is never shown as realistic. | Must | M |
 | ACA-11 | As a student, I want to record a hurdle on an assessment (a minimum mark needed to pass the unit), so that the tracker does not tell me I am safe when I am not. | A hurdle can be set on an assessment. Standing, possible and realistic results all take it into account. A failed hurdle is shown clearly even when the overall mark is a pass. | Must | M |
+| ACA-15 | As a student, I want to ask "what if I score this much on what is left?", so that I can see where a result would put me. | Given a percentage for the remaining assessments, shows the final mark and the grade it maps to, and says whether the target is reached. If the score is below a hurdle, says the hurdle would be failed. | Should | S |
+| ACA-16 | As a student, I want one list of the units that need my attention, so that I do not have to open every unit. | Lists every unit whose target is not possible or not realistic, with the reason. Units on course are not listed. With nothing to show, says so. | Should | S |
 
 ### Epic C: GPA, WAM and CGPA
 
@@ -74,6 +86,7 @@ Each of these is unconfirmed until the author approves this document.
 | GPA-05 | As a student, I want to see my CGPA across all semesters, shown separately from GPA, so that I can quote it on internship applications. | Matches the Monash Malaysia CGPA calculator for worked examples. GPA and CGPA are labelled separately everywhere they appear. | Must | M |
 | GPA-06 | As a student, I want to set a target for my GPA, WAM or CGPA and see what I need in my remaining units, so that I can plan for it. | The target is stored. Shows the average result needed across the units not yet finished, and whether it is achievable. | Should | M |
 | GPA-07 | As a student, I want to enter my final goal for graduation (a WAM, GPA or CGPA) and have the tracker work out a default target for this semester from it, so that my semester targets lead to where I want to end up. | The final goal is typed in as a number. The tracker works out what is needed this semester to stay on course and offers it as the default target for the semester and its units. Each default is marked as a default and can be changed or cleared. With no final goal entered, no default is set. | Should | M |
+| GPA-08 | As a student, I want to see the path from my tasks to my final goal, so that I know how today's work leads to where I want to end up. | Shows, in order: finished semesters with their GPA, the current semester with every assessment marked done or still to do and the mark needed, the semesters still to come with the GPA to aim for, and the final goal. Shows how much one grade step in one unit moves the final CGPA. | Should | M |
 
 ### Epic D: Using and keeping the data
 
@@ -94,6 +107,7 @@ Each of these is unconfirmed until the author approves this document.
 | ENG-06 | Continuous integration builds and tests every push. | A push to GitHub builds the program and runs all tests. A pull request cannot be merged while any check fails. | Must | S |
 | ENG-07 | Benchmarks on large generated data confirm the documented complexity. | Timing results for increasing data sizes are recorded and match the growth each structure claims. | Could | M |
 | ENG-08 | The README explains how to build, run and test, with the complexity summary. | Someone who has never seen the project can build and run it from the README alone. | Should | S |
+| ENG-09 | The backlog is on a public GitHub Projects board and stays in step with this file. | Every story in this file has one issue with the right labels and milestone. Changing a story here and merging to `main` updates its issue without any manual step. The board is public. | Must | S |
 
 ## Release 0.2: screenshot import
 
@@ -114,18 +128,21 @@ These are not yet broken into stories. Each one is interviewed and specified whe
 | Plan to reach a target | On request, an AI-written plan for making a target achievable. |
 | Future goals | The WAM, GPA or CGPA needed for a goal such as a master's in Australia or study in America, from researched entry requirements with source links and the date checked, which the user can edit. |
 | What people say about a unit | A summary of recent public discussion about a unit (for example, the last 30 days of posts), with links to the sources. |
-| Public board | The backlog loaded into a tracking tool, with each story as an issue. |
+| Screens | Phone and laptop screens for the tracker, based on the prototype: home, grades, the map, hide grades, dark mode and a chosen look. Needs the decision on how the C++ core is put behind screens. |
+| Maps for other goals | The same path-to-goal map for budget, food and health, once those modules exist. |
 
 ## Open questions
 
 1. **Grade rules.** The exact grade bands, GPA values per grade, WAM formula and CGPA formula need checking against the current Monash handbook and the Monash Malaysia CGPA calculator before the `GPA` stories are built.
 2. **Hurdles.** Answered on 15 November 2026: some units have them, so ACA-11 is a Must. Still open: which kinds of hurdle exist in your units (a minimum on one assessment, a minimum across all exams, or others).
 3. **Realistic.** Answered in part on 15 November 2026: realistic is reported separately from mathematically possible (ACA-14). Answered on 15 November 2026: the tracker decides the verdict itself with a built-in rule. The rule, confirmed by the author on 15 November 2026: a target is realistic when the mark needed is no more than 10 points above your average so far in that unit. Still open: what to compare against when the unit has no marks yet (the draft uses your overall average).
-8. **Default targets (GPA-07).** Working out a semester target from a final goal needs the total credit points in your course and how many are left. Is typing those in once acceptable?
 4. **Testing library and build tool.** Not yet chosen. Each is a small decision record.
 5. **File format** for saved data. Not yet chosen.
 6. **Gemini key in release 0.2.** The wider plan says Gemini is only called through a backend. A terminal program on your own laptop could instead read the key from a local setting. This needs a decision before release 0.2.
-7. **Tracking tool.** GitHub Projects is recommended over Jira and Linear: the board is public like the repository, each story is an issue that commits and pull requests can close, and it is free. Awaiting the author's confirmation.
+7. **Tracking tool.** Answered on 16 November 2026: GitHub Projects. The board is public like the repository, each story is an issue that commits and pull requests can close, and it is free. See ENG-09.
+8. **Default targets (GPA-07).** Working out a semester target from a final goal needs the total credit points in your course and how many are left. Is typing those in once acceptable?
+9. **The look.** The prototype has four looks (tropical print, sticker book, night market, classic). Which one does the real app use? This is decided in the UI/UX brief, not here.
+10. **New stories from the prototype.** ACA-15, ACA-16 and GPA-08 were added as Should. Are those the right priorities for release 0.1?
 
 ## Change log
 
@@ -134,3 +151,4 @@ These are not yet broken into stories. Each one is interviewed and specified whe
 | 2026-11-15 | First draft. |
 | 2026-11-15 | Hurdles (ACA-11) raised to Must. Added ACA-14 so that realistic is reported separately from mathematically possible. |
 | 2026-11-15 | The tracker gives the realistic verdict itself (ACA-14). Added GPA-07, default targets from a final goal. Added the "what people say about a unit" epic for a later release. |
+| 2026-11-16 | Added three stories found while building the prototype: ACA-15 (what if), ACA-16 (attention list) and GPA-08 (path to the goal). Added ENG-09 and a Tracking section: the backlog goes on a public GitHub Projects board. Added the Screens and "maps for other goals" epics for later releases. |
