@@ -190,13 +190,17 @@ h2 { font-size: 1.25rem; line-height: 1.25; }
   background: var(--tint-grades); border-radius: 24px; padding: var(--s4);
   display: flex; flex-direction: column; align-items: center; gap: var(--s2);
 }
-.hero-art img { width: min(240px, 60%); }
-.hero-art figcaption { color: #0F1C2E; font-weight: 700; text-align: center; }
-[data-theme="dark"] .hero-art figcaption { color: var(--ink); }
-.hero-art small { display: block; font-weight: 400; font-size: 0.89rem; }
+.hero-art .slot {
+  width: 100%; min-height: 180px; padding: var(--s4);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  border: 2px dashed currentColor; border-radius: 18px; font-size: 0.94rem;
+}
+.hero-art { color: #0F1C2E; }
+[data-theme="dark"] .hero-art { color: var(--ink); }
+.hero-art figcaption { font-weight: 700; text-align: center; }
 @media (min-width: 760px) {
   .hero { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); padding: var(--s7); }
-  .hero-art img { width: min(260px, 80%); }
+  .hero-art .slot { min-height: 220px; }
 }
 
 /* ---------- Buttons, chips ---------- */
@@ -251,7 +255,7 @@ h2 { font-size: 1.25rem; line-height: 1.25; }
 .module .go { margin-top: auto; color: var(--accent); font-weight: 700; display: flex; align-items: center; gap: var(--s1); }
 .module .go .icon { width: 20px; height: 20px; }
 
-.mascot { width: 72px; height: 72px; border-radius: 18px; padding: 6px; flex: none; }
+.mascot { display: inline-block; width: 72px; height: 72px; border-radius: 18px; border: 2px dashed var(--muted); flex: none; }
 .mascot.lg { width: 104px; height: 104px; border-radius: 24px; }
 .t-grades { background: var(--tint-grades); }
 .t-budget { background: var(--tint-budget); }

@@ -46,12 +46,13 @@
       <i style="width:${clamp(percent, 0, 100)}%"></i>
       ${todayAt === undefined ? '' : `<span class="today" style="left:${todayAt}%"></span>`}
     </div>`;
-  const mascot = (file, tint, alt, large) =>
-    `<img class="mascot ${large ? 'lg' : ''} ${tint}" src="images/${file}" alt="${esc(alt)}" width="104" height="104">`;
-  const mood = (file, tint, name, moodText) => `
+  // An empty space where the artist's mascot art will go. The prototype uses no pictures.
+  const mascot = (tint, name, large) =>
+    `<span class="mascot ${large ? 'lg' : ''} ${tint}" role="img" aria-label="Space for ${esc(name)} art"></span>`;
+  const mood = (tint, name, moodText) => `
     <div class="mood">
-      ${mascot(file, tint, name + ' placeholder art', true)}
-      <div><strong>${esc(name)}</strong><span>Mood: ${esc(moodText)}</span><small>Placeholder art</small></div>
+      ${mascot(tint, name, true)}
+      <div><strong>${esc(name)}</strong><span>Mood: ${esc(moodText)}</span><small>Art to come</small></div>
     </div>`;
 
   // ---------- Grades: the rules ----------
@@ -188,14 +189,14 @@
     if (hs.sleepShort > 0) attention.push({ tab: 'health', text: `Last night's sleep was ${hm(hs.sleepShort)} under your target.` });
 
     const modules = [
-      { tab: 'grades', title: 'Grades', img: 'penguin-egg.svg', tint: 't-grades', alt: 'Penguin egg placeholder art',
+      { tab: 'grades', title: 'Grades', tint: 't-grades', name: 'penguin egg',
         chip: chip(gs.onCourse === total ? 'On course' : 'Needs attention', gs.onCourse === total ? 'good' : 'warn'),
         big: `${gs.onCourse} of ${total}`, line: 'units on course for their targets' },
-      { tab: 'budget', title: 'Budget', img: 'crab.svg', tint: 't-budget', alt: 'Crab placeholder art',
+      { tab: 'budget', title: 'Budget', tint: 't-budget', name: 'crab',
         chip: chip(bs.verdict, bs.tone), big: rm(Math.max(0, bs.left)), line: `left for the next ${bs.daysLeft} days` },
-      { tab: 'food', title: 'Food', img: 'joel.svg', tint: 't-food', alt: 'Joel placeholder art',
+      { tab: 'food', title: 'Food', tint: 't-food', name: 'Joel',
         chip: chip(fs.verdict, fs.tone), big: `${num(Math.max(0, fs.left))} kcal`, line: 'left for today' },
-      { tab: 'health', title: 'Health', img: 'pulse.svg', tint: 't-health', alt: 'Health placeholder art',
+      { tab: 'health', title: 'Health', tint: 't-health', name: 'health mascot',
         chip: chip(hs.stepsOk ? 'Target reached' : 'Behind today', hs.stepsOk ? 'good' : 'warn'),
         big: num(hs.steps), line: `steps of your ${num(D.health.stepTarget)} target` }
     ];
@@ -212,15 +213,15 @@
           </div>
         </div>
         <figure class="hero-art">
-          <img src="images/penguin-egg.svg" alt="Penguin egg placeholder art" width="240" height="240">
-          <figcaption>Mood: ${eggMood}<small>Placeholder art</small></figcaption>
+          <div class="slot" role="img" aria-label="Space for penguin egg art">Penguin egg art goes here</div>
+          <figcaption>Mood: ${eggMood}</figcaption>
         </figure>
       </section>
 
       <section class="grid wide" aria-label="Today at a glance">
         ${modules.map((m) => `
           <a class="card module" href="#${m.tab}">
-            <div class="card-head">${mascot(m.img, m.tint, m.alt)}${m.chip}</div>
+            <div class="card-head">${mascot(m.tint, m.name)}${m.chip}</div>
             <h2>${m.title}</h2>
             <div class="big">${m.big}</div>
             <p class="note">${m.line}</p>
@@ -329,7 +330,7 @@
           <h1 class="page-title">Grades</h1>
           <p class="sub">${esc(D.term.name)}, week ${D.term.week} of ${D.term.weeks}. You set the targets. The app gives the verdict.</p>
         </div>
-        ${mood('penguin-egg.svg', 't-grades', 'Penguin egg', eggMood)}
+        ${mood('t-grades', 'Penguin egg', eggMood)}
       </div>
 
       <section class="grid" aria-label="Overall results">
@@ -387,7 +388,7 @@
           <h1 class="page-title">Budget</h1>
           <p class="sub">${esc(b.month)}, day ${b.day} of ${b.days}. Your monthly limit is ${rm(b.limit)}.</p>
         </div>
-        ${mood('crab.svg', 't-budget', 'Crab', bs.mood)}
+        ${mood('t-budget', 'Crab', bs.mood)}
       </div>
 
       <section class="grid" aria-label="Month so far">
@@ -469,7 +470,7 @@
           <h1 class="page-title">Food</h1>
           <p class="sub">Today. Your targets are ${num(f.targetKcal)} kcal and ${f.targetProtein} g of protein.</p>
         </div>
-        ${mood('joel.svg', 't-food', 'Joel', fs.mood)}
+        ${mood('t-food', 'Joel', fs.mood)}
       </div>
 
       <section class="grid wide" aria-label="Today so far">
@@ -548,7 +549,7 @@
           <h1 class="page-title">Health</h1>
           <p class="sub">Steps come from your phone. Heart rate and sleep need a smartwatch.</p>
         </div>
-        ${mood('pulse.svg', 't-health', 'No mascot yet', 'not designed')}
+        ${mood('t-health', 'No mascot yet', 'not designed')}
       </div>
 
       <section class="grid" aria-label="Today">

@@ -26,7 +26,6 @@ Changes you make are lost when you reload the page.
 | `styles.css` | Colours, type and layout |
 | `data.js` | All the fake data |
 | `app.js` | The rules and the screens |
-| `images/` | Placeholder mascot pictures |
 
 ## About the data
 
@@ -37,6 +36,6 @@ Everything in `data.js` is invented.
 - The WAM here is a simple average weighted by credit points. The real Monash formula may be different.
 - The calorie and protein numbers are rough guesses.
 
-## About the pictures
+## About the mascots
 
-The mascots are simple placeholders. The real art will come from the artist.
+There are no mascot pictures yet. Each mascot has an empty box with its name and mood. The real art will come from the artist.
