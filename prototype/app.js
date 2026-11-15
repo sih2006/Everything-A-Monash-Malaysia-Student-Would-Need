@@ -865,6 +865,27 @@
     syncThemeBtn();
   });
 
+  // The look switcher. The night market look is always dark, so the dark mode button rests while it is on.
+  const lookSelect = $('#lookSelect');
+  function applyLook(look) {
+    const root = document.documentElement;
+    root.dataset.look = look;
+    const market = look === 'market';
+    if (market) {
+      root.dataset.theme = 'dark';
+    } else {
+      root.dataset.theme = store.get('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    themeBtn.disabled = market;
+    syncThemeBtn();
+    if (market) $('#toggleThemeLabel').textContent = 'Always dark';
+  }
+  lookSelect.value = document.documentElement.dataset.look || 'tropical';
+  lookSelect.addEventListener('change', () => {
+    store.set('look', lookSelect.value);
+    applyLook(lookSelect.value);
+  });
+
   // ---------- Events inside the views (delegated) ----------
 
   view.addEventListener('input', (e) => {
@@ -919,6 +940,6 @@
   // ---------- Start ----------
 
   syncGradesBtn();
-  syncThemeBtn();
+  applyLook(lookSelect.value);
   render();
 })();

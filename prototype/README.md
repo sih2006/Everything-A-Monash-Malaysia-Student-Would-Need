@@ -15,6 +15,7 @@ Open `index.html` in a browser. There is nothing to install.
 - **Food:** tap a food to log it.
 - **Health:** steps, sleep, heart rate and workouts.
 - **Hide grades:** hides every mark, grade and target.
+- **Look:** switch between four looks: tropical print, sticker book, night market and classic.
 - **Dark mode:** switches between light and dark.
 
 Changes you make are lost when you reload the page.
@@ -24,7 +25,8 @@ Changes you make are lost when you reload the page.
 | File | What it holds |
 |---|---|
 | `index.html` | The page and the menu |
-| `styles.css` | Colours, type and layout |
+| `styles.css` | Colours, type and layout for the default look |
+| `looks.css` | The other three looks |
 | `data.js` | All the fake data |
 | `app.js` | The rules and the screens |
 

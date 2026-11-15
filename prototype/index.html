@@ -9,13 +9,19 @@
     var t = null;
     try { t = localStorage.getItem('theme'); } catch (e) {}
     if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var look = null;
+    try { look = localStorage.getItem('look'); } catch (e) {}
+    if (['tropical', 'sticker', 'market', 'classic'].indexOf(look) < 0) look = 'tropical';
+    if (look === 'market') t = 'dark'; // the night market look is always dark
+    document.documentElement.dataset.look = look;
     document.documentElement.dataset.theme = t;
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Gloock&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow:wght@400;600;700&family=Big+Shoulders+Display:wght@700;800&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700&family=Gloock&display=swap">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="looks.css">
 </head>
 <body>
 <a class="skip" href="#view">Skip to content</a>
@@ -51,6 +57,12 @@
     </nav>
 
     <div class="tools">
+      <select class="tool" id="lookSelect" aria-label="Choose a look">
+        <option value="tropical">Tropical print</option>
+        <option value="sticker">Sticker book</option>
+        <option value="market">Night market</option>
+        <option value="classic">Classic</option>
+      </select>
       <button type="button" class="tool" id="toggleGrades" aria-pressed="false">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
         <span id="toggleGradesLabel">Hide grades</span>

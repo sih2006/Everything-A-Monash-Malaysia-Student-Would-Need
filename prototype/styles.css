@@ -117,11 +117,11 @@ h1, h2, .brand, .big, .mid, .pin, .stop .about strong, .task .head strong { font
 
 /* ---------- App shell: phone first ---------- */
 
-.app { min-height: 100dvh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+.app { min-height: 100dvh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); overflow-x: clip; }
 
 .side {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
-  padding: var(--s3) var(--s4);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  padding: var(--s3);
 }
 
 .brand { font-weight: 700; font-size: 1.1rem; color: var(--ink); text-decoration: none; padding: var(--s2) 0; white-space: nowrap; }
@@ -138,7 +138,10 @@ h1, h2, .brand, .big, .mid, .pin, .stop .about strong, .task .head strong { font
 }
 .tool:hover { border-color: var(--muted); }
 .tool[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-#toggleThemeLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* On a phone the two buttons show only their icons. The labels stay for screen readers. */
+#toggleThemeLabel, #toggleGradesLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.tool:disabled { opacity: 0.55; cursor: not-allowed; }
+select.tool { padding: 0 var(--s2); max-width: 7rem; justify-content: flex-start; }
 
 .nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
@@ -188,7 +191,8 @@ h1, h2, .brand, .big, .mid, .pin, .stop .about strong, .task .head strong { font
   .nav a:hover:not([aria-current="page"]) { background: var(--track); color: var(--ink); }
   .tools { margin-top: auto; flex-direction: column; }
   .tool { justify-content: flex-start; padding: 0 var(--s4); }
-  #toggleThemeLabel { position: static; width: auto; height: auto; clip-path: none; }
+  #toggleThemeLabel, #toggleGradesLabel { position: static; width: auto; height: auto; clip-path: none; }
+  select.tool { max-width: none; }
   #view { padding: var(--s6) var(--s7) var(--s7); }
 }
 
