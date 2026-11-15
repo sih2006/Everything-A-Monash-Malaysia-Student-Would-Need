@@ -480,22 +480,51 @@ details > summary { cursor: pointer; font-weight: 700; min-height: var(--tap); d
 .seg button[aria-pressed="true"] { background: var(--jungle); border-color: var(--jungle); color: #FFFAF0; }
 [data-theme="dark"] .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #0D211C; }
 
-.map { max-width: 760px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; }
 
-.trail { display: block; width: 100%; height: 72px; overflow: visible; }
-.trail path { fill: none; stroke: var(--muted); stroke-width: 3; stroke-dasharray: 2 10; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.trail.walked path { stroke: var(--jungle); stroke-dasharray: none; stroke-width: 4; }
-[data-theme="dark"] .trail.walked path { stroke: var(--accent); }
 
-.stop { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: var(--s3); }
-.stop .pin { justify-self: center; }
-.stop.at-25 .pin { grid-column: 1; }
-.stop.at-25 .about { grid-column: 2; }
-.stop.at-75 .pin { grid-column: 2; grid-row: 1; }
-.stop.at-75 .about { grid-column: 1; grid-row: 1; text-align: right; align-items: flex-end; }
-.stop.at-50 { grid-template-columns: 1fr; justify-items: center; }
-.stop .about { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.stop .about strong { font-family: var(--display); font-size: 1.25rem; line-height: 1.2; }
+
+/* The map frame. The world inside it is moved and zoomed with a transform. */
+.mapbox { display: flex; flex-direction: column; gap: var(--s3); }
+.mapbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); }
+.zoom { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.zoom button {
+  min-width: var(--tap); min-height: var(--tap); padding: 0 var(--s4);
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer;
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: 999px;
+  transition: border-color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.zoom button:hover { border-color: var(--muted); }
+.zoom button:active { transform: scale(0.94); }
+.mapview {
+  position: relative; height: min(62vh, 460px); overflow: hidden;
+  cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--ink) 16%, transparent) 1.5px, transparent 2px) 0 0 / 26px 26px, var(--surface);
+  border: 1.5px solid var(--line); border-radius: var(--leaf);
+}
+.mapview.dragging { cursor: grabbing; }
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.world.smooth { transition: transform 460ms var(--ease); }
+.route { position: absolute; left: 0; top: 0; overflow: visible; }
+.route path { fill: none; stroke-linecap: round; }
+.route .ahead { stroke: var(--muted); stroke-width: 3; stroke-dasharray: 2 11; }
+.route path.walked { stroke: var(--jungle); stroke-width: 5; stroke-dasharray: 1; }
+.route polygon { fill: var(--muted); }
+.route polygon.walked { fill: var(--jungle); }
+[data-theme="dark"] .route path.walked { stroke: var(--accent); }
+[data-theme="dark"] .route polygon.walked { fill: var(--accent); }
+
+.mstop {
+  position: absolute; width: 200px; margin-left: -100px; padding: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: none; border: 0; cursor: pointer; color: var(--ink); text-align: center;
+}
+.mstop .pin { transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
+.mstop:hover .pin { transform: scale(1.07); }
+.mstop:active .pin { transform: scale(0.96); }
+.mstop[aria-pressed="true"] .pin:not(.now):not(.goal) { box-shadow: 0 0 0 5px var(--surface), 0 0 0 9px var(--mango); }
+.mlabel { background: var(--surface); padding: 2px 12px; border-radius: 999px; line-height: 1.25; }
+.mlabel strong { font-family: var(--display); font-size: 1.05rem; font-synthesis: none; }
+.mstop[aria-pressed="true"] .mlabel strong { text-decoration: underline; text-underline-offset: 4px; }
 
 /* A stop on the path: a round stone. Finished stops are filled, future stops are outlined. */
 .pin {
@@ -522,7 +551,7 @@ details > summary { cursor: pointer; font-weight: 700; min-height: var(--tap); d
 .pin .icon { width: 30px; height: 30px; stroke-width: 2.5; }
 
 .here {
-  width: 100%; margin-top: var(--s4);
+  width: 100%;
   background: var(--surface); border: 1.5px solid var(--line); box-shadow: var(--shadow);
   border-radius: 48px 12px 48px 12px; padding: var(--s5);
   display: flex; flex-direction: column; gap: var(--s4);

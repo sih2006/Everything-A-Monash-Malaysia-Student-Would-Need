@@ -597,12 +597,6 @@
     return `polygon(${points.join(',')})`;
   })();
 
-  // The curved line between two stops. `from` and `to` are positions across the map, in percent.
-  const trail = (from, to, walked) => `
-    <svg class="trail ${walked ? 'walked' : ''}" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M${from} 0 C${from} 22, ${to} 18, ${to} 40"/>
-    </svg>`;
-
   // Which map is showing: studies, budget, food or health.
   let mapKind = 'studies';
 
@@ -626,7 +620,7 @@
     const finished = D.past.reduce((n, t) => n + t.units.length, 0);
     const stops = D.past.map((t) => {
       const gpa = f2(gpaOf(t.units));
-      return { kind: 'done', pin: hidden ? '···' : gpa, title: t.term, note: `Finished · GPA ${g(gpa)} · ${t.units.length} units` };
+      return { kind: 'done', pin: hidden ? '···' : gpa, title: t.term, note: `GPA ${g(gpa)} · ${t.units.length} units` };
     });
     stops.push({
       kind: 'now', title: `${D.term.name}, week ${D.term.week} of ${D.term.weeks}`,
@@ -735,50 +729,62 @@
 
   const MAPS = { studies: studiesMap, budget: budgetMap, food: foodMap, health: healthMap };
 
+  // ----- The map itself: stops run left to right, and the view can be dragged and zoomed -----
+
+  const MAP_STEP = 250, MAP_PAD = 150, MAP_H = 400, MAP_MID = 180;
+  const PIN_HALF = { done: 38, ahead: 38, now: 54, goal: 84 };
+  const PLUS = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  const MINUS = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
+
+  // Where the map is looking: how far it has moved (x, y) and how much it is zoomed (k).
+  const mapCam = { x: 0, y: 0, k: 1, ready: false };
+  let mapStops = [];     // the stops now on screen, with their places
+  let mapSelected = -1;  // the stop whose details show under the map
+
+  function stopDetail(stop) {
+    if (stop.kind === 'now') {
+      return `<div><h2>${esc(stop.title)}</h2><p class="note">${stop.note} Filled steps are done. Dashed steps are still to do.</p></div>${stop.body}`;
+    }
+    const label = stop.kind === 'done' ? 'Finished' : stop.kind === 'goal' ? 'Your goal' : 'Still ahead';
+    return `<div><p class="label">${label}</p><h2>${esc(stop.title)}</h2><p>${stop.note}</p></div>`;
+  }
+
   function viewMap() {
     const m = MAPS[mapKind]();
     const stops = m.stops;
-
-    // Stops swing left and right along the path. "Now" and the goal sit in the middle.
-    let side = 25;
-    stops.forEach((stop) => {
-      if (stop.kind === 'now' || stop.kind === 'goal') { stop.at = 50; return; }
-      stop.at = side;
-      side = side === 25 ? 75 : 25;
-    });
     const nowIndex = stops.findIndex((s) => s.kind === 'now');
 
-    const stopHtml = (stop) => {
-      if (stop.kind === 'now') {
-        return `
-          <div class="stop at-50">
-            <div class="pin now"><span>You are here</span></div>
-            <div class="here">
-              <div>
-                <h2>${esc(stop.title)}</h2>
-                <p class="note">${stop.note} Filled steps are done. Dashed steps are still to do.</p>
-              </div>
-              ${stop.body}
-            </div>
-          </div>`;
-      }
+    // Stops step up and down a little so the path winds. "Now" and the goal sit on the middle line.
+    let up = true;
+    stops.forEach((stop, i) => {
+      stop.x = MAP_PAD + i * MAP_STEP;
+      if (stop.kind === 'now' || stop.kind === 'goal') { stop.y = MAP_MID; return; }
+      stop.y = MAP_MID + (up ? -55 : 55);
+      up = !up;
+    });
+    const width = MAP_PAD * 2 + (stops.length - 1) * MAP_STEP;
+    mapStops = stops;
+    if (mapSelected < 0 || mapSelected >= stops.length) mapSelected = nowIndex;
+
+    // The path between stops, plus a small triangle on each part that points the way to the goal.
+    const curve = (a, b) => `M${a.x} ${a.y} C${a.x + 110} ${a.y}, ${b.x - 110} ${b.y}, ${b.x} ${b.y} `;
+    let walked = '', ahead = '', arrows = '';
+    for (let i = 1; i < stops.length; i++) {
+      const a = stops[i - 1], b = stops[i];
+      const done = i <= nowIndex;
+      if (done) walked += curve(a, b); else ahead += curve(a, b);
+      const slopeX = 165 + 1.5 * (b.x - a.x - 220);
+      const slopeY = 1.5 * (b.y - a.y);
+      const turn = (Math.atan2(slopeY, slopeX) * 180 / Math.PI).toFixed(1);
+      arrows += `<polygon class="${done ? 'walked' : ''}" points="-9,-9 11,0 -9,9" transform="translate(${(a.x + b.x) / 2} ${(a.y + b.y) / 2}) rotate(${turn})"/>`;
+    }
+
+    const pin = (stop) => {
+      if (stop.kind === 'now') return '<span class="pin now"><span>You are here</span></span>';
       if (stop.kind === 'goal') {
-        return `
-          <div class="stop at-50">
-            <div class="pin goal" style="clip-path:${FLOWER}">
-              <div class="core"><span>${esc(stop.top)}</span><b class="${stop.small ? 'small' : ''}">${esc(stop.big)}</b><span>${esc(stop.bottom)}</span></div>
-            </div>
-            <div class="about" style="text-align:center; align-items:center">
-              <strong>${esc(stop.title)}</strong>
-              <span class="note">${esc(stop.note)}</span>
-            </div>
-          </div>`;
+        return `<span class="pin goal" style="clip-path:${FLOWER}"><span class="core"><span>${esc(stop.top)}</span><b class="${stop.small ? 'small' : ''}">${esc(stop.big)}</b><span>${esc(stop.bottom)}</span></span></span>`;
       }
-      return `
-        <div class="stop at-${stop.at}">
-          <div class="pin ${stop.kind === 'done' ? 'done' : ''}" aria-hidden="true">${stop.pin}</div>
-          <div class="about"><strong>${esc(stop.title)}</strong><span class="note">${stop.note}</span></div>
-        </div>`;
+      return `<span class="pin ${stop.kind === 'done' ? 'done' : ''}">${stop.pin}</span>`;
     };
 
     const kinds = [['studies', 'Studies'], ['budget', 'Budget'], ['food', 'Food'], ['health', 'Health']];
@@ -787,7 +793,7 @@
       <div class="page-head">
         <div class="text">
           <h1 class="page-title">Map</h1>
-          <p class="sub">How every task leads to your goal. Pick a path.</p>
+          <p class="sub">How every task leads to your goal. Pick a path, then follow it to the right.</p>
         </div>
       </div>
 
@@ -803,11 +809,164 @@
         ${bar(m.progress, m.tone)}
       </section>
 
-      <ol class="map" aria-label="Your path to the goal">
-        ${stops.map((stop, i) => `
-          <li>${i === 0 ? '' : trail(stops[i - 1].at, stop.at, i <= nowIndex)}${stopHtml(stop)}</li>`).join('')}
-      </ol>`;
+      <section class="mapbox" aria-label="Your path to the goal">
+        <div class="mapbar">
+          <p class="note" id="mapHelp">Drag to move. Pinch, or hold Ctrl and scroll, to zoom. Pick a stop to see it below.</p>
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button type="button" data-zoom="out" aria-label="Zoom out">${MINUS}</button>
+            <button type="button" data-zoom="fit">Show all</button>
+            <button type="button" data-zoom="here">Find me</button>
+            <button type="button" data-zoom="in" aria-label="Zoom in">${PLUS}</button>
+          </div>
+        </div>
+        <div class="mapview" id="mapview" tabindex="0" aria-label="Map. Arrow keys move it. Plus and minus zoom." aria-describedby="mapHelp">
+          <div class="world" id="world" style="width:${width}px; height:${MAP_H}px">
+            <svg class="route" width="${width}" height="${MAP_H}" viewBox="0 0 ${width} ${MAP_H}" aria-hidden="true">
+              <path class="ahead" d="${ahead}"/>
+              <path class="walked" d="${walked}" pathLength="1"/>
+              ${arrows}
+            </svg>
+            ${stops.map((stop, i) => `
+              <button type="button" class="mstop" data-stop="${i}" aria-pressed="${i === mapSelected}"
+                      style="left:${stop.x}px; top:${stop.y - PIN_HALF[stop.kind]}px; --i:${i}">
+                ${pin(stop)}
+                <span class="mlabel"><strong>${esc(stop.title)}</strong></span>
+              </button>`).join('')}
+          </div>
+        </div>
+      </section>
+
+      <section class="here" id="mapDetail" aria-live="polite">${stopDetail(stops[mapSelected])}</section>`;
   }
+
+  // Keep the map inside its frame. A map smaller than the frame sits in the middle.
+  function clampCam() {
+    const frame = $('#mapview'), world = $('#world');
+    const w = world.offsetWidth * mapCam.k, h = world.offsetHeight * mapCam.k;
+    mapCam.x = w <= frame.clientWidth ? (frame.clientWidth - w) / 2 : clamp(mapCam.x, frame.clientWidth - w, 0);
+    mapCam.y = h <= frame.clientHeight ? (frame.clientHeight - h) / 2 : clamp(mapCam.y, frame.clientHeight - h, 0);
+  }
+
+  function applyCam(smooth) {
+    const world = $('#world');
+    if (!world) return;
+    clampCam();
+    world.classList.toggle('smooth', Boolean(smooth));
+    world.style.transform = `translate(${mapCam.x}px, ${mapCam.y}px) scale(${mapCam.k})`;
+  }
+
+  // Zoom while keeping one point of the frame still, so the map grows around the pointer.
+  function zoomAt(k, px, py, smooth) {
+    const next = clamp(k, 0.35, 2.2);
+    mapCam.x = px - (px - mapCam.x) * next / mapCam.k;
+    mapCam.y = py - (py - mapCam.y) * next / mapCam.k;
+    mapCam.k = next;
+    applyCam(smooth);
+  }
+
+  function showAll(smooth) {
+    const frame = $('#mapview'), world = $('#world');
+    mapCam.k = clamp(Math.min(frame.clientWidth / world.offsetWidth, frame.clientHeight / world.offsetHeight), 0.35, 1);
+    mapCam.x = 0; mapCam.y = 0;
+    applyCam(smooth);
+  }
+
+  function goToStop(index, smooth) {
+    const frame = $('#mapview'), stop = mapStops[index];
+    if (!frame || !stop) return;
+    mapCam.x = frame.clientWidth / 2 - stop.x * mapCam.k;
+    mapCam.y = frame.clientHeight / 2 - (stop.y + 30) * mapCam.k;
+    applyCam(smooth);
+  }
+
+  function selectStop(index) {
+    mapSelected = index;
+    document.querySelectorAll('.mstop').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.stop) === index)));
+    $('#mapDetail').innerHTML = stopDetail(mapStops[index]);
+    goToStop(index, true);
+  }
+
+  // Runs each time the map screen is drawn: places the view and listens for drag, pinch, scroll and keys.
+  function initMap() {
+    const frame = $('#mapview');
+    if (!frame) return;
+    if (!mapCam.ready) {
+      mapCam.k = 1;
+      goToStop(mapStops.findIndex((s) => s.kind === 'now'), false);
+      mapCam.ready = true;
+    } else {
+      applyCam(false);
+    }
+
+    const touches = new Map();          // pointers now on the map
+    const drag = { x: 0, y: 0, camX: 0, camY: 0, moved: false, gap: 0, k: 1 };
+    const spread = () => { const p = [...touches.values()]; return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
+
+    frame.addEventListener('pointerdown', (e) => {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      drag.x = e.clientX; drag.y = e.clientY; drag.camX = mapCam.x; drag.camY = mapCam.y; drag.moved = false;
+      if (touches.size === 2) { drag.gap = spread(); drag.k = mapCam.k; }
+    });
+    frame.addEventListener('pointermove', (e) => {
+      const touch = touches.get(e.pointerId);
+      if (!touch) return;
+      touch.x = e.clientX; touch.y = e.clientY;
+      if (touches.size === 2) {
+        const box = frame.getBoundingClientRect();
+        const p = [...touches.values()];
+        zoomAt(drag.k * spread() / drag.gap, (p[0].x + p[1].x) / 2 - box.left, (p[0].y + p[1].y) / 2 - box.top, false);
+        drag.moved = true;
+        return;
+      }
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 6) return;   // a small wobble is still a tap
+      if (!drag.moved) {
+        drag.moved = true;
+        frame.classList.add('dragging');
+        try { frame.setPointerCapture(e.pointerId); } catch (err) { /* the pointer is already gone: keep dragging anyway */ }
+      }
+      mapCam.x = drag.camX + dx; mapCam.y = drag.camY + dy;
+      applyCam(false);
+    });
+    const lift = (e) => { touches.delete(e.pointerId); frame.classList.remove('dragging'); };
+    frame.addEventListener('pointerup', lift);
+    frame.addEventListener('pointercancel', lift);
+
+    frame.addEventListener('wheel', (e) => {
+      const box = frame.getBoundingClientRect();
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        zoomAt(mapCam.k * Math.exp(-e.deltaY * 0.0022), e.clientX - box.left, e.clientY - box.top, false);
+      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        e.preventDefault();     // a sideways scroll moves along the path
+        mapCam.x -= e.deltaX;
+        applyCam(false);
+      }
+    }, { passive: false });
+
+    frame.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.mstop')) return;
+      const box = frame.getBoundingClientRect();
+      zoomAt(mapCam.k * 1.5, e.clientX - box.left, e.clientY - box.top, true);
+    });
+
+    frame.addEventListener('keydown', (e) => {
+      const step = 90;
+      const moves = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] };
+      if (moves[e.key]) { e.preventDefault(); mapCam.x += moves[e.key][0]; mapCam.y += moves[e.key][1]; applyCam(true); }
+      else if (e.key === '+' || e.key === '=') zoomAt(mapCam.k * 1.3, frame.clientWidth / 2, frame.clientHeight / 2, true);
+      else if (e.key === '-') zoomAt(mapCam.k / 1.3, frame.clientWidth / 2, frame.clientHeight / 2, true);
+      else if (e.key === '0') showAll(true);
+    });
+
+    // Moving through the stops with the Tab key brings each one into view.
+    frame.addEventListener('focusin', (e) => {
+      const stop = e.target.closest('.mstop');
+      if (stop && stop.matches(':focus-visible')) goToStop(Number(stop.dataset.stop), true);
+    });
+  }
+
+  window.addEventListener('resize', () => { if ($('#mapview')) applyCam(false); });
 
   // ---------- Routing and rendering ----------
 
@@ -827,6 +986,10 @@
       else a.removeAttribute('aria-current');
     });
     document.title = tab.charAt(0).toUpperCase() + tab.slice(1) + ' · Student companion prototype';
+    if (tab === 'map') {
+      if (opts.navigated) { mapCam.ready = false; mapSelected = -1; }
+      initMap();
+    }
     if (opts.navigated) {
       view.classList.remove('enter');
       void view.offsetWidth; // restart the entrance animation
@@ -899,7 +1062,18 @@
 
   view.addEventListener('click', (e) => {
     const pick = e.target.closest('[data-map]');
-    if (pick) { mapKind = pick.dataset.map; render(); return; }
+    if (pick) { mapKind = pick.dataset.map; mapSelected = -1; mapCam.ready = false; render(); return; }
+    const stop = e.target.closest('[data-stop]');
+    if (stop) { selectStop(Number(stop.dataset.stop)); return; }
+    const zoom = e.target.closest('[data-zoom]');
+    if (zoom) {
+      const frame = $('#mapview');
+      const how = zoom.dataset.zoom;
+      if (how === 'fit') showAll(true);
+      else if (how === 'here') { mapCam.k = 1; selectStop(mapStops.findIndex((x) => x.kind === 'now')); }
+      else zoomAt(mapCam.k * (how === 'in' ? 1.3 : 1 / 1.3), frame.clientWidth / 2, frame.clientHeight / 2, true);
+      return;
+    }
     const add = e.target.closest('[data-add-food]');
     if (!add) return;
     const item = D.food.quickAdd[Number(add.dataset.addFood)];
