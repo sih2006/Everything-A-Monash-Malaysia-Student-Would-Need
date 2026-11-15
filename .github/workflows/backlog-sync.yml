@@ -1,0 +1,32 @@
+# Keeps the GitHub issues in step with the product backlog.
+# Runs when the backlog file changes on main, or when started by hand from the Actions tab.
+name: Sync backlog to issues
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/01-requirements/product-backlog.md
+      - tools/backlog_sync.py
+  workflow_dispatch:
+
+# Only what the job needs: read the files, write issues.
+permissions:
+  contents: read
+  issues: write
+
+# Two syncs at the same time could create the same issue twice, so they run one after another.
+concurrency:
+  group: backlog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy the backlog to issues
+        run: python3 tools/backlog_sync.py
+        env:
+          GH_TOKEN: ${{ github.token }}
