@@ -50,7 +50,7 @@
   const mascot = (tint, name, large) =>
     `<span class="mascot ${large ? 'lg' : ''} ${tint}" role="img" aria-label="Space for ${esc(name)} art"></span>`;
   const mood = (tint, name, moodText) => `
-    <div class="mood">
+    <div class="mood ${tint}">
       ${mascot(tint, name, true)}
       <div><strong>${esc(name)}</strong><span>Mood: ${esc(moodText)}</span><small>Art to come</small></div>
     </div>`;
@@ -202,15 +202,15 @@
     ];
 
     return `
-      <section class="hero">
+      <section class="hero scallop">
         <div class="hero-copy">
-          <p class="eyebrow">Good evening, ${esc(D.student.name)} · ${esc(D.term.name)} · Week ${D.term.week} of ${D.term.weeks}</p>
-          <h1>${headline}</h1>
+          <h1>${headline.replace('on course', '<em>on course</em>')}</h1>
           <p class="lede">${esc(lede)}</p>
           <div class="row">
-            <a class="btn primary" href="#grades">Open grades</a>
-            <a class="btn quiet" href="#budget">Open budget</a>
+            <a class="btn primary" href="#map">See your map</a>
+            <a class="btn quiet" href="#grades">Open grades</a>
           </div>
+          <p class="when">${esc(D.term.name)} · week ${D.term.week} of ${D.term.weeks}</p>
         </div>
         <figure class="hero-art">
           <div class="slot" role="img" aria-label="Space for penguin egg art">Penguin egg art goes here</div>
@@ -218,9 +218,9 @@
         </figure>
       </section>
 
-      <section class="grid wide" aria-label="Today at a glance">
+      <section class="petals" aria-label="Today at a glance">
         ${modules.map((m) => `
-          <a class="card module" href="#${m.tab}">
+          <a class="petal ${m.tint}" href="#${m.tab}">
             <div class="card-head">${mascot(m.tint, m.name)}${m.chip}</div>
             <h2>${m.title}</h2>
             <div class="big">${m.big}</div>
@@ -333,7 +333,7 @@
         ${mood('t-grades', 'Penguin egg', eggMood)}
       </div>
 
-      <section class="grid" aria-label="Overall results">
+      <section class="grid stats" aria-label="Overall results">
         <div class="card">
           <div class="label">GPA this semester, projected</div>
           <div class="big">${g(f2(gs.semGpa))}</div>
@@ -351,7 +351,7 @@
         </div>
       </section>
 
-      <section class="banner ${goalGap >= 0 ? 'good' : 'warn'}">
+      <section class="banner scallop ${goalGap >= 0 ? 'good' : 'warn'}">
         <h2>Final goal: ${D.goal.measure} ${g(f2(D.goal.value))} by graduation</h2>
         <p>You need an average GPA of ${g(f2(gs.goalNeed))} across your remaining ${gs.unitsLeft} units, so that is your default target this semester.
         ${hidden ? '' : goalGap >= 0 ? 'You are projected to meet it.' : `You are projected to fall ${f2(-goalGap)} short.`}</p>
@@ -391,7 +391,7 @@
         ${mood('t-budget', 'Crab', bs.mood)}
       </div>
 
-      <section class="grid" aria-label="Month so far">
+      <section class="grid stats" aria-label="Month so far">
         <div class="card">
           <div class="label">Spent</div>
           <div class="big">${rm(bs.spent)}</div>
@@ -409,7 +409,7 @@
         </div>
       </section>
 
-      <section class="banner ${bs.tone}">
+      <section class="banner scallop ${bs.tone}">
         <h2>${bs.verdict}</h2>
         <p>${Math.round(bs.monthPct)}% of the month has passed and ${Math.round(bs.spentPct)}% of your limit is spent.</p>
         ${bar(bs.spentPct, bs.tone, bs.monthPct)}
@@ -461,8 +461,6 @@
   function viewFood() {
     const f = D.food;
     const fs = foodSummary();
-    const r = 58, c = 2 * Math.PI * r;
-    const filled = clamp(fs.kcal / f.targetKcal, 0, 1) * c;
     const proteinPct = fs.protein / f.targetProtein * 100;
     return `
       <div class="page-head">
@@ -476,19 +474,9 @@
       <section class="grid wide" aria-label="Today so far">
         <div class="card">
           <div class="card-head"><h2>Calories</h2>${chip(fs.verdict, fs.tone)}</div>
-          <div class="ring">
-            <svg viewBox="0 0 148 148" role="img" aria-label="${num(fs.kcal)} of ${num(f.targetKcal)} kcal eaten">
-              <circle class="trk" cx="74" cy="74" r="${r}"/>
-              <circle class="val" cx="74" cy="74" r="${r}" transform="rotate(-90 74 74)" stroke-dasharray="${filled} ${c}"/>
-              <text x="74" y="76">${num(fs.kcal)}</text>
-              <text class="unit" x="74" y="96">kcal eaten</text>
-            </svg>
-            <div>
-              <div class="label">${fs.over ? 'Over by' : 'Left for today'}</div>
-              <div class="big">${num(Math.abs(fs.left))} kcal</div>
-              <p class="note">${Math.round(fs.kcal / f.targetKcal * 100)}% of your target</p>
-            </div>
-          </div>
+          <div class="big">${num(fs.kcal)} kcal</div>
+          ${bar(fs.kcal / f.targetKcal * 100, fs.over ? 'warn' : '')}
+          <p class="note">${fs.over ? `Over your ${num(f.targetKcal)} kcal target by ${num(-fs.left)}` : `${num(fs.left)} kcal left of ${num(f.targetKcal)}`}</p>
         </div>
         <div class="card">
           <div class="card-head"><h2>Protein</h2>${chip(fs.proteinLeft > 0 ? 'Short so far' : 'Target reached', fs.proteinLeft > 0 ? 'warn' : 'good')}</div>
@@ -552,7 +540,7 @@
         ${mood('t-health', 'No mascot yet', 'not designed')}
       </div>
 
-      <section class="grid" aria-label="Today">
+      <section class="grid stats" aria-label="Today">
         <div class="card">
           <div class="card-head"><div class="label">Steps today</div>${chip(hs.stepsOk ? 'Target reached' : 'Behind', hs.stepsOk ? 'good' : 'warn')}</div>
           <div class="big">${num(hs.steps)}</div>
@@ -596,9 +584,128 @@
       </section>`;
   }
 
+  // ---------- The map: how every task leads to the final goal ----------
+
+  // Outline for the goal: a circle with soft petals around the edge, like a flower.
+  const FLOWER = (() => {
+    const points = [];
+    for (let i = 0; i < 120; i++) {
+      const angle = i / 120 * Math.PI * 2;
+      const radius = 45 + 5 * Math.cos(angle * 10);
+      points.push(`${(50 + radius * Math.cos(angle)).toFixed(1)}% ${(50 + radius * Math.sin(angle)).toFixed(1)}%`);
+    }
+    return `polygon(${points.join(',')})`;
+  })();
+
+  // The curved line between two stops. `from` and `to` are positions across the map, in percent.
+  const trail = (from, to, walked) => `
+    <svg class="trail ${walked ? 'walked' : ''}" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M${from} 0 C${from} 22, ${to} 18, ${to} 40"/>
+    </svg>`;
+
+  function viewMap() {
+    const gs = gradeSummary();
+    const total = D.student.totalUnits;
+    const finished = D.past.reduce((n, t) => n + t.units.length, 0);
+
+    const stops = [];
+    D.past.forEach((t) => stops.push({ kind: 'done', term: t }));
+    stops.push({ kind: 'now' });
+    D.futureTerms.forEach((name) => stops.push({ kind: 'ahead', name }));
+    stops.push({ kind: 'goal' });
+
+    // Stops swing left and right along the path. "Now" and the goal sit in the middle.
+    let side = 25;
+    stops.forEach((stop) => {
+      if (stop.kind === 'now' || stop.kind === 'goal') { stop.at = 50; return; }
+      stop.at = side;
+      side = side === 25 ? 75 : 25;
+    });
+
+    const nowIndex = D.past.length;
+
+    const task = (s) => {
+      const state = s.onCourse ? chip('On course', 'good') : s.possible ? chip('Not realistic', 'warn') : chip('Out of reach', 'warn');
+      return `
+        <div class="task">
+          <div class="head"><strong>${esc(s.u.code)}</strong>${state}</div>
+          <ol class="steps">
+            ${s.u.assessments.map((a) => a.mark !== null
+              ? `<li>${esc(a.name)}${hidden ? '' : ' · ' + a.mark + '%'}</li>`
+              : `<li class="todo">${esc(a.name)}${hidden ? '' : s.possible ? ' · need ' + pct(s.need) : ' · target out of reach'}</li>`).join('')}
+          </ol>
+          <p class="note">Leads to your ${g(s.u.target.grade)} target in this unit.</p>
+        </div>`;
+    };
+
+    const stopHtml = (stop, i) => {
+      if (stop.kind === 'done') {
+        const gpa = f2(gpaOf(stop.term.units));
+        return `
+          <div class="stop at-${stop.at}">
+            <div class="pin done" aria-hidden="true">${hidden ? '···' : gpa}</div>
+            <div class="about"><strong>${esc(stop.term.term)}</strong>
+              <span class="note">Finished · GPA ${g(gpa)} · ${stop.term.units.length} units</span></div>
+          </div>`;
+      }
+      if (stop.kind === 'now') {
+        return `
+          <div class="stop at-50">
+            <div class="pin now"><span>You are here</span></div>
+            <div class="here">
+              <div>
+                <h2>${esc(D.term.name)}, week ${D.term.week} of ${D.term.weeks}</h2>
+                <p class="note">Projected GPA ${g(f2(gs.semGpa))}. Your default target is ${g(f2(gs.goalNeed))}. Filled steps are done. Dashed steps are still to do.</p>
+              </div>
+              ${gs.stats.map(task).join('')}
+            </div>
+          </div>`;
+      }
+      if (stop.kind === 'ahead') {
+        return `
+          <div class="stop at-${stop.at}">
+            <div class="pin" aria-hidden="true">${i + 1}</div>
+            <div class="about"><strong>${esc(stop.name)}</strong>
+              <span class="note">${D.units.length} units · aim for GPA ${g(f2(gs.goalNeed))}</span></div>
+          </div>`;
+      }
+      return `
+        <div class="stop at-50">
+          <div class="pin goal" style="clip-path:${FLOWER}">
+            <div class="core"><span>${D.goal.measure}</span><b>${hidden ? '···' : f2(D.goal.value)}</b><span>your goal</span></div>
+          </div>
+          <div class="about" style="text-align:center; align-items:center">
+            <strong>Graduation</strong>
+            <span class="note">Your final goal. Goals after graduation, such as a master's, can be added here later.</span>
+          </div>
+        </div>`;
+    };
+
+    return `
+      <div class="page-head">
+        <div class="text">
+          <h1 class="page-title">Map</h1>
+          <p class="sub">How every task leads to your final goal.</p>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="chain" aria-label="How a task reaches your goal">
+          <span>Assessment</span>${ARROW}<span>Unit grade</span>${ARROW}<span>Semester GPA</span>${ARROW}<span>CGPA</span>${ARROW}<span>Final goal</span>
+        </div>
+        <p>${finished} of ${total} units finished. One grade step in one unit moves your final CGPA by about ${f2(1 / total)}.</p>
+        ${bar(finished / total * 100)}
+      </section>
+
+      <ol class="map" aria-label="Your path to graduation">
+        ${stops.map((stop, i) => `
+          <li>${i === 0 ? '' : trail(stops[i - 1].at, stop.at, i <= nowIndex)}${stopHtml(stop, i)}</li>`).join('')}
+      </ol>`;
+  }
+
   // ---------- Routing and rendering ----------
 
-  const VIEWS = { home: viewHome, grades: viewGrades, budget: viewBudget, food: viewFood, health: viewHealth };
+  const VIEWS = { home: viewHome, map: viewMap, grades: viewGrades, budget: viewBudget, food: viewFood, health: viewHealth };
   const view = $('#view');
   const currentTab = () => {
     const tab = location.hash.replace('#', '');

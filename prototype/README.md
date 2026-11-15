@@ -9,6 +9,7 @@ Open `index.html` in a browser. There is nothing to install.
 ## What you can try
 
 - **Home:** a summary of the week and a list of things that need attention.
+- **Map:** a path that shows how each task leads to your final goal.
 - **Grades:** GPA, CGPA and WAM, your final goal, and each unit with two verdicts (possible, realistic). Move the slider to see your final mark for any exam score.
 - **Budget:** add spending and watch the totals change.
 - **Food:** tap a food to log it.

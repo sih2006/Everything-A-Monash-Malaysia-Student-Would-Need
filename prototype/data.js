@@ -97,6 +97,9 @@ window.FAKE = {
     }
   ],
 
+  // Semesters still to come, used by the map.
+  futureTerms: ['Semester 2, 2027', 'Semester 1, 2028', 'Semester 2, 2028'],
+
   budget: {
     month: 'November', day: 21, days: 30, limit: 1300,
     categories: [
