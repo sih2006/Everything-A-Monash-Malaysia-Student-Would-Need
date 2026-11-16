@@ -43,6 +43,7 @@ async function start(options = {}) {
 
   // Calls the API and returns { status, body }.
   async function call(method, address, body, headers = {}) {
+    if (method !== 'GET' && body === undefined) body = {};      // every change is sent as JSON, like the web app does
     const response = await fetch(base + address, {
       method,
       headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
@@ -53,7 +54,7 @@ async function start(options = {}) {
     try { parsed = JSON.parse(text); } catch { /* not JSON: keep the text */ }
     return { status: response.status, body: parsed, headers: response.headers };
   }
-  return { call, store, close: () => new Promise((resolve) => server.close(resolve)) };
+  return { call, store, base, close: () => new Promise((resolve) => server.close(resolve)) };
 }
 
 // Adds the unit used in several tests: earned 28.7 of 40, average 71.75%.
@@ -321,6 +322,15 @@ describe('the whole app', () => {
     assert.equal((await app.call('POST', '/api/units', '[1,2]')).status, 400);
     assert.equal((await app.call('POST', '/api/units', JSON.stringify({ code: 'A1', name: 'x'.repeat(70000) }))).status, 413);
     assert.equal((await app.call('DELETE', '/api/assessments/abc')).status, 404);
+  });
+
+  test('a change that is not sent as JSON is refused, so a form on another site cannot make one', async () => {
+    const base = (await app.call('GET', '/api/status')).body.ok && app.base;
+    for (const type of ['text/plain', 'application/x-www-form-urlencoded', undefined]) {
+      const response = await fetch(`${base}/api/demo`, { method: 'POST', headers: type ? { 'Content-Type': type } : {}, body: '{}' });
+      assert.equal(response.status, 415, String(type));
+    }
+    assert.equal((await app.call('GET', '/api/status')).body.empty, true);     // nothing was loaded
   });
 
   test('the web page is served with strict browser headers', async () => {

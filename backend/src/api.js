@@ -420,7 +420,15 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       const found = router.find(req.method, url.pathname);
       if (found === 'wrong-method') throw new HttpError(405, 'wrong_method', `That address does not support ${req.method}.`);
       if (!found) throw new HttpError(404, 'not_found', 'There is nothing at that address.');
-      const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ? await readJson(req, found.handler.limit) : {};
+      let body = {};
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+        // Every change must say it is JSON. A form on another website cannot send that header,
+        // so a page the user happens to visit cannot change the data behind their back.
+        if (!(req.headers['content-type'] ?? '').startsWith('application/json')) {
+          throw new HttpError(415, 'not_json', 'Changes must be sent as JSON.');
+        }
+        body = await readJson(req, found.handler.limit);
+      }
       const result = await found.handler.handler({ params: found.params, query: url.searchParams, body });
       sendJson(res, 200, result);
     } catch (error) {
