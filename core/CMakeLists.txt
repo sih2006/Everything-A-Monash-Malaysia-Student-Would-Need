@@ -38,5 +38,14 @@ file(GLOB TRACKER_TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
 add_executable(tracker_tests ${TRACKER_TEST_SOURCES})
 target_link_libraries(tracker_tests PRIVATE tracker_lib)
 
+# On Windows with MinGW, build the programs with the C++ library inside them.
+# - tracker.exe then runs anywhere, without needing extra DLL files next to it.
+# - The leak check in the tests counts every allocation, and it can only do
+#   that when the C++ library's own allocations go through the test program.
+if(MINGW)
+  target_link_options(tracker PRIVATE -static)
+  target_link_options(tracker_tests PRIVATE -static)
+endif()
+
 enable_testing()
 add_test(NAME unit_tests COMMAND tracker_tests)
