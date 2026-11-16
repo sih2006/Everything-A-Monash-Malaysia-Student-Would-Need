@@ -26,3 +26,9 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# App data: the local database and terminal save files hold personal data
+backend/data/
+tracker-data.tsv
+*.tsv.bak
+*.tsv.new

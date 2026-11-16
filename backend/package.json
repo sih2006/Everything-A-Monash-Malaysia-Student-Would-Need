@@ -1,0 +1,15 @@
+{
+  "name": "student-companion-backend",
+  "version": "0.1.0",
+  "description": "Local backend for the student companion app. No packages to install: it uses only what comes with Node.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "seed": "node src/seed.js",
+    "test": "node --test"
+  }
+}
