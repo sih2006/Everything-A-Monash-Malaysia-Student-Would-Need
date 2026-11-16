@@ -46,9 +46,13 @@ function draw(state, info = {}) {
   if (state.loading) return;
 
   if (state.loadError) {
-    view.innerHTML = `<section class="card empty"><h1 class="page-title">The app could not start</h1><p>${esc(state.loadError)}</p>
-      <p class="note">Start the server with <code>node backend/src/server.js</code>, then reload this page.</p>
-      ${state.loadError.includes('locked') ? `<form class="form" data-token><div class="field"><label>Access token<input name="token" type="password" required></label></div><button class="btn primary" type="submit">Unlock</button></form>` : ''}</section>`;
+    const locked = state.loadError.includes('locked');
+    view.innerHTML = locked
+      ? `<section class="card empty"><h1 class="page-title">This app is locked</h1>
+          <p>Enter the access token that was set when the server was started.</p>
+          <form class="form" data-token><div class="field"><label>Access token<input name="token" type="password" autocomplete="current-password" required></label></div><button class="btn primary" type="submit">Unlock</button></form></section>`
+      : `<section class="card empty"><h1 class="page-title">The app could not start</h1><p>${esc(state.loadError)}</p>
+          <p class="note">Start the server with <code>node backend/src/server.js</code>, then reload this page.</p></section>`;
     return;
   }
   // A failed command only updates the message. The screen is left alone, so nothing the user typed is lost.
