@@ -37,7 +37,7 @@ The terminal program: `core/build/tracker` (on Windows: `core\build\tracker.exe`
 python tools/check.py
 ```
 
-This builds the core and runs all 184 tests. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt), and screenshots of every screen are in [docs/proofs/screens/](docs/proofs/screens/).
+This builds the core and runs all 185 tests. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt), and screenshots of every screen are in [docs/proofs/screens/](docs/proofs/screens/).
 
 ## How it is built
 

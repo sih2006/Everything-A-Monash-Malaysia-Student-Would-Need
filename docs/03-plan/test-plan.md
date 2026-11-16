@@ -130,6 +130,8 @@ On 16 and 17 November 2026, in Chromium at 1360 px and 390 px wide, with no erro
 | Reload: everything is still there | Pass |
 | Every screen at phone width has no sideways scroll | Pass |
 | The map: drag, zoom buttons, picking a stop | Pass in the prototype. In the real app only by synthetic events |
+| With an access token set: the app shows a locked screen, refuses a wrong token and opens with the right one | Pass |
+| With the server stopped: the screens still open from the offline copy, with a clear message. 13 files are kept; no API answer is | Pass |
 
 Screenshots: [docs/proofs/screens/](../proofs/screens/).
 
