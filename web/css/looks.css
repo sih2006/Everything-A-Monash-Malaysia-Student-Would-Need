@@ -1,0 +1,142 @@
+/*
+ * The other looks. The default look ("tropical print") lives in styles.css.
+ * Each look below only changes the tokens (colours, fonts, corner shapes)
+ * and a few shapes. The layout and the screens stay the same.
+ *
+ * Some shape rules use !important. That is on purpose: a look must win over
+ * the shape rules of the default look, wherever they are written.
+ */
+
+/* ============================================================
+   Sticker book: warm and playful. Blobs, round stickers, tilts.
+   ============================================================ */
+
+[data-look="sticker"] {
+  --bg: #F1EAFF; --surface: #FFFFFF; --ink: #2A1438; --muted: #5B4A6B; --line: #D9CCF2; --track: #E4D9F7;
+  --hibiscus: #E4572E; --jungle: #5B21B6; --mango: #FFC93C;
+  --accent: #5B21B6; --action: #5B21B6; --on-action: #FFFFFF;
+  --mark: #6D4AE8; --mark-warn: #E4572E;
+  --good-bg: #C9F2DC; --good-fg: #0F5132; --warn-bg: #FFD9C7; --warn-fg: #8A2A0B;
+  --hero-bg: #2A1438; --hero-soft: #E6DAF5;
+  --tint-grades: #DCCFFF; --tint-budget: #FFD9C7; --tint-food: #C9F2DC; --tint-health: #FFEBA3; --tint-map: #FFD6EC;
+  --sunset: linear-gradient(135deg, #FF7A3D 0%, #FF4F8B 50%, #B692FF 100%);
+  --lagoon: linear-gradient(160deg, #5EE0B0 0%, #FFD23F 100%);
+  --leaf: 34px 46px 38px 50px / 46px 34px 50px 38px;
+  --leaf-flip: 46px 34px 50px 38px / 34px 46px 38px 50px;
+  --display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --body: 'Figtree', system-ui, sans-serif;
+}
+[data-look="sticker"][data-theme="dark"] {
+  --bg: #1C0F26; --surface: #2A1838; --ink: #F8EFFF; --muted: #C9B8DA; --line: #44305A; --track: #3A2850;
+  --hibiscus: #FF8A5C; --jungle: #8B6CF0;
+  --accent: #C4A7FF; --action: #C4A7FF; --on-action: #1C0F26;
+  --mark: #8B6CF0; --mark-warn: #DD6238;
+  --good-bg: #174A33; --good-fg: #C9F2DC; --warn-bg: #5A2A16; --warn-fg: #FFD9C7;
+  --hero-bg: #150A1E;
+  --tint-grades: #3A2A66; --tint-budget: #5A2A16; --tint-food: #174A33; --tint-health: #5A4A0A; --tint-map: #5A1F45;
+  --shadow: none;
+}
+[data-look="sticker"] :is(h1, h2, .brand, .big, .mid) { font-weight: 800; letter-spacing: -0.02em; word-spacing: 0; }
+[data-look="sticker"] .hero { border-radius: 56px 56px 0 0; }
+[data-look="sticker"] :is(.hero::before, .hero::after) { border-radius: 50%; }
+[data-look="sticker"] .grid.stats > .card { border-radius: 46% 54% 52% 48% / 54% 46% 54% 46% !important; padding: 44px var(--s5) !important; }
+[data-look="sticker"] .grid.stats > .card:nth-child(odd) { rotate: -1.5deg; }
+[data-look="sticker"] .grid.stats > .card:nth-child(even) { rotate: 1.5deg; }
+[data-look="sticker"] .petal { border-radius: 60px 80px 64px 84px / 80px 60px 84px 64px !important; }
+[data-look="sticker"] .petal:nth-child(odd) { rotate: -1deg; }
+[data-look="sticker"] .petal:nth-child(even) { rotate: 1deg; }
+[data-look="sticker"] :is(.nav a, .seg button, .mood) { border-radius: 999px !important; }
+[data-look="sticker"] :is(.whatif, .here, .quick button) { border-radius: 30px 38px 32px 40px / 38px 30px 40px 32px !important; }
+[data-look="sticker"] .mascot { border-radius: 50%; }
+[data-look="sticker"] .chip:not(.warn)::before { border-radius: 50%; }
+
+/* ============================================================
+   Night market: a pasar malam at night. Tickets, arches, signs.
+   Always dark.
+   ============================================================ */
+
+[data-look="market"] {
+  --bg: #062A2C; --surface: #0B3A3D; --ink: #FFF6E0; --muted: #A9CFCB; --line: #1D5357; --track: #154548;
+  --hibiscus: #FF3D8B; --jungle: #19B5A5; --mango: #FFC233;
+  --accent: #FFC233; --action: #FF3D8B; --on-action: #1A0410;
+  --mark: #12A5B3; --mark-warn: #F0468A;
+  --good-bg: #0F4F4A; --good-fg: #BFF5EC; --warn-bg: #5A1238; --warn-fg: #FFD0E3;
+  --hero-bg: #041F21; --hero-soft: #CFE8E4;
+  --tint-grades: #0F4F4A; --tint-budget: #5A1238; --tint-food: #2F4A0A; --tint-health: #5A4206; --tint-map: #3A2A66;
+  --sunset: linear-gradient(135deg, #FF3D8B 0%, #FFC233 55%, #B6F23C 100%);
+  --lagoon: linear-gradient(160deg, #19D3C5 0%, #B6F23C 100%);
+  --shadow: none;
+  --leaf: 14px; --leaf-flip: 14px;
+  --display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --body: 'Barlow', system-ui, sans-serif;
+}
+[data-look="market"] :is(h1, h2, .brand) { text-transform: uppercase; font-weight: 800; letter-spacing: 0.02em; word-spacing: 0.04em; }
+[data-look="market"] :is(.big, .mid) { font-weight: 800; letter-spacing: 0.01em; word-spacing: 0; }
+[data-look="market"] .big { font-size: clamp(2.5rem, 5.4vw, 3.4rem); }
+[data-look="market"] .grid.stats .big { font-size: clamp(2.2rem, 4vw, 2.9rem); }
+[data-look="market"] h2 { font-size: 1.6rem; }
+[data-look="market"] .page-title { font-size: clamp(2.8rem, 6vw, 4rem); }
+[data-look="market"] .hero { border-radius: 16px 16px 0 0; }
+[data-look="market"] .hero h1 { font-size: clamp(2.9rem, 6.6vw, 4.8rem); line-height: 0.98; }
+/* Neon sign glow. */
+[data-look="market"] .hero h1 em { text-shadow: 0 0 22px rgba(255, 194, 51, 0.55); }
+[data-look="market"] .btn.primary:not(.hero .btn) { box-shadow: 0 0 24px rgba(255, 61, 139, 0.5); }
+[data-look="market"] :is(.hero::before, .hero::after) { border-radius: 50%; }
+/* Number tiles are tickets with a notch on each side. */
+[data-look="market"] .grid.stats > .card {
+  border-radius: 16px !important; padding: var(--s6) var(--s5) !important;
+  -webkit-mask:
+    radial-gradient(circle 14px at left center, transparent 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 14px at right center, transparent 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 14px at left center, transparent 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 14px at right center, transparent 97%, #000) right / 51% 100% no-repeat;
+}
+/* Home cards are arches, like stall fronts. */
+[data-look="market"] .petal { border-radius: 50% 50% 16px 16px / 120px 120px 16px 16px !important; padding-top: 72px; }
+[data-look="market"] :is(.nav a, .seg button, .whatif, .here, .quick button, .mood) { border-radius: 10px !important; }
+[data-look="market"] .mascot { border-radius: 50% 50% 8px 8px / 60% 60% 8px 8px; }
+[data-look="market"] .chip { border-radius: 6px; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.8rem; }
+[data-look="market"] .chip:not(.warn)::before { border-radius: 50%; }
+
+/* ============================================================
+   Classic: the first, quiet look. Navy and blue, plain corners.
+   ============================================================ */
+
+[data-look="classic"] {
+  --bg: #F3F6FA; --surface: #FFFFFF; --ink: #0F1C2E; --muted: #47566B; --line: #D5DDE8; --track: #E6EBF2;
+  --hibiscus: #1D4ED8; --jungle: #0F1C2E; --mango: #A9C7FF;
+  --accent: #1D4ED8; --action: #1D4ED8; --on-action: #FFFFFF;
+  --mark: #1D4ED8; --mark-warn: #B4410E;
+  --good-bg: #E3ECFF; --good-fg: #1A3FB0; --warn-bg: #FDEBDD; --warn-fg: #8F3208;
+  --hero-bg: #0F1C2E; --hero-soft: #D7E3F5;
+  --tint-grades: #DCE8FF; --tint-budget: #FFE1D2; --tint-food: #DDF1E4; --tint-health: #ECE4FB; --tint-map: #E3ECFF;
+  --sunset: linear-gradient(135deg, #1D4ED8 0%, #6F9DFF 100%);
+  --lagoon: linear-gradient(160deg, #1D4ED8 0%, #6F9DFF 100%);
+  --leaf: 20px; --leaf-flip: 20px;
+  --display: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+}
+[data-look="classic"][data-theme="dark"] {
+  --bg: #0B1422; --surface: #132033; --ink: #EEF3FA; --muted: #A9B6C9; --line: #2A3B54; --track: #22324A;
+  --jungle: #6F9DFF;
+  --accent: #8FB4FF; --action: #8FB4FF; --on-action: #0B1422;
+  --mark: #4F83E8; --mark-warn: #D9703C;
+  --good-bg: #1B2F55; --good-fg: #C5D8FF; --warn-bg: #4A2412; --warn-fg: #FFD2B8;
+  --hero-bg: #16294A;
+  --tint-grades: #1B2F55; --tint-budget: #4A2412; --tint-food: #173A28; --tint-health: #2D2350; --tint-map: #1B2F55;
+  --shadow: none;
+}
+[data-look="classic"] :is(h1, h2, .brand, .big, .mid) { letter-spacing: -0.01em; word-spacing: 0; }
+[data-look="classic"] :focus-visible { outline-color: var(--accent); }
+[data-look="classic"] .hero { border-radius: 28px; background: var(--hero-bg); }
+[data-look="classic"] :is(.hero::before, .hero::after) { display: none; }
+[data-look="classic"] .hero h1 em { text-decoration: none; }
+[data-look="classic"] .scallop { -webkit-mask: none; mask: none; padding-bottom: var(--s6) !important; }
+[data-look="classic"] .banner { border-radius: 20px; }
+[data-look="classic"] .page-title { text-decoration: none; padding-bottom: 0; }
+[data-look="classic"] :is(.petal, .grid.stats > .card, .whatif, .here, .quick button, .mood) { border-radius: 20px !important; }
+[data-look="classic"] :is(.nav a, .seg button, .mascot) { border-radius: 12px !important; }
+[data-look="classic"] .pin.goal { clip-path: none !important; border-radius: 50%; }
+[data-look="classic"] .chip:not(.warn)::before { border-radius: 50%; }
+[data-look="classic"] .list li { border-bottom-style: solid; }

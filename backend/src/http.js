@@ -68,13 +68,15 @@ export async function readJson(req, limitBytes) {
 }
 
 // Headers that make the browser stricter. The page may only load its own files,
-// plus the fonts from Google Fonts.
+// plus the fonts from Google Fonts. Scripts written into the page are blocked,
+// which is the main defence if text typed by a user were ever shown unescaped.
+// style="" attributes are allowed because the charts and the map set sizes and positions with them.
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'X-Frame-Options': 'DENY',
   'Content-Security-Policy':
-    "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 };
 
 export function sendJson(res, status, body) {
