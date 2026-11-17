@@ -1,0 +1,13 @@
+{
+  "name": "Student companion",
+  "short_name": "Companion",
+  "description": "Grades, budget, food and health for one Monash Malaysia student.",
+  "lang": "en-MY",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#E1F0EA",
+  "theme_color": "#12362D",
+  "icons": []
+}

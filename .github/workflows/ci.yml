@@ -1,0 +1,51 @@
+# Builds everything and runs every test on each push and pull request.
+# A pull request should not be merged while this is red.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless, so it is stopped.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # A key committed by mistake must fail the build. Google API keys start with "AIza".
+      - name: No secrets in the repository
+        run: |
+          if git grep -nE 'AIza[0-9A-Za-z_-]{35}' -- . ':!.github/workflows/ci.yml'; then
+            echo "A Google API key is committed. Remove it and make a new key."
+            exit 1
+          fi
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "A .env file is committed. It must stay out of the repository."
+            exit 1
+          fi
+
+      # First build: with memory checkers. Any leak, use-after-free or overflow fails the tests.
+      - name: Core tests with address and undefined-behaviour checks
+        run: |
+          cmake -S core -B core/build-checked -DCMAKE_BUILD_TYPE=Debug -DTRACKER_SANITIZE=ON
+          cmake --build core/build-checked --parallel
+          ./core/build-checked/tracker_tests
+          python3 core/tests/blackbox.py core/build-checked/tracker
+
+      # Second build: the normal one, used by the backend. tools/check.py builds it and runs all five test suites.
+      - name: Build and run every test suite
+        run: python3 tools/check.py

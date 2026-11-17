@@ -9,6 +9,21 @@ No application code exists yet, so code-level principles are Planned, and the cl
 
 **Status of this document:** In review.
 
+> **Note added on 17 November 2026: parts of this document are out of date.** It was written when the plan was Expo with TypeScript on AWS. The app was then built differently, in one day:
+>
+> | This document says | What was built |
+> |---|---|
+> | The core is pure TypeScript | The grade core is C++17 ([ADR-0001](adr/0001-cpp-core-for-academics-tracker.md)) |
+> | React components with a state library | A web app with no framework, MVVM by hand ([ADR-0003](adr/0003-web-app-without-a-build-step.md)) |
+> | AWS Lambda, DynamoDB, Cognito, CDK | A local Node backend with SQLite. AWS is not built ([ADR-0002](adr/0002-local-first-stack.md), [ADR-0005](adr/0005-hosting.md)) |
+> | Offline-first with sync | Not built. The screens open offline; the data needs the server |
+> | Grades use HD 4, D 3, C 2, P 1, N 0 | Two scales, both different from that ([ADR-0004](adr/0004-grade-scales-and-rules.md)) |
+> | `GradingScheme`, `MoodRule`, `AdviceProvider`, `HealthSource` interfaces | Only the grade scale is swappable (as data). The AI helper is swappable by handing a different object to the app. The others were not needed and were not built. |
+>
+> The principles themselves still hold, and most are now **Applied** with evidence: layered design, MVVM, pure functions for rules, repository, dependency injection, a composition root, checks at the edge, the test pyramid, black-box test design, least data to the AI, secrets out of the repository. Where each one shows in the code is listed in the [technical design](02-design/trd.md) and the [UML set](02-design/uml.md#7-patterns-used-and-where).
+>
+> Updating every entry below, one by one, is still to do. Until then, where this document and the code disagree, the code and the ADRs are right.
+
 ## Contents
 
 1. [Planning and requirements](#1-planning-and-requirements)

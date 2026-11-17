@@ -1,0 +1,67 @@
+/*
+ * Styles the real app needs on top of the prototype's styles.css and looks.css:
+ * the message bar, forms inside cards, folded sections and small buttons.
+ */
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+
+/* ---------- the message bar: "it worked" or "this went wrong" ---------- */
+
+.status {
+  position: sticky; top: 0; z-index: 15;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  margin: var(--s2) var(--s4) 0; padding: var(--s3) var(--s5);
+  border-radius: 999px; font-weight: 700; box-shadow: var(--shadow);
+  animation: rise 320ms var(--ease);
+}
+.status[hidden] { display: none; }
+.status.fine { background: var(--good-bg); color: var(--good-fg); }
+.status.bad { background: var(--warn-bg); color: var(--warn-fg); }
+.status .link { color: inherit; }
+@media (min-width: 960px) { .status { margin: var(--s4) var(--s7) 0; } }
+
+/* While a command runs, forms cannot be sent twice. */
+body.busy #view button, body.busy #view input, body.busy #view select { pointer-events: none; opacity: 0.7; }
+
+/* ---------- forms ---------- */
+
+.field label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 0.94rem; }
+.field label small { font-weight: 400; color: var(--muted); }
+.field input, .field select { font-weight: 400; font-size: 1rem; width: 100%; }
+.field input[type="file"] { padding: 10px var(--s4); border-radius: var(--radius-box, 16px); height: auto; }
+.field.tick label { flex-direction: row; align-items: center; gap: var(--s2); min-height: var(--tap); }
+.field.tick input { width: 22px; height: 22px; min-height: 0; accent-color: var(--action); }
+.form { align-items: end; }
+.form + .form { margin-top: var(--s3); }
+fieldset.form { border: 0; padding: var(--s3) 0; margin: 0; border-bottom: 1.5px dashed var(--line); }
+form.import { display: flex; flex-direction: column; gap: var(--s3); }
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.danger { background: var(--warn-fg); color: var(--warn-bg); }
+
+/* A button that looks like a link, for small actions such as "Remove". */
+.link {
+  background: none; border: 0; padding: 0 var(--s1); min-height: var(--tap);
+  font-weight: 700; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; cursor: pointer;
+}
+.link.danger { color: var(--warn-fg); }
+
+/* ---------- folded sections ---------- */
+
+.fold > summary { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+.fold[open] > summary { color: var(--ink); text-decoration: none; }
+.fold-body { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s2) 0 var(--s3); }
+
+/* ---------- lists with actions ---------- */
+
+.list li.stack { flex-direction: column; align-items: stretch; gap: 0; }
+.rowline { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--s3); }
+.list .end { display: inline-flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; justify-content: flex-end; }
+
+.card.empty { align-items: flex-start; }
+.plan { white-space: pre-wrap; background: var(--bg); border-radius: 28px 8px 28px 8px; padding: var(--s4) var(--s5); }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; background: var(--track); padding: 2px 6px; border-radius: 6px; }
+h3.label { margin-top: var(--s2); }
+.legend i.goal-dash { border-color: var(--mark-warn); }
+.linechart text { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+.linechart text.axis { stroke: none; }

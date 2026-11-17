@@ -1,0 +1,259 @@
+Check run on 2026-11-17, Windows AMD64
+
+=== Configure the C++ core ===
+$ cmake -S core -B core/build -G Ninja
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: C:/Users/ibrah/Downloads/EAMMWN/Everything-A-Monash-Malaysia-Student-Would-Need/core/build
+--> ok
+
+=== Build the C++ core ===
+$ cmake --build core/build
+[0/2] Re-checking globbed directories...
+ninja: no work to do.
+--> ok
+
+=== Core: white-box tests and leak check ===
+$ C:/Users/ibrah/Downloads/EAMMWN/Everything-A-Monash-Malaysia-Student-Would-Need/core/build/tracker_tests.exe
+ok    dyn_array_starts_empty
+ok    dyn_array_keeps_items_in_order
+ok    dyn_array_doubles_when_full
+ok    dyn_array_remove_closes_the_gap
+ok    dyn_array_copy_is_independent
+ok    dyn_array_move_takes_the_items
+ok    dyn_array_range_for_visits_everything
+ok    linked_list_starts_empty
+ok    linked_list_push_back_and_front
+ok    linked_list_remove_head_middle_tail
+ok    linked_list_single_item_remove_then_reuse
+ok    linked_list_find_gives_a_pointer_to_the_item
+ok    linked_list_sort_orders_the_items
+ok    linked_list_sort_is_stable
+ok    linked_list_sort_large
+ok    linked_list_copy_is_independent
+ok    hash_map_starts_empty
+ok    hash_map_put_find_replace
+ok    hash_map_erase
+ok    hash_map_grows_and_keeps_every_key
+ok    hash_map_handles_keys_in_the_same_bucket
+ok    hash_map_for_each_visits_every_pair_once
+ok    hash_map_copy_is_independent
+ok    hash_map_empty_key_and_long_key
+ok    split_tabs_keeps_empty_fields
+ok    parse_number_accepts_only_whole_numbers_text
+ok    load_reads_every_kind_of_line
+ok    save_then_load_gives_the_same_tracker
+ok    load_accepts_windows_line_endings_and_comments
+ok    a_damaged_file_reports_each_bad_line_and_keeps_the_good_ones
+ok    an_unknown_file_version_is_reported
+ok    empty_text_loads_as_an_empty_tracker
+ok    file_round_trip_keeps_a_backup
+ok    engine_report_has_the_worked_out_numbers
+ok    engine_report_lists_units_that_need_attention
+ok    engine_report_escapes_text_and_reports_errors
+ok    engine_report_for_an_empty_tracker
+ok    grade_boundaries
+ok    grade_names_round_trip
+ok    the_two_scales_are_different
+ok    year_level_weight_comes_from_the_first_digit
+ok    standing_with_no_marks
+ok    standing_earned_average_and_projection
+ok    target_possible_and_realistic
+ok    target_not_possible
+ok    target_possible_but_not_realistic
+ok    realistic_boundary_is_exactly_ten_points
+ok    target_secured
+ok    an_open_hurdle_stops_a_target_being_secured
+ok    a_failed_hurdle_fails_the_unit
+ok    marks_out_of_other_totals
+ok    a_unit_with_no_marks_uses_the_overall_average
+ok    with_nothing_to_compare_possible_is_enough
+ok    what_if_gives_the_final_mark_and_grade
+ok    what_if_below_the_hurdle
+ok    gpa_and_cgpa_for_equal_units
+ok    credit_points_weight_the_average
+ok    wam_counts_first_year_units_half
+ok    a_withdrawn_fail_counts_as_zero
+ok    totals_with_nothing_are_zero_not_a_crash
+ok    a_typed_grade_beats_the_mark
+ok    goal_cgpa_need_and_default_target
+ok    goal_gpa_uses_the_other_scale
+ok    goal_wam
+ok    goal_out_of_reach
+ok    goal_with_no_units_left
+ok    no_goal_set
+ok    units_are_checked
+ok    weights_cannot_pass_100
+ok    marks_are_checked
+ok    targets_results_and_goals_are_checked
+ok    sorted_codes_are_in_order
+
+72 of 72 tests passed, 464 checks, 0 leak(s)
+--> ok
+
+=== Core: black-box tests of the terminal program ===
+$ C:/msys64/mingw64/bin/python.exe core/tests/blackbox.py C:/Users/ibrah/Downloads/EAMMWN/Everything-A-Monash-Malaysia-Student-Would-Need/core/build/tracker.exe
+ok    ACA-01        EP  a valid unit is added and listed, with the code in capitals
+ok    ACA-01        EP  a unit code that already exists is rejected
+ok    ACA-01        BVA credit points of 0 are refused and asked for again
+ok    ACA-02        EP  a unit is found by part of its name; no match says so
+ok    ACA-03        EP  removing a unit needs the word yes
+ok    ACA-04        BVA weights may add up to exactly 100 but not more
+ok    ACA-05        BVA a mark above the marks available is refused; 17 out of 20 is 85%
+ok    ACA-05        EP  a mark can be corrected later
+ok    ACA-06        EP  each assessment shows as done or not done
+ok    ACA-07        EP  standing shows marks earned, the average and the grade it leads to
+ok    ACA-07        EP  a unit with no marks says so instead of showing 0
+ok    ACA-08        EP  a target can be set and removed
+ok    ACA-09        EP  the mark needed matches the hand-worked example: (70 - 28.7) / 60 = 68.8%
+ok    ACA-10        BVA needing 100% is possible; needing more is not
+ok    ACA-14        BVA realistic is exactly 10 points above the average, shown apart from possible
+ok    ACA-11        BVA a mark just under a hurdle fails the unit; a mark on the hurdle passes
+ok    ACA-15        EP  what-if gives the final mark and grade, and warns about a hurdle
+ok    ACA-16        EP  the attention list shows only units that are off course
+ok    ACA-16        EP  with nothing off course the list says so
+ok    GPA-01        BVA marks on each side of a grade edge get the right grade
+ok    GPA-02        EP  a finished unit is stored from its final result alone; a bad grade is refused
+ok    GPA-03/04/05  EP  GPA, CGPA and WAM match hand-worked numbers and are labelled apart
+ok    GPA-03        EP  with no results the overall screen says so
+ok    GPA-06/07     EP  a final goal gives the average needed and a default unit target
+ok    GPA-07        BVA a goal above the top of the scale is refused
+ok    GPA-08        EP  the path shows finished semesters, today's tasks, what is left and the goal
+ok    ACA-12        ST  everything typed is still there after closing and opening again
+ok    ACA-12        EP  a damaged file gives a clear message, keeps the good lines and is never wiped
+ok    ACA-12        EP  a missing file starts fresh with a message
+ok    ACA-13        EP  wrong menu choices and wrong answers never crash the program
+ok    ACA-13        EP  input that ends in the middle of a question is handled
+
+31 of 31 black-box tests passed, covering 23 story groups
+--> ok
+
+=== Backend: rules and API tests (uses the real engine) ===
+$ node --test
+▶ academics
+  ✔ an empty app gives an empty report, not an error (40.8656ms)
+  ✔ a unit is added with its code in capitals and comes back in the report (111.7369ms)
+  ✔ the same code twice is refused (2.1472ms)
+  ✔ bad input is refused with a message that names the field (6.4445ms)
+  ✔ setting a target gives the mark needed and both verdicts (22.4434ms)
+  ✔ the engine decides what is valid: weights above 100% are refused and nothing is stored (44.177ms)
+  ✔ a mark above the marks available is refused and rolled back (54.8715ms)
+  ✔ what-if answers without saving anything (22.0497ms)
+  ✔ a mark below the hurdle fails the unit even when the total is a pass (58.7796ms)
+  ✔ finished units give GPA, CGPA and WAM by semester, on two different scales (38.1451ms)
+  ✔ a final goal gives the average needed and a default target (40.8477ms)
+  ✔ deleting a unit removes its assessments too (65.8651ms)
+  ✔ a finished unit can be removed (45.4195ms)
+✔ academics (569.0015ms)
+▶ budget
+  ✔ with nothing set up the summary still loads (2.3235ms)
+  ✔ categories, a limit and spending give the totals (4.9381ms)
+  ✔ spending is checked: amount, category and date (4.382ms)
+  ✔ a category name cannot be used twice; a category can be changed and removed (9.2436ms)
+  ✔ another month can be asked for; a bad month is refused (2.9486ms)
+✔ budget (27.3112ms)
+▶ food and health
+  ✔ food: targets, logging and removing (7.1498ms)
+  ✔ food: bad entries are refused (3.5197ms)
+  ✔ health: targets, a day of data and workouts (6.5163ms)
+  ✔ health: impossible values and future days are refused (4.1527ms)
+✔ food and health (24.3169ms)
+▶ the whole app
+  ✔ status says what is ready (2.6189ms)
+  ✔ example data loads once, fills every part, and can be deleted again (36.8458ms)
+  ✔ unknown addresses, wrong methods and broken requests get clear errors (10.0314ms)
+  ✔ a change that is not sent as JSON is refused, so a form on another site cannot make one (6.66ms)
+  ✔ the web page is served with strict browser headers (4.0844ms)
+  ✔ files outside the web folder can never be read (4.9901ms)
+✔ the whole app (67.9057ms)
+▶ access token
+  ✔ with a token set, the API needs it and the page does not (5.539ms)
+✔ access token (3012.9012ms)
+▶ the AI helper
+  ✔ with no key the feature explains how to turn it on, and the rest of the app works (139.6763ms)
+  ✔ with a key, only a short summary is sent and the key stays in the header (118.8445ms)
+  ✔ a screenshot is read into a list for the user to check; nothing is saved (6.1189ms)
+  ✔ a used-up limit, an outage and a strange answer each get their own message (434.4928ms)
+✔ the AI helper (699.3744ms)
+▶ when the engine is not built
+  ✔ grades say so clearly and the other parts keep working (6.0711ms)
+✔ when the engine is not built (6.1523ms)
+✔ a month knows its first day, last day and length, leap years included (1.1067ms)
+✔ a week runs from Monday to Sunday (0.7931ms)
+✔ adding days crosses months and years (0.1089ms)
+✔ only real dates and months are accepted (0.3052ms)
+✔ today is worked out in Malaysian time (11.6193ms)
+✔ budget: totals, what is left and the daily amount (0.6453ms)
+✔ budget: "ahead of pace" starts just past 5 points above the calendar (0.1829ms)
+✔ budget: spending exactly the limit is not over; one sen more is (0.1471ms)
+✔ budget: a category over its own limit is flagged (0.1245ms)
+✔ budget: with no overall limit the category limits are added up (0.1624ms)
+✔ budget: weeks split the month and know if they are done, now or ahead (0.1851ms)
+✔ budget: a past month is complete and a future month has not started (0.0957ms)
+✔ food: totals and what is left (0.2252ms)
+✔ food: eating exactly the target is on target; one more kcal is over (0.628ms)
+✔ food: meals are grouped in the order they were first logged (0.1158ms)
+✔ food: with no target set nothing is judged (0.0724ms)
+✔ food: reaching the protein target makes the mascot proud (0.0602ms)
+✔ health: the week has seven days and marks today and the days still to come (0.2691ms)
+✔ health: reaching the step target exactly counts (0.1446ms)
+✔ health: sleep shortfall, average heart rate and days on target (0.113ms)
+✔ health: only this week's workouts are counted (0.0814ms)
+ℹ tests 55
+ℹ suites 7
+ℹ pass 55
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4495.4085
+--> ok
+
+=== Web: ViewModel tests ===
+$ node --test
+✔ a unit shows its numbers as finished text (1.4186ms)
+✔ possible and realistic are two separate chips (0.1794ms)
+✔ a failed hurdle replaces the other chips (0.1056ms)
+✔ a unit with no target shows no verdict chips and no need (0.1115ms)
+✔ hiding grades masks every mark, target and result, but not the names (0.4374ms)
+✔ CGPA and GPA are labelled as different scales (0.7333ms)
+✔ with nothing finished the stats say so instead of showing 0 (0.1064ms)
+✔ the goal banner explains what is needed, and warns when the semester is short (0.2724ms)
+✔ the home headline counts units on course and names the ones that are not (11.1421ms)
+✔ the attention list gathers problems from every part (0.5813ms)
+✔ home works when nothing is set up, and when grades cannot load (0.3569ms)
+✔ each map runs done, now, ahead, goal, in that order (1.1348ms)
+✔ the studies map lists each task as done or still to do, with the mark needed (0.2404ms)
+✔ maps still work with no targets set (0.4312ms)
+✔ typed numbers: empty is null, text is NaN, and 0 stays 0 (0.1937ms)
+✔ loading puts the overview into the state (0.4392ms)
+✔ a failed first load is kept as a message, not thrown (0.1808ms)
+✔ a command sends clean values and puts the answer in the right part of the state (0.2179ms)
+✔ text where a number belongs is stopped before the API is called (0.1399ms)
+✔ an API error becomes a message and the data is left as it was (0.1117ms)
+✔ after a failed command, other changes still redraw the screen (0.1252ms)
+✔ hide grades is remembered (0.0574ms)
+✔ an empty mark clears it; a typed mark is sent with what it is out of (0.1908ms)
+✔ today's health numbers: only filled boxes are sent, and sleep becomes minutes (0.2406ms)
+✔ quick add logs the remembered food (0.1538ms)
+✔ deleting everything needs the word delete (0.1717ms)
+✔ a screenshot import saves only the rows the user kept, with the user's corrections (0.2676ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94.4989
+--> ok
+
+=== Summary ===
+ok      Configure the C++ core
+ok      Build the C++ core
+ok      Core: white-box tests and leak check
+ok      Core: black-box tests of the terminal program
+ok      Backend: rules and API tests (uses the real engine)
+ok      Web: ViewModel tests
+
+Everything passed.

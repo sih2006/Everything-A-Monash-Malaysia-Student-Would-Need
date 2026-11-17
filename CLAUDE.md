@@ -8,10 +8,17 @@ A personal companion app for one Monash University Malaysia student (working tit
 
 Runs on Android (Samsung Galaxy S24 Ultra) and in a desktop browser. Free tiers only.
 
-## Current stage: planning
+## Current stage: built, waiting for the owner's review
 
-There is no app code yet. The planning hub is [docs/README.md](docs/README.md). Do not write application code until the implementation plan is approved.
+On 16 November 2026 the user ended the planning-first stage and had the whole app built in one day. The app now exists and runs on a laptop: a C++ core (`core/`), a Node backend (`backend/`) and a web app in MVVM (`web/`).
 
+**Start every session by reading [docs/handoff/STATUS.md](docs/handoff/STATUS.md)**, then [AGENTS.md](AGENTS.md), which holds the working rules and the map of the code. Run `python tools/check.py` before changing anything.
+
+- Most planning documents were drafted by Claude during or after the build and are marked Draft in the [planning hub](docs/README.md). ADRs 0002 to 0006 were decided by Claude alone and are marked Proposed. Treat none of them as the user's decision until the user has reviewed it.
+- Write simple English, about B2 level, in documents, comments, commit messages and on screen.
+- Never create images, not even placeholders. Mascot art comes from the user's artist friend.
+- Every grade rule lives in the C++ core only. GPA and CGPA are different scales and are never mixed.
+- No packages and no build step in `backend/` or `web/` without an ADR.
 - The user owns every decision. Interview one question at a time, draft from the answers, then let the user review and edit. Never present a Claude decision as the user's.
 - Every significant decision gets an ADR in `docs/adr/` listing the options considered.
 - Requirements get stable IDs (for example `ACA-01`) so tests and issues can trace back to them.
