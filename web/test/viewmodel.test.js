@@ -306,6 +306,7 @@ function setup(apiOverrides = {}) {
   api.budget ??= () => Promise.resolve(overview().budget);
   api.food ??= () => Promise.resolve(overview().food);
   api.health ??= () => Promise.resolve(overview().health);
+  api.currency ??= () => Promise.resolve(null);       // no exchange rates in these tests
   const vm = createAppViewModel({ api, storage: { get: (k) => saved.get(k) ?? null, set: (k, v) => saved.set(k, v) }, onChange: (state, info) => changes.push(info) });
   return { vm, calls, saved, changes };
 }
@@ -468,7 +469,8 @@ function periodSetup() {
     budget: (key) => answer('budget', key), food: (key) => answer('food', key), health: (key) => answer('health', key),
     logFood: (entry) => Promise.resolve(food({ date: entry.date })),
     saveHealthDay: (day) => Promise.resolve(health({ date: day })),
-    addSpending: (entry) => Promise.resolve(budget({ month: entry.date.slice(0, 7) }))
+    addSpending: (entry) => Promise.resolve(budget({ month: entry.date.slice(0, 7) })),
+    currency: () => Promise.resolve(null)
   };
   const vm = createAppViewModel({ api, storage: { get: () => null, set: () => {} } });
   return { vm, asked, api };

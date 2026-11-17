@@ -8,6 +8,9 @@
 // tested with a fake API (see web/test/appViewModel.test.js).
 
 import { DEFAULT_SPAN, isSpan } from './expenses.js';
+
+// The currencies amounts can be shown in. Ringgit first: it is what everything is stored and typed in.
+export const SHOW_IN = ['MYR', 'USD', 'OMR', 'CZK', 'CAD', 'IDR'];
 import { ApiError } from '../api.js';
 import { addDays, addMonths, typedNumber } from '../format.js';
 import { openAll, openToToday, startOpen } from './lifeTree.js';
@@ -58,6 +61,9 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     budgetTab: BUDGET_TABS.includes(storage.get('budgetTab')) ? storage.get('budgetTab') : 'all', // the Budget tab that is open
     budgetAccount: savedAccounts(storage.get('budgetAccount')),  // the account shown on Banking and on Investing: { banking: id, investing: id }
     expenseSpan: isSpan(storage.get('expenseSpan')) ? storage.get('expenseSpan') : DEFAULT_SPAN, // the period the Expenses tab looks back over
+    currency: null,         // exchange rates from the backend; null until loaded, or when they could not load
+    showIn: SHOW_IN.includes(storage.get('showIn')) ? storage.get('showIn') : 'MYR', // amounts on screen are shown in this currency
+    conversion: null,       // the converter's last question: { amount, from }
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
     // "Hide numbers": marks, grades and targets are masked, and every RM amount shows as RM •••.
@@ -146,6 +152,10 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     }
     state.loading = false;
     changed();
+    // Exchange rates come second: if they cannot load, the rest of the app is not held up.
+    if (!state.loadError) {
+      try { state.currency = await api.currency(); changed(); } catch (error) { if (!(error instanceof ApiError)) throw error; }
+    }
     // Opened straight onto the map: fetch the tree too.
     if (!state.loadError && state.tab === 'map' && state.mapKind === 'life') await loadLife();
   }
@@ -203,6 +213,23 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       state.budgetTab = group;
       storage.set('budgetAccount', JSON.stringify(state.budgetAccount));
       storage.set('budgetTab', group);
+      changed();
+    },
+    setShowIn(code) {
+      state.showIn = SHOW_IN.includes(code) ? code : 'MYR';
+      storage.set('showIn', state.showIn);
+      changed();
+    },
+    refreshRates: () => act(null, async () => { state.currency = await api.refreshRates(); }, 'Rates updated.'),
+    // A rate typed by hand: "1 USD = 4.25 RM". An empty box removes it, so the live rate counts again.
+    setManualRate: (f) => act(null, async () => {
+      const value = number(f.value, `The rate for ${f.code}`, { required: false });
+      if (value !== null && !(value > 0)) throw new ApiError(400, 'invalid', 'A rate must be above 0.');
+      state.currency = await api.setManualRate(f.code, value);
+    }, 'Rate saved.'),
+    convertAmount(f) {
+      const amount = typedNumber(f.amount);
+      state.conversion = amount === null || Number.isNaN(amount) ? null : { amount, from: SHOW_IN.includes(f.from) ? f.from : 'MYR' };
       changed();
     },
     setExpenseSpan(span) {

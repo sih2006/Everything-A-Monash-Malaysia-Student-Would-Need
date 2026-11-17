@@ -7,6 +7,7 @@ import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
 import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
 import { presentSpendingMap } from '../viewmodels/spendingMap.js';
 import { DEFAULT_SPAN, EXPENSE_SPANS, presentMonthlyTable, spanWords } from '../viewmodels/expenses.js';
+import { convertAll, presentRates } from '../viewmodels/currency.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -342,8 +343,44 @@ function moneyBanner(money) {
     </section>`;
 }
 
+// Other currencies: a converter, and the rates with where each came from (ADR-0008).
+const CURRENCY_CHOICES = [['MYR', 'RM'], ['USD', 'USD'], ['OMR', 'OMR'], ['CZK', 'CZK'], ['CAD', 'CAD'], ['IDR', 'IDR']];
+function currencyCards(state) {
+  const c = state.currency;
+  if (!c) return `<section class="card"><h2>Other currencies</h2><p class="note">Exchange rates have not loaded. Check the internet connection, then reload.</p></section>`;
+  const q = state.conversion;
+  const results = q ? convertAll(q.amount, q.from, c) : [];
+  return `
+    <section class="grid wide">
+      <div class="card converter">
+        <h2>Convert</h2>
+        <form class="form" data-action="convertAmount">
+          ${field('Amount', 'amount', `required inputmode="decimal" value="${q ? q.amount : ''}"`)}
+          ${select('In', 'from', CURRENCY_CHOICES, q?.from ?? 'MYR')}
+          <button class="btn primary" type="submit">Convert</button>
+        </form>
+        ${results.length ? `<ul class="list">${results.map((r) => `<li><span>${esc(r.name)}</span><span class="end"><strong>${esc(r.text)}</strong></span></li>`).join('')}</ul>` : ''}
+        <p class="note">To see every amount in the app in another currency, pick it in the menu next to Hide numbers.</p>
+      </div>
+      <div class="card rates">
+        <div class="card-head"><h2>Exchange rates</h2>${chip({ text: c.updated ? `as of ${dayText(c.updated)}` : 'none yet', tone: '' })}</div>
+        ${c.error ? `<p class="note warn">${esc(c.error)}</p>` : ''}
+        <ul class="list">${presentRates(c).map((r) => `<li><span>${esc(r.name)} <span class="dim">· ${esc(r.from)}</span></span><span class="end">${esc(r.rate)}</span></li>`).join('')}</ul>
+        ${fold('rates-by-hand', 'Set a rate by hand', `
+          <p class="note">A rate you type is used instead of the live one. Leave the box empty to go back to the live rate.</p>
+          ${presentRates(c).map((r) => `
+          <form class="form inline-rate" data-action="setManualRate">
+            <input type="hidden" name="code" value="${r.code}">
+            ${field(`1 ${r.code} = how many RM?`, 'value', `inputmode="decimal" value="${r.byHand ?? ''}" placeholder="${esc(r.liveHint)}"`, 'optional')}
+            <button class="btn" type="submit">Save</button>
+          </form>`).join('')}`)}
+        <p class="note"><button type="button" class="link" data-action="refreshRates">Get today's rates again</button> · <a href="${esc(c.source.url)}" target="_blank" rel="noopener">Rates by ${esc(c.source.name)}</a>. Only the currency code is sent; none of your data.</p>
+      </div>
+    </section>`;
+}
+
 // Overview: one short row per account. Picking a row opens that account on its own tab.
-function overviewTab(b) {
+function overviewTab(b, state) {
   const accounts = b.money.accounts;
   const options = accounts.map((a) => [String(a.id), a.name]);
   return `
@@ -376,7 +413,8 @@ function overviewTab(b) {
           <button class="btn primary" type="submit">Move</button>
         </form>
         <p class="note">For example topping up Touch 'n Go from your bank. It is not spending, so the budget does not change.</p>`) : ''}
-    </section>`;
+    </section>
+    ${currencyCards(state)}`;
 }
 
 // Banking or Investing: pills to pick one account, then only that account.
@@ -615,7 +653,7 @@ export function budgetView(state) {
   const body = tab === 'banking' ? `${accountTab(b, state, 'banking')}${periodNav('budget', b.monthName, isCurrent, 'month')}${incomeSection(b, spendDay)}`
     : tab === 'investing' ? accountTab(b, state, 'investing')
     : tab === 'expenses' ? expensesTab(b, state, isCurrent, spendDay)
-    : overviewTab(b);
+    : overviewTab(b, state);
   return `
     ${head}
     ${moneyBanner(b.money)}
