@@ -80,6 +80,33 @@ export function columns(rows, max, target, format, tipLabel) {
 }
 
 // A line chart with one point per semester, and a dashed line for the goal.
+// Body weight over time. The scale fits the weights (and the goal, when there is one), so small changes show.
+export function weightChart(points, goal) {
+  const W = 520, H = 200, left = 44, right = 24, top = 28, bottom = 36;
+  const values = points.map((p) => p.kg).concat(goal === null ? [] : [goal]);
+  const low = Math.floor(Math.min(...values) - 0.5), high = Math.ceil(Math.max(...values) + 0.5);
+  const x = (i) => (points.length === 1 ? (left + W - right) / 2 : left + i * (W - left - right) / (points.length - 1));
+  const y = (v) => top + (high - v) * (H - top - bottom) / (high - low);
+  const step = Math.max(1, Math.ceil((high - low) / 4));
+  const ticks = [];
+  for (let v = low; v <= high; v += step) ticks.push(v);
+  const short = (date) => new Date(`${date}T00:00:00`).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
+  const ends = points.length === 1 ? [0] : [0, points.length - 1];
+  return `
+    <svg class="linechart" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="Body weight from ${esc(short(points[0].date))}, ${points[0].kg} kg, to ${esc(short(points.at(-1).date))}, ${points.at(-1).kg} kg${goal === null ? '' : `. Goal ${goal} kg`}.">
+      ${ticks.map((v) => `<line class="gridline" x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}"/>
+        <text class="axis" x="${left - 10}" y="${y(v) + 5}" text-anchor="end">${v}</text>`).join('')}
+      ${goal === null ? '' : `<line class="goal" x1="${left}" x2="${W - right}" y1="${y(goal)}" y2="${y(goal)}"/>`}
+      <polyline class="series" points="${points.map((p, i) => `${x(i)},${y(p.kg)}`).join(' ')}" pathLength="1"/>
+      ${points.map((p, i) => `<circle class="dot small" cx="${x(i)}" cy="${y(p.kg)}" r="4"/>
+        <circle class="hit" cx="${x(i)}" cy="${y(p.kg)}" r="14" data-tip="${esc(short(p.date))}: ${p.kg} kg"/>`).join('')}
+      ${ends.map((i) => `<text x="${x(i)}" y="${y(points[i].kg) - 12}" text-anchor="${i === 0 && points.length > 1 ? 'start' : points.length === 1 ? 'middle' : 'end'}">${points[i].kg}</text>
+        <text class="axis" x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 && points.length > 1 ? 'start' : points.length === 1 ? 'middle' : 'end'}">${esc(short(points[i].date))}</text>`).join('')}
+    </svg>
+    <div class="legend"><span><i></i>Body weight</span>${goal === null ? '' : `<span><i class="dash goal-dash"></i>Your goal: ${goal} kg</span>`}</div>`;
+}
+
 export function trendChart(points, goal, format) {
   const W = 520, H = 220, left = 44, right = 24, top = 28, bottom = 36, low = 0, high = 4;
   const x = (i) => (points.length === 1 ? (left + W - right) / 2 : left + i * (W - left - right) / (points.length - 1));

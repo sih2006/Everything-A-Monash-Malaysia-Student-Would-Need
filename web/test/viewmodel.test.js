@@ -263,6 +263,8 @@ test('typed numbers: empty is null, text is NaN, and 0 stays 0', () => {
 
 // ---------- commands, with a fake API ----------
 
+const overviewHealth = () => overview().health;
+
 function setup(apiOverrides = {}) {
   const calls = [];
   const saved = new Map();
@@ -361,6 +363,26 @@ test('today\'s health numbers: only filled boxes are sent, and sleep becomes min
   assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-20', { sleepMinutes: 370 }]);
   assert.equal(await vm.saveToday({ steps: '', sleepHours: '', sleepMinutes: '', restingHr: '' }), false);
   assert.equal(vm.state.error.message, 'Fill in at least one box.');
+});
+
+test('health: weight and water are saved with the day; a glass of water adds to what is there', async () => {
+  const { vm, calls } = setup();
+  await vm.load();
+  await vm.saveToday({ steps: '', sleepHours: '', sleepMinutes: '', restingHr: '', weightKg: '72.4', waterMl: '1500' });
+  assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-20', { weightKg: 72.4, waterMl: 1500 }]);
+  vm.state.overview.health.waterMl = 1500;
+  await vm.addWater(250);
+  assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-20', { waterMl: 1750 }]);
+});
+
+test('health: an exercise needs sets and reps; the weight may be left empty', async () => {
+  const sent = [];
+  const { vm } = setup({ addExercise: (id, x) => { sent.push([id, x]); return Promise.resolve(overviewHealth()); } });
+  await vm.load();
+  await vm.addExercise(7, { name: 'Push-ups', sets: '3', reps: '15', weightKg: '' });
+  assert.deepEqual(sent, [[7, { name: 'Push-ups', sets: 3, reps: 15, weightKg: null }]]);
+  assert.equal(await vm.addExercise(7, { name: 'Squat', sets: '', reps: '5', weightKg: '80' }), false);
+  assert.equal(vm.state.error.message, 'Sets cannot be empty.');
 });
 
 test('unit details: name, semester and credit points are sent; credit points must be a number', async () => {

@@ -93,6 +93,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     saveHealthTargets: (targets) => put('/api/health/settings', targets),
     saveHealthDay: (day, values) => put(`/api/health/days/${part(day)}`, values),
     addWorkout: (workout) => post('/api/workouts', workout),
-    deleteWorkout: (id) => remove(`/api/workouts/${id}`)
+    deleteWorkout: (id) => remove(`/api/workouts/${id}`),
+    addExercise: (workoutId, x) => post(`/api/workouts/${workoutId}/exercises`, x),
+    deleteExercise: (id) => remove(`/api/exercises/${id}`)
   };
 }

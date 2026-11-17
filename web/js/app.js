@@ -195,7 +195,10 @@ const COMMANDS = {
   saveHealthTargets: (f) => vm.saveHealthTargets(f),
   saveToday: (f) => vm.saveToday(f),
   addWorkout: (f) => vm.addWorkout(f),
-  deleteWorkout: (f, d) => vm.deleteWorkout(d.id)
+  deleteWorkout: (f, d) => vm.deleteWorkout(d.id),
+  addWater: (f, d) => vm.addWater(Number(d.ml)),
+  addExercise: (f, d) => vm.addExercise(Number(d.id), f),
+  deleteExercise: (f, d) => vm.deleteExercise(d.id)
 };
 
 async function runCommand(name, fields, element) {

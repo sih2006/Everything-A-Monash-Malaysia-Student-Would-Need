@@ -306,7 +306,9 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     saveHealthTargets: (f) => act('health', () => api.saveHealthTargets({
       stepTarget: number(f.steps, 'The step target', { required: false }) ?? 0,
       sleepTargetMinutes: Math.round((number(f.sleepHours, 'The sleep target', { required: false }) ?? 0) * 60),
-      workoutTarget: number(f.workouts, 'The workout target', { required: false }) ?? 0
+      workoutTarget: number(f.workouts, 'The workout target', { required: false }) ?? 0,
+      waterTarget: Math.round((number(f.waterLitres, 'The water target', { required: false }) ?? 0) * 1000),
+      weightGoalKg: number(f.weightGoal, 'The goal weight', { required: false })
     }), 'Targets saved.'),
     // Only the boxes that were filled in are sent, so an empty box never wipes a saved value.
     saveToday: (f) => act('health', () => {
@@ -315,13 +317,32 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       const hours = number(f.sleepHours, 'Sleep hours', { required: false });
       const minutes = number(f.sleepMinutes, 'Sleep minutes', { required: false });
       const heart = number(f.restingHr, 'Resting heart rate', { required: false });
+      const weight = number(f.weightKg, 'Body weight', { required: false });
+      const water = number(f.waterMl, 'Water', { required: false });
+      if (weight !== null) values.weightKg = weight;
+      if (water !== null) values.waterMl = water;
       if (steps !== null) values.steps = steps;
       if (hours !== null || minutes !== null) values.sleepMinutes = (hours ?? 0) * 60 + (minutes ?? 0);
       if (heart !== null) values.restingHr = heart;
       if (Object.keys(values).length === 0) throw new ApiError(400, 'invalid', 'Fill in at least one box.');
       return api.saveHealthDay(shown('health').date, values);
     }, 'Saved.'),
-    addWorkout: (f) => act('health', () => api.addWorkout({ name: f.name, date: shown('health').date }), 'Workout added.'),
-    deleteWorkout: (id) => act('health', () => api.deleteWorkout(id), 'Workout removed.')
+    addWorkout: (f) => act('health', () => api.addWorkout({
+      name: f.name, date: shown('health').date, kind: f.kind || 'other',
+      minutes: number(f.minutes, 'The length', { required: false })
+    }), 'Workout added.'),
+    deleteWorkout: (id) => act('health', () => api.deleteWorkout(id), 'Workout removed.'),
+    // Adds a glass or a bottle to the water drunk on the day shown.
+    addWater: (ml) => act('health', () => {
+      const h = shown('health');
+      return api.saveHealthDay(h.date, { waterMl: (h.waterMl ?? 0) + ml });
+    }, `${ml} ml added.`),
+    addExercise: (workoutId, f) => act('health', () => api.addExercise(workoutId, {
+      name: f.name,
+      sets: number(f.sets, 'Sets'),
+      reps: number(f.reps, 'Reps'),
+      weightKg: number(f.weightKg, 'The weight', { required: false })
+    }), 'Exercise added.'),
+    deleteExercise: (id) => act('health', () => api.deleteExercise(id), 'Exercise removed.')
   };
 }

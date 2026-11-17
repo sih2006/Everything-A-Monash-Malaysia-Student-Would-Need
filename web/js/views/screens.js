@@ -5,9 +5,13 @@
 
 import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
 import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
-import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart } from './parts.js';
+import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
+const WORKOUT_KINDS = [['gym', 'Gym'], ['run', 'Run'], ['walk', 'Walk'], ['cycle', 'Cycle'], ['swim', 'Swim'], ['sport', 'Sport'], ['other', 'Other']];
+const KIND_NAME = Object.fromEntries(WORKOUT_KINDS);
+const litres = (ml) => `${plain(Math.round(ml / 100) / 10)} L`;
+const signed = (kg) => `${kg > 0 ? '+' : kg < 0 ? '−' : ''}${plain(Math.abs(kg))} kg`;
 const remove = (action, data, label) =>
   `<button type="button" class="link danger" data-action="${action}" ${data} aria-label="${esc(label)}">Remove</button>`;
 
@@ -533,6 +537,23 @@ export function healthView(state) {
         <div class="big">${h.restingHr === null ? '—' : `${h.restingHr} bpm`}</div>
         <p class="note">${h.restingHrWeek === null ? 'Not logged this week' : `This week's average is ${h.restingHrWeek} bpm`}</p>
       </div>
+      <div class="card">
+        <div class="card-head"><div class="label">Water ${when}</div>${h.waterMl === null || !h.waterTarget ? '' : chip(h.waterLeft === 0 ? { text: 'Target reached', tone: 'good' } : { text: `${litres(h.waterLeft)} to go`, tone: '' })}</div>
+        <div class="big">${h.waterMl === null ? '—' : litres(h.waterMl)}</div>
+        ${h.waterMl !== null && h.waterTarget ? bar(h.waterMl / h.waterTarget * 100) : ''}
+        <div class="row">
+          <button type="button" class="btn quiet" data-action="addWater" data-ml="250">+ 250 ml</button>
+          <button type="button" class="btn quiet" data-action="addWater" data-ml="500">+ 500 ml</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Body weight</div>
+        <div class="big">${h.weight.latest === null ? '—' : `${plain(h.weight.latest.kg)} kg`}</div>
+        <p class="note">${h.weight.latest === null ? 'Not logged yet'
+          : [h.weight.latest.date === h.date ? 'Weighed this day' : `Last weighed ${dayText(h.weight.latest.date)}`,
+             h.weight.change30 === null ? '' : `${signed(h.weight.change30)} in 30 days`,
+             h.weight.toGoal === null ? '' : h.weight.toGoal === 0 ? 'At your goal' : `${plain(Math.abs(h.weight.toGoal))} kg ${h.weight.toGoal > 0 ? 'above' : 'below'} your goal`].filter(Boolean).join(' · ')}</p>
+      </div>
     </section>
 
     <section class="card">
@@ -542,6 +563,8 @@ export function healthView(state) {
         ${field('Sleep: hours', 'sleepHours', `inputmode="numeric" value="${h.sleepMinutes === null ? '' : Math.floor(h.sleepMinutes / 60)}"`)}
         ${field('Sleep: minutes', 'sleepMinutes', `inputmode="numeric" value="${h.sleepMinutes === null ? '' : h.sleepMinutes % 60}"`)}
         ${field('Resting heart rate (bpm)', 'restingHr', `inputmode="numeric" value="${h.restingHr ?? ''}"`)}
+        ${field('Body weight (kg)', 'weightKg', `inputmode="decimal" value="${h.weightKg ?? ''}"`)}
+        ${field('Water (ml)', 'waterMl', `inputmode="numeric" value="${h.waterMl ?? ''}"`)}
         <button class="btn primary" type="submit">Save</button>
       </form>
     </section>
@@ -549,30 +572,57 @@ export function healthView(state) {
     <section class="grid wide">
       <div class="card">
         <h2>Steps this week</h2>
+        ${h.stepsAverage === null ? '' : `<p class="note">Average ${num(h.stepsAverage)} a day on the days logged</p>`}
         ${columns(h.week.map((d) => ({ name: d.name, value: d.steps, today: d.today })), stepsMax, h.stepTarget, num, 'steps')}
         <div class="legend"><span><i></i>Earlier days</span><span><i class="today"></i>Today</span>${h.stepTarget ? `<span><i class="dash"></i>Your target: ${num(h.stepTarget)}</span>` : ''}</div>
       </div>
       <div class="card">
         <h2>Sleep this week</h2>
+        ${h.sleepAverage === null ? '' : `<p class="note">Average ${hm(h.sleepAverage)} a night</p>`}
         ${columns(h.week.map((d) => ({ name: d.name, value: d.sleepMinutes, today: d.today })), sleepMax, h.sleepTargetMinutes, clock, 'hours')}
         <div class="legend"><span><i></i>Earlier nights</span><span><i class="today"></i>Last night</span>${h.sleepTargetMinutes ? `<span><i class="dash"></i>Your target: ${clock(h.sleepTargetMinutes)}</span>` : ''}</div>
       </div>
     </section>
+
+    ${h.weight.points.length >= 2 ? `<section class="card"><h2>Body weight</h2>${weightChart(h.weight.points, h.weight.goalKg)}</section>` : ''}
 
     <section class="card">
       <div class="card-head">
         <h2>Workouts: ${h.workouts.done}${h.workoutTarget ? ` of ${h.workoutTarget}` : ''} this week</h2>
         ${h.workoutTarget ? chip(h.workouts.done >= h.workoutTarget ? { text: 'Target reached', tone: 'good' } : { text: `${h.workoutTarget - h.workouts.done} to go`, tone: '' }) : ''}
       </div>
-      ${h.workouts.list.length === 0 ? '<p class="note">No workouts logged this week.</p>' : `<ul class="list">
-        ${h.workouts.list.map((w) => `<li><span>${esc(w.name)} <span class="dim">· ${esc(dayText(w.date))}</span></span>
-          <span class="end">${remove('deleteWorkout', `data-id="${w.id}"`, `Remove ${w.name}`)}</span></li>`).join('')}
-      </ul>`}
+      ${h.workouts.done ? `<p class="note">${hm(h.workouts.minutes)} in all${h.workouts.kinds.length ? ': ' + h.workouts.kinds.map((k) => `${k.count} ${KIND_NAME[k.kind].toLowerCase()}`).join(', ') : ''}</p>` : ''}
+      ${h.workouts.list.length === 0 ? '<p class="note">No workouts logged this week.</p>' : `<div class="workouts">
+        ${h.workouts.list.map((w) => `<article class="workout">
+          <div class="card-head"><h3>${esc(w.name)} <span class="dim">· ${esc(dayText(w.date))}${w.minutes ? ` · ${w.minutes} min` : ''}</span></h3>
+            <span class="end">${chip({ text: KIND_NAME[w.kind] ?? 'Other', tone: '' })} ${remove('deleteWorkout', `data-id="${w.id}" data-confirm="Remove ${esc(w.name)} and its exercises?"`, `Remove ${w.name}`)}</span></div>
+          ${w.exercises.length ? `<ul class="list">
+            ${w.exercises.map((x) => `<li><span>${esc(x.name)}</span>
+              <span class="end">${x.sets} × ${x.reps}${x.weightKg === null ? '' : ` at ${plain(x.weightKg)} kg`} ${remove('deleteExercise', `data-id="${x.id}"`, `Remove ${x.name}`)}</span></li>`).join('')}
+          </ul>` : ''}
+          ${fold(`exercise-${w.id}`, 'Add an exercise', `
+            <form class="form" data-action="addExercise" data-id="${w.id}">
+              ${field('Exercise', 'name', 'required maxlength="60" placeholder="Bench press"')}
+              ${field('Sets', 'sets', 'required inputmode="numeric"')}
+              ${field('Reps', 'reps', 'required inputmode="numeric"')}
+              ${field('Weight (kg)', 'weightKg', 'inputmode="decimal"', 'empty for body weight')}
+              <button class="btn primary" type="submit">Add exercise</button>
+            </form>`)}
+        </article>`).join('')}
+      </div>`}
       <form class="form" data-action="addWorkout">
         ${field('Workout', 'name', 'required maxlength="60" placeholder="Push day"')}
+        ${select('Kind', 'kind', WORKOUT_KINDS, 'gym')}
+        ${field('Length (minutes)', 'minutes', 'inputmode="numeric"')}
         <button class="btn primary" type="submit">Add ${isCurrent ? 'today' : `on ${dayText(h.date)}`}</button>
       </form>
     </section>
+
+    ${h.bests.length ? `<section class="card">
+      <h2>Best lifts</h2>
+      <p class="note">The heaviest weight for each exercise, up to ${isCurrent ? 'today' : dayText(h.date)}.</p>
+      <ul class="list">${h.bests.map((b) => `<li><span>${esc(b.name)} <span class="dim">· done ${b.times} ${b.times === 1 ? 'time' : 'times'}</span></span><span class="end">${plain(b.weightKg)} kg</span></li>`).join('')}</ul>
+    </section>` : ''}
 
     <section class="card">
       ${fold('health-targets', h.stepTarget || h.sleepTargetMinutes || h.workoutTarget ? 'Change your targets' : 'Set your targets', `
@@ -580,6 +630,8 @@ export function healthView(state) {
           ${field('Steps a day', 'steps', `inputmode="numeric" value="${h.stepTarget || ''}"`)}
           ${field('Sleep a night (hours)', 'sleepHours', `inputmode="decimal" value="${h.sleepTargetMinutes ? plain(h.sleepTargetMinutes / 60) : ''}"`)}
           ${field('Workouts a week', 'workouts', `inputmode="numeric" value="${h.workoutTarget || ''}"`)}
+          ${field('Water a day (litres)', 'waterLitres', `inputmode="decimal" value="${h.waterTarget ? plain(h.waterTarget / 1000) : ''}"`)}
+          ${field('Goal weight (kg)', 'weightGoal', `inputmode="decimal" value="${h.weight.goalKg ?? ''}"`, 'optional, your own choice')}
           <button class="btn primary" type="submit">Save targets</button>
         </form>`, !(h.stepTarget || h.sleepTargetMinutes || h.workoutTarget))}
     </section>`;
