@@ -169,6 +169,7 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       return act('food', () => api.logFood({ food: food.name, kcal: food.kcal, protein: food.protein, meal }), `${food.name} logged.`);
     },
     deleteFood: (id) => act('food', () => api.deleteFood(id), 'Entry removed.'),
+    forgetFood: (id) => act('food', () => api.forgetFood(id), 'Removed from quick add.'),
 
     // ----- health -----
     saveHealthTargets: (f) => act('health', () => api.saveHealthTargets({

@@ -364,7 +364,13 @@ export function foodView(state) {
           <button type="button" data-action="quickAddFood" data-id="${q.id}">
             <strong>${esc(q.name)}</strong><span>${num(q.kcal)} kcal · ${num(q.protein)} g protein</span>
           </button>`).join('')}
-      </div>` : ''}
+      </div>
+      ${fold('manage-foods', 'Change the quick-add list', `
+        <ul class="list">
+          ${f.foods.map((q) => `<li><span>${esc(q.name)} <span class="dim">· ${num(q.kcal)} kcal</span></span>
+            <span class="end">${remove('forgetFood', `data-id="${q.id}"`, `Remove ${q.name} from quick add`)}</span></li>`).join('')}
+        </ul>
+        <p class="note">Removing a food here does not change anything you already logged.</p>`)}` : ''}
     </section>
 
     <section class="card">

@@ -144,6 +144,7 @@ const COMMANDS = {
   logFood: (f) => vm.logFood(f),
   quickAddFood: (f, d) => vm.quickAddFood(d.id, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
   deleteFood: (f, d) => vm.deleteFood(d.id),
+  forgetFood: (f, d) => vm.forgetFood(d.id),
 
   saveHealthTargets: (f) => vm.saveHealthTargets(f),
   saveToday: (f) => vm.saveToday(f),

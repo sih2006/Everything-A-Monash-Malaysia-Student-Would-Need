@@ -71,6 +71,7 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     saveFoodTargets: (targets) => put('/api/food/settings', targets),
     logFood: (entry) => post('/api/food/log', entry),
     deleteFood: (id) => remove(`/api/food/log/${id}`),
+    forgetFood: (id) => remove(`/api/food/items/${id}`),
 
     // health
     saveHealthTargets: (targets) => put('/api/health/settings', targets),

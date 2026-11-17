@@ -289,6 +289,12 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     return foodFor(entry.date);
   });
 
+  // Forgets a remembered food. Entries already logged with it are kept.
+  route('DELETE', '/api/food/items/:id', ({ params }) => {
+    if (!store.deleteFood(check.id(params.id))) throw new HttpError(404, 'not_found', 'That remembered food does not exist.');
+    return foodFor(today());
+  });
+
   route('DELETE', '/api/food/log/:id', ({ params }) => {
     if (!store.deleteFoodLog(check.id(params.id))) throw new HttpError(404, 'not_found', 'That food entry does not exist.');
     return foodFor(today());

@@ -75,6 +75,7 @@ export function createStore(db) {
     listFoods: () => db.prepare('SELECT id, name, kcal, protein FROM foods ORDER BY name').all(),
     insertFood: (f) => db.prepare('INSERT INTO foods (name, kcal, protein) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET kcal = excluded.kcal, protein = excluded.protein')
       .run(f.name, f.kcal, f.protein),
+    deleteFood: (id) => db.prepare('DELETE FROM foods WHERE id = ?').run(id).changes,
     listFoodLog: (day) => db.prepare('SELECT id, eaten_on AS date, meal, food, kcal, protein FROM food_log WHERE eaten_on = ? ORDER BY id').all(day),
     insertFoodLog: (e) => Number(db.prepare('INSERT INTO food_log (eaten_on, meal, food, kcal, protein) VALUES (?, ?, ?, ?, ?)')
       .run(e.date, e.meal, e.food, e.kcal, e.protein).lastInsertRowid),

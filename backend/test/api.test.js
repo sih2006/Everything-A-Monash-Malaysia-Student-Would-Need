@@ -259,6 +259,15 @@ describe('food and health', () => {
     assert.equal(after.body.kcal, 640);
   });
 
+  test('food: a remembered food can be forgotten, and what was logged with it stays', async () => {
+    const before = (await app.call('GET', '/api/food')).body;
+    const id = before.foods.find((f) => f.name === 'Nasi lemak').id;
+    const { body } = await app.call('DELETE', `/api/food/items/${id}`);
+    assert.equal(body.foods.some((f) => f.name === 'Nasi lemak'), false);
+    assert.equal(body.log.some((e) => e.food === 'Nasi lemak'), true);
+    assert.equal((await app.call('DELETE', `/api/food/items/${id}`)).status, 404);
+  });
+
   test('food: bad entries are refused', async () => {
     for (const [entry, field] of [[{ food: '', kcal: 100 }, 'food'], [{ food: 'x', kcal: -1 }, 'kcal'], [{ food: 'x', kcal: 100, meal: 'Brunch' }, 'meal'], [{ food: 'x', kcal: 100, protein: 'lots' }, 'protein']]) {
       const { status, body } = await app.call('POST', '/api/food/log', entry);

@@ -300,6 +300,14 @@ test('quick add logs the remembered food', async () => {
   assert.deepEqual(calls.at(-1), ['logFood', { food: 'Chicken rice', kcal: 610, protein: 38, meal: 'Dinner' }]);
 });
 
+test('forgetting a remembered food calls the API and says so', async () => {
+  const { vm } = setup({ forgetFood: (id) => Promise.resolve({ marker: id }) });
+  await vm.load();
+  assert.equal(await vm.forgetFood(5), true);
+  assert.deepEqual(vm.state.overview.food, { marker: 5 });
+  assert.equal(vm.state.notice, 'Removed from quick add.');
+});
+
 test('deleting everything needs the word delete', async () => {
   const { vm, calls } = setup();
   await vm.load();
