@@ -26,12 +26,12 @@ test('it starts with you and this year open', () => {
   assert.deepEqual([...startOpen(tree)], ['life', 'life/2026']);
 });
 
-test('the years sit on one line and "You" is not drawn', () => {
+test('the years run down one line on the left and "You" is not drawn', () => {
   const { nodes, edges } = layoutLife(tree, startOpen(tree));
   const years = nodes.filter((x) => x.level === 'year');
   assert.equal(nodes.some((x) => x.level === 'root'), false);
-  assert.equal(new Set(years.map((x) => x.y)).size, 1);                   // all on the same line
-  assert.ok(years[0].x < years[1].x);                                    // oldest on the left
+  assert.equal(new Set(years.map((x) => x.x)).size, 1);                   // all on the same line
+  assert.ok(years[0].y < years[1].y);                                    // oldest at the top
   const trunk = edges.filter((e) => e.kind === 'trunk');
   assert.equal(trunk.length, 1);
   assert.equal(trunk[0].now, true);                                      // 2025 to 2026 is behind you
@@ -45,14 +45,14 @@ test('a year ahead is marked, and the line to it is not walked yet', () => {
   assert.deepEqual(edges.filter((e) => e.kind === 'trunk').map((e) => e.now), [true, false]);
 });
 
-test('closed nodes hide their children; open ones show them one row below', () => {
+test('closed nodes hide their children; open ones show them one column to the right', () => {
   const { nodes } = layoutLife(tree, startOpen(tree));
   assert.deepEqual(nodes.map((x) => x.id).sort(), ['life/2025', 'life/2026', 'life/2026/money', 'life/2026/studies'].sort());
   const at = (id) => nodes.find((x) => x.id === id);
-  assert.equal(at('life/2026/studies').y - at('life/2026').y, ROW);
-  assert.equal(at('life/2026/money').x - at('life/2026/studies').x, COLUMN);
+  assert.equal(at('life/2026/studies').x - at('life/2026').x, COLUMN);
+  assert.equal(at('life/2026/money').y - at('life/2026/studies').y, ROW);
   // A parent sits halfway between its first and last child.
-  assert.equal(at('life/2026').x, (at('life/2026/studies').x + at('life/2026/money').x) / 2);
+  assert.equal(at('life/2026').y, (at('life/2026/studies').y + at('life/2026/money').y) / 2);
   assert.equal(at('life/2025').open, false);
   assert.equal(at('life/2025').count, 1);
 });
@@ -62,7 +62,7 @@ test('open to today follows the path to the deepest node that is now, and marks 
   assert.ok(open.has('life/2026/studies/S2'));
   const { nodes } = layoutLife(tree, open);
   assert.equal(nodes.filter((x) => x.kind === 'now').length, 1);
-  assert.equal(nodes.find((x) => x.kind === 'now').y, 3 * ROW + nodes.find((x) => x.id === 'life/2026').y);   // year, area, semester, unit
+  assert.equal(nodes.find((x) => x.kind === 'now').x, 3 * COLUMN + nodes.find((x) => x.id === 'life/2026').x);   // year, area, semester, unit
 });
 
 test('open all opens down to months, never deeper', () => {

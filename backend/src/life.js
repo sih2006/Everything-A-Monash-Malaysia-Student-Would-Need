@@ -267,17 +267,18 @@ export function lifeTree(input) {
 
   const yearNodes = [...years].sort((a, b) => a - b).map((year) => {
     const id = `life/${year}`;
-    const areas = [
-      studiesFor(year, input, `${id}/studies`),
-      moneyFor(year, input, `${id}/money`),
-      foodFor(year, input, `${id}/food`),
-      healthFor(year, input, `${id}/health`)
-    ].filter(Boolean);
+    // A year that has started always shows all four areas, so an empty one says so instead of vanishing.
+    const AREAS = [['studies', 'Studies', studiesFor], ['money', 'Money', moneyFor], ['food', 'Food', foodFor], ['health', 'Health', healthFor]];
+    const found = AREAS.map(([key, , make]) => make(year, input, `${id}/${key}`));
+    const areas = year > thisYear ? found.filter(Boolean) : found.map((area, i) => area ?? node({
+      id: `${id}/${AREAS[i][0]}`, level: 'area', area: AREAS[i][0], title: AREAS[i][1], value: 'Nothing recorded', empty: true
+    }));
+    const recorded = areas.filter((a) => !a.empty);
     const isNow = String(year) === today.slice(0, 4);
     return node({
       id, level: 'year', title: String(year), now: isNow,
       value: isNow ? 'This year' : year < thisYear ? 'Finished' : 'Ahead',
-      note: areas.length ? areas.map((a) => a.title).join(', ') : year > thisYear ? (year === end && input.goal?.totalCredits ? 'The last year of your course' : 'Still to come') : 'Nothing recorded',
+      note: recorded.length ? recorded.map((a) => a.title).join(', ') : year > thisYear ? (year === end && input.goal?.totalCredits ? 'The last year of your course' : 'Still to come') : 'Nothing recorded',
       time: passed(`${year}-01-01`, `${year}-12-31`, today), children: areas
     });
   });

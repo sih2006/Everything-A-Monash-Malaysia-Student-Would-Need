@@ -5,8 +5,10 @@
 
 import { MASK } from './present.js';
 
-export const COLUMN = 250;   // space between two nodes side by side
-export const ROW = 130;      // space from one level to the next, top to bottom
+export const COLUMN = 300;   // space from one level to the next, left to right
+export const ROW = 92;       // space between two nodes in the same column
+export const NODE_WIDTH = 236;   // a circle and its label; branches start where the label ends
+const YEAR_GAP = 56;         // extra space (px) between two years, so each year reads as its own block
 const PAD = 90;
 
 // The nodes that start open: the root (never drawn), and this year, so its four areas show.
@@ -49,27 +51,28 @@ export function findNode(tree, id) {
   return null;
 }
 
-// Places the open part of the tree. The years sit in a row on one line, oldest on the left.
-// Each open node's children hang below it, one level per row; each closed node takes one column,
+// Places the open part of the tree. The years run down one line on the left, oldest at the top.
+// Each open node's children open one column to the right; each closed node takes one row,
 // and a parent sits halfway between its first and last child. "You" (the root) is not drawn.
 // Hidden grades: any node marked `grade` shows dots instead of its figures.
 export function layoutLife(tree, open, hidden = false) {
   const nodes = [];
   const edges = [];
-  let nextColumn = 0;
+  let nextRow = 0;
+  let gap = 0;                 // the space added between years so far
   const thisYear = Number(tree.children.find((y) => y.now)?.title ?? 0);
 
   function place(n, depth) {
     const isOpen = open.has(n.id) && n.children.length > 0;
-    const y = PAD + depth * ROW;
-    let x;
+    const x = PAD + depth * COLUMN;
+    let y;
     if (isOpen) {
       const kids = n.children.map((child) => place(child, depth + 1));
-      x = (kids[0].x + kids[kids.length - 1].x) / 2;
+      y = (kids[0].y + kids[kids.length - 1].y) / 2;
       for (const kid of kids) edges.push({ kind: 'branch', from: { x, y }, to: { x: kid.x, y: kid.y }, now: kid.now && n.now });
     } else {
-      x = PAD + nextColumn * COLUMN;
-      nextColumn += 1;
+      y = PAD + nextRow * ROW + gap;
+      nextRow += 1;
     }
     const masked = hidden && n.grade;
     const item = {
@@ -78,6 +81,7 @@ export function layoutLife(tree, open, hidden = false) {
       note: masked ? 'Details hidden.' : n.note,
       done: masked ? null : n.done, time: n.time, tone: n.tone, now: n.now,
       ahead: n.level === 'year' && Number(n.title) > thisYear,
+      empty: n.empty === true,
       count: n.children.length, open: isOpen,
       x, y
     };
@@ -85,15 +89,19 @@ export function layoutLife(tree, open, hidden = false) {
     return item;
   }
 
-  // The line through the years. It is drawn solid up to this year and dashed for the years ahead.
-  const years = tree.children.map((year) => place(year, 0));
+  // The year line. Solid up to this year, dashed for the years ahead. A little space between years.
+  const years = tree.children.map((year) => {
+    const placed = place(year, 0);
+    gap += YEAR_GAP;
+    return placed;
+  });
   for (let i = 1; i < years.length; i++) {
     edges.push({ kind: 'trunk', from: { x: years[i - 1].x, y: years[i - 1].y }, to: { x: years[i].x, y: years[i].y }, now: !years[i].ahead });
   }
 
   // The deepest open node on the way to today is where "Find today" goes.
   const nowNodes = nodes.filter((n) => n.now);
-  const deepest = nowNodes.reduce((best, n) => (!best || n.y > best.y ? n : best), null);
+  const deepest = nowNodes.reduce((best, n) => (!best || n.x > best.x ? n : best), null);
   for (const n of nodes) n.kind = n === deepest ? 'now' : 'node';
 
   const width = Math.max(...nodes.map((n) => n.x)) + COLUMN + PAD;

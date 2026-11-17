@@ -59,15 +59,27 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .period .btn { padding: 0 var(--s4); }
 
 /* ---------- the life tree ---------- */
+/* Years down a line on the left; each area keeps its own colour as it branches to the right. */
 
-.mapview.life { height: min(72vh, 640px); }
+.mapview.life { height: min(78vh, 760px); }
 .lnode {
-  position: absolute; width: 230px; padding: 0; margin: 0;
-  display: flex; align-items: center; gap: 10px;
+  --area: var(--surface);
+  position: absolute; width: 236px; padding: 0; margin: 0;
+  display: flex; align-items: center; gap: 8px;
   background: none; border: 0; cursor: pointer; color: var(--ink); text-align: left;
   animation: pop 420ms var(--ease) backwards;
 }
-.rings { width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--surface); transition: box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease); }
+.lnode.area-studies { --area: var(--tint-grades); }
+.lnode.area-money { --area: var(--tint-budget); }
+.lnode.area-food { --area: var(--tint-food); }
+.lnode.area-health { --area: var(--tint-health); }
+.lnode.lv-year { --area: var(--tint-map); }
+
+.rings {
+  width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--surface);
+  box-shadow: 0 2px 6px rgb(20 49 42 / 0.12);
+  transition: box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
 .lnode:hover .rings { transform: scale(1.06); }
 .lnode.is-picked .rings { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--mango); }
 .ring-track { fill: none; stroke: var(--track); stroke-width: 6; }
@@ -76,18 +88,42 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .ring-done.warn { stroke: var(--mark-warn); }
 .ring-time { fill: none; stroke: var(--mango); stroke-width: 4; stroke-linecap: round; }
 .rings text { font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; font-family: var(--body); }
-.ltext { display: flex; flex-direction: column; line-height: 1.25; background: var(--surface); padding: 4px 10px; border-radius: 12px; min-width: 0; }
-.ltext strong { font-family: var(--display); font-size: 1rem; font-synthesis: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ltext span { font-size: 0.83rem; }
-.ltext small { font-size: 0.75rem; font-weight: 700; color: var(--accent); }
-.lv-root .rings, .lv-year .rings { background: var(--tint-map); }
+
+/* The label: a soft tile in the area's colour. */
+.ltext {
+  flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  padding: 8px 12px; border-radius: 16px 6px 16px 6px; line-height: 1.25;
+  background: var(--area); box-shadow: 0 2px 8px rgb(20 49 42 / 0.08);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.lnode:hover .ltext { transform: translateX(2px); box-shadow: 0 4px 14px rgb(20 49 42 / 0.14); }
+.ltext strong { font-family: var(--display); font-weight: 400; font-size: 1.1rem; font-synthesis: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltext span { font-size: 0.86rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltext small { font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.lchev {
+  position: absolute; right: -10px; top: 50%; translate: 0 -50%;
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); color: var(--accent); font-weight: 700; font-size: 1rem; line-height: 1;
+  box-shadow: 0 1px 4px rgb(20 49 42 / 0.18);
+}
+
+/* Years: the big markers on the line. */
+.lv-year .rings { background: var(--tint-map); }
+.lv-year .ltext strong { font-size: 1.5rem; }
+.lv-year.is-now .rings { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--mango); }
+.lv-year.is-now .ltext small { color: var(--ink); }
+.lnode.is-ahead .ltext { background: transparent; box-shadow: none; outline: 2px dashed var(--line); outline-offset: -2px; }
+.lnode.is-ahead .rings { background: var(--bg); box-shadow: none; }
+.lnode.is-empty .ltext { background: var(--surface); box-shadow: none; outline: 2px dashed var(--area); outline-offset: -2px; }
+.lnode.is-empty .ltext span { color: var(--muted); }
+.lnode.is-empty .rings { box-shadow: none; }
+
 .route path.branch { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
-.route path.trunk { fill: none; stroke-width: 8; stroke-linecap: round; }
-.route path.trunk.walked { stroke: var(--mark); }
-.route path.trunk.ahead { stroke: var(--line); stroke-dasharray: 2 16; }
-.lnode.is-ahead { opacity: 0.7; }
-.lnode.is-ahead .rings { background: var(--bg); }
+.route path.trunk { fill: none; stroke-width: 10; stroke-linecap: round; }
+.route path.trunk.walked { stroke: var(--jungle); }
+.route path.trunk.ahead { stroke: var(--line); stroke-dasharray: 2 18; }
 .life .route path.walked { stroke-dasharray: none; animation: none; }
+.life .route path.walked:not(.trunk) { stroke: var(--jungle); stroke-width: 3; fill: none; }
 
 /* The map can fill the whole page. Escape or the button leaves it. */
 .mapbox.full {

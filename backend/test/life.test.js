@@ -42,6 +42,8 @@ test('with no data the tree still has you and this year', () => {
   assert.equal(tree.children[1].note, 'Still to come');
   assert.equal(tree.children[0].now, true);
   assert.equal(tree.children[0].note, 'Nothing recorded');
+  assert.deepEqual(tree.children[0].children.map((a) => [a.title, a.value]), [['Studies', 'Nothing recorded'], ['Money', 'Nothing recorded'], ['Food', 'Nothing recorded'], ['Health', 'Nothing recorded']]);
+  assert.deepEqual(tree.children[1].children, []);               // a year still to come has no areas yet
   assert.ok(Math.abs(tree.children[0].time - 321 / 365) < 0.001);    // 17 November is day 321
 });
 
@@ -60,9 +62,10 @@ test('the line runs to the last year of the course, worked out from the total cr
 test('each year with data appears, in order, with its areas', () => {
   const tree = lifeTree({ ...empty, report, transactions: [{ id: 1, what: 'Lunch', amount: 10, date: '2024-03-02', category: 'Food', account: null }] });
   assert.deepEqual(tree.children.map((y) => y.title), ['2024', '2025', '2026', '2027']);
-  assert.deepEqual(tree.children[0].children.map((a) => a.title), ['Money']);
+  assert.deepEqual(tree.children[0].children.map((a) => a.title), ['Studies', 'Money', 'Food', 'Health']);   // all four, even when empty
+  assert.deepEqual(tree.children[0].children.filter((a) => !a.empty).map((a) => a.title), ['Money']);
   assert.equal(tree.children[0].value, 'Finished');
-  assert.deepEqual(tree.children[2].children.map((a) => a.title), ['Studies']);
+  assert.deepEqual(tree.children[2].children.filter((a) => !a.empty).map((a) => a.title), ['Studies']);
 });
 
 test('studies: finished semesters are full; the current one shows work marked and time gone', () => {

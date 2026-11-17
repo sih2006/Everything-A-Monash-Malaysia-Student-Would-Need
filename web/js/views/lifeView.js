@@ -1,7 +1,7 @@
 // The View for the life tree. It draws what layoutLife placed, and nothing else.
 
 import { esc } from '../format.js';
-import { layoutLife } from '../viewmodels/lifeTree.js';
+import { NODE_WIDTH, layoutLife } from '../viewmodels/lifeTree.js';
 import { ICON, pageHead } from './parts.js';
 
 const LEVEL_WORDS = { root: 'you', year: 'year', area: 'area', term: 'semester', unit: 'unit', assessment: 'assessment', month: 'month', week: 'week', day: 'day', meal: 'meal', item: 'entry' };
@@ -42,14 +42,18 @@ export function lifeView(state, kinds) {
   }
   const layout = layoutLife(state.life, state.lifeOpen, state.hidden);
   const selected = layout.nodes.find((n) => n.id === state.lifeSelected) ?? layout.nodes.find((n) => n.kind === 'now') ?? layout.nodes[0];
-  // The year line is straight; a branch drops from the bottom of a circle to the top of its child.
-  const path = (e) => (e.kind === 'trunk'
-    ? `M${e.from.x + 32} ${e.from.y} L${e.to.x - 32} ${e.to.y}`
-    : `M${e.from.x} ${e.from.y + 32} C${e.from.x} ${e.from.y + 80}, ${e.to.x} ${e.to.y - 80}, ${e.to.x} ${e.to.y - 32}`);
+  // The year line runs straight down between the year circles. A branch leaves where the parent's
+  // label ends and curves into the child's circle, so lines never cross any text.
+  const path = (e) => {
+    if (e.kind === 'trunk') return `M${e.from.x} ${e.from.y + 34} L${e.to.x} ${e.to.y - 34}`;
+    const sx = e.from.x - 32 + NODE_WIDTH + 4, ex = e.to.x - 36;
+    const bend = (ex - sx) / 2;
+    return `M${sx} ${e.from.y} C${sx + bend} ${e.from.y}, ${ex - bend} ${e.to.y}, ${ex} ${e.to.y}`;
+  };
   const edgeClass = (e) => (e.kind === 'trunk' ? `trunk ${e.now ? 'walked' : 'ahead'}` : e.now ? 'walked' : 'branch');
 
   return `
-    ${pageHead('Map', 'Your years on one line. Open a year to see its studies, money, food and health, then go deeper.')}
+    ${pageHead('Map', 'Your years run down the left. Open a year to see its studies, money, food and health, then keep opening to the right.')}
     <div class="seg" role="group" aria-label="Choose a map">${tabs}</div>
 
     <section class="mapbox ${state.mapFull ? 'full' : ''}" aria-label="Your life tree">
@@ -71,10 +75,10 @@ export function lifeView(state, kinds) {
             ${layout.edges.map((e) => `<path class="${edgeClass(e)}" d="${path(e)}"/>`).join('')}
           </svg>
           ${layout.nodes.map((n) => `
-            <button type="button" class="lnode lv-${n.level} ${n.now ? 'is-now' : ''} ${n.ahead ? 'is-ahead' : ''} ${n.id === selected.id ? 'is-picked' : ''}" data-node="${esc(n.id)}"
+            <button type="button" class="lnode lv-${n.level} ${n.area ? `area-${n.area}` : ''} ${n.now ? 'is-now' : ''} ${n.ahead ? 'is-ahead' : ''} ${n.empty ? 'is-empty' : ''} ${n.id === selected.id ? 'is-picked' : ''}" data-node="${esc(n.id)}"
                     style="left:${n.x - 32}px; top:${n.y - 32}px" aria-label="${esc(spoken(n))}" aria-expanded="${n.count ? n.open : 'false'}">
               ${rings(n)}
-              <span class="ltext"><strong>${esc(n.title)}</strong><span>${esc(n.value)}</span>${n.count ? `<small>${n.open ? 'Close' : `Open · ${n.count}`}</small>` : ''}</span>
+              <span class="ltext"><strong>${esc(n.title)}</strong><span>${esc(n.value)}</span>${n.count ? `<small>${n.open ? 'Close' : `Open · ${n.count}`}</small>` : ''}</span>${n.count ? `<span class="lchev" aria-hidden="true">${n.open ? '−' : '+'}</span>` : ''}
             </button>`).join('')}
         </div>
       </div>
