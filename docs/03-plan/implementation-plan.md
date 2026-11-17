@@ -80,7 +80,7 @@ gantt
 | **M6: On the phone properly** | Installed from the home screen, with mascot art and an icon |
 | **M7: Health Connect** | Steps arrive without typing |
 
-The full task list, with who can do each one and when it counts as done, is [next-tasks.md](../handoff/next-tasks.md).
+The full task list, with who can do each one and when it counts as done, is [next-tasks.md](../handoff/next-tasks.md). The versions these milestones lead to (0.1 to 1.0) are in the [roadmap](roadmap.md).
 
 ## 4. Risks
 

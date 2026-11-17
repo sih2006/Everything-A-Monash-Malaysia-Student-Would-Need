@@ -30,7 +30,8 @@ Decisions Claude made alone are recorded as ADRs with the status "Proposed".
 | Design | 11 | [02-design/security-privacy.md](02-design/security-privacy.md) | What could go wrong with grade, money and health data, and the defences | Data-flow diagram, STRIDE table | Draft |
 | Design | | [02-design/grade-rules.md](02-design/grade-rules.md) | Every grade rule, with sources and worked examples | | Draft; needs checking against the owner's own results |
 | Plan | 12 | [03-plan/test-plan.md](03-plan/test-plan.md) | How we know it works, and which test proves which story | Traceability table | Draft |
-| Plan | 13 | [03-plan/implementation-plan.md](03-plan/implementation-plan.md) | Order of work, definition of done, risks, costs | Roadmap | Draft, written after the build |
+| Plan | 13 | [03-plan/implementation-plan.md](03-plan/implementation-plan.md) | Order of work, definition of done, risks, costs | Milestones | Draft, written after the build |
+| Plan | 14 | [03-plan/roadmap.md](03-plan/roadmap.md) | Versions 0.1 to 1.0, each with one theme | Version table | The owner's plan; 0.1 to 0.3 done |
 | All | | [engineering-principles.md](engineering-principles.md) | Which engineering principles the project follows, where and why | | In review; parts are out of date, see the note at its top |
 | All | | [adr/](adr/) | Why each big decision was made | | 0001 proposed with the owner; 0002 to 0006 proposed by Claude; 0007 partly the owner's |
 
