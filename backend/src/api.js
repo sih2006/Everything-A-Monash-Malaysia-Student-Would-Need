@@ -18,7 +18,7 @@ const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const SMALL = 64 * 1024;            // size limit for normal requests
 const PICTURE = 8 * 1024 * 1024;    // size limit for a screenshot
 
-export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {} }) {
+export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now() }) {
   const router = createRouter();
   const route = (method, pattern, handler, limit = SMALL) => router.add(method, pattern, { handler, limit });
 
@@ -405,6 +405,27 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     return given.length === wanted.length && timingSafeEqual(given, wanted);
   };
 
+  // Wrong tokens are counted per address. After 5 wrong guesses in 15 minutes,
+  // that address is refused until the 15 minutes have passed.
+  const GUESSES = 5, WINDOW = 15 * 60 * 1000;
+  const wrongGuesses = new Map();   // address -> { count, since }
+  function checkToken(req) {
+    const address = req.socket.remoteAddress ?? 'unknown';
+    const record = wrongGuesses.get(address);
+    if (record && now() - record.since > WINDOW) wrongGuesses.delete(address);
+    const current = wrongGuesses.get(address);
+    if (current && current.count >= GUESSES) {
+      throw new HttpError(429, 'too_many_guesses', 'Too many wrong tokens. Wait 15 minutes, then try again.');
+    }
+    if (tokenMatches(req.headers.authorization)) {
+      wrongGuesses.delete(address);
+      return;
+    }
+    if (current) current.count += 1;
+    else wrongGuesses.set(address, { count: 1, since: now() });
+    throw new HttpError(401, 'no_token', 'This app is locked. Enter the access token.');
+  }
+
   return async function handle(req, res) {
     const started = Date.now();
     const url = new URL(req.url, 'http://localhost');
@@ -416,7 +437,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
         if (!(await sendStatic(webDir, url.pathname, res))) throw new HttpError(404, 'not_found', 'There is nothing at that address.');
         return;
       }
-      if (token && !tokenMatches(req.headers.authorization)) throw new HttpError(401, 'no_token', 'This app is locked. Enter the access token.');
+      if (token) checkToken(req);
       const found = router.find(req.method, url.pathname);
       if (found === 'wrong-method') throw new HttpError(405, 'wrong_method', `That address does not support ${req.method}.`);
       if (!found) throw new HttpError(404, 'not_found', 'There is nothing at that address.');

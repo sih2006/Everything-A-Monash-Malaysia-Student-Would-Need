@@ -35,7 +35,8 @@ async function start(options = {}) {
     engine: createEngine(options.enginePath ?? enginePath),
     gemini: createGemini({ apiKey: options.geminiKey ?? '', fetchImpl: options.fetchImpl }),
     today: () => TODAY,
-    token: options.token ?? ''
+    token: options.token ?? '',
+    now: options.now
   });
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -358,6 +359,31 @@ describe('access token', () => {
     assert.equal((await app.call('GET', '/api/status', undefined, { Authorization: 'Bearer wrong' })).status, 401);
     assert.equal((await app.call('GET', '/api/status', undefined, { Authorization: 'Bearer secret-token' })).status, 200);
     assert.equal((await app.call('GET', '/')).status, 200);
+  });
+});
+
+describe('wrong token guesses', () => {
+  test('after five wrong tokens the address is refused for 15 minutes, even with the right token', async () => {
+    let clock = 1_000_000;
+    const app = await start({ token: 'secret-token', now: () => clock });
+    const wrong = { Authorization: 'Bearer wrong' }, right = { Authorization: 'Bearer secret-token' };
+    for (let i = 0; i < 5; i++) assert.equal((await app.call('GET', '/api/status', undefined, wrong)).status, 401);
+    const blocked = await app.call('GET', '/api/status', undefined, right);
+    assert.equal(blocked.status, 429);
+    assert.equal(blocked.body.error.code, 'too_many_guesses');
+    clock += 15 * 60 * 1000 + 1;                                         // the 15 minutes have passed
+    assert.equal((await app.call('GET', '/api/status', undefined, right)).status, 200);
+    await app.close();
+  });
+
+  test('a right token clears earlier wrong guesses', async () => {
+    const app = await start({ token: 'secret-token', now: () => 0 });
+    const wrong = { Authorization: 'Bearer wrong' }, right = { Authorization: 'Bearer secret-token' };
+    for (let i = 0; i < 4; i++) await app.call('GET', '/api/status', undefined, wrong);
+    assert.equal((await app.call('GET', '/api/status', undefined, right)).status, 200);
+    for (let i = 0; i < 4; i++) assert.equal((await app.call('GET', '/api/status', undefined, wrong)).status, 401);
+    assert.equal((await app.call('GET', '/api/status', undefined, right)).status, 200);
+    await app.close();
   });
 });
 
