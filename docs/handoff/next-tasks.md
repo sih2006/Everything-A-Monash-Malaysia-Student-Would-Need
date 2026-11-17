@@ -14,7 +14,7 @@ When a task is finished, move it to the "Done" table in [STATUS.md](STATUS.md).
 |---|---|---|
 | A1 | **Run the app and try everything.** `node backend/src/server.js`, open the address, load the example data, click through every screen, then delete the data and enter two of your own units. | You have used every screen once and written down anything that felt wrong |
 | A2 | **Read the five ADRs** in [docs/adr/](../adr/). Numbers 0002 to 0006 were decided by Claude during the build sprint and are marked "Proposed". For each one: accept it, or say what to change. | Each ADR's status is "Accepted" or it has been replaced |
-| A3 | **Merge the branches** ([github-setup.md](github-setup.md), parts 1 to 4). They were pushed on 18 November; open one pull request per branch, in the order in STATUS.md. | `main` on GitHub has everything and the Actions tab shows a green run |
+| A3 | **Done (18 November).** Branches merged through pull requests #1 to #7; CI green on Linux. | `main` on GitHub has everything and the Actions tab shows a green run |
 | A4 | **Check the grade rules against your own results.** Enter one finished semester and compare the CGPA with Monash's own CGPA calculator. | The numbers match, or you have reported the difference |
 | A5 | **Do the worked example** in [mvvm-guide.md](mvvm-guide.md) yourself: add notes to workouts. It is small on purpose, and it takes you through every layer once. | The note shows on the Health screen and the new test passes |
 

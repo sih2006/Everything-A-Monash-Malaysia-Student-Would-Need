@@ -73,7 +73,7 @@ gantt
 | Milestone | Reached when |
 |---|---|
 | **M1: Reviewed** | The owner has run the app, read ADRs 0002 to 0007 and accepted or changed each one |
-| **M2: On GitHub** | All branches are merged, CI is green, the board is public. (Pushed on 18 November; not merged yet.) |
+| **M2: On GitHub** | All branches are merged, CI is green, the board is public. (Merged and green on 18 November; the board is still to do.) |
 | **M3: Trusted numbers** | One real semester gives the same CGPA as Monash's calculator |
 | **M4: Daily use** | The owner has used it for two weeks of the summer semester and listed what to fix |
 | **M5: Online** | The app is reachable from the phone with a login, and the bill is RM 0 |
