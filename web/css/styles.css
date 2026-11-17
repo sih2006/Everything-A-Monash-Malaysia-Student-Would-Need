@@ -203,7 +203,7 @@ body, .side, .nav, .card, .petal, .banner, .mapview, .here { transition: backgro
   .app { display: grid; grid-template-columns: 264px minmax(0, 1fr); padding-bottom: 0; }
   .side {
     position: sticky; top: 0; height: 100dvh;
-    flex-direction: column; align-items: stretch; justify-content: flex-start; gap: var(--s6);
+    flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start; gap: var(--s6);
     padding: var(--s6) var(--s5);
     border-right: 1.5px solid var(--line); background: var(--surface);
   }
