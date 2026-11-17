@@ -27,13 +27,14 @@ flowchart LR
     env[.env file<br/>the Gemini key] --> server
   end
   server -.->|HTTPS, only when the user<br/>presses an AI button| gemini[Google Gemini]
+  server -.->|HTTPS, once a day:<br/>only the code MYR| rates[Exchange-rate service]
   laptop -->|git push: code and<br/>documents only| github[GitHub, public]
 
   style gemini stroke-dasharray: 5 5
 ```
 
 - By default nothing leaves the laptop. The server listens on `127.0.0.1`, which other devices cannot reach.
-- The only outside connection is to Gemini, and only when a key is set **and** the user presses "Write me a plan" or "Read screenshot".
+- Two outside connections. Gemini, only when a key is set **and** the user presses "Write me a plan" or "Read screenshot". And the exchange-rate service, once a day: its address carries only the base currency code, and nothing about the user ([ADR-0008](../adr/0008-exchange-rates.md)).
 - Only code and documents go to GitHub, and the repository is public. `backend/data/` and `.env` are ignored by git. The owner's bank statements, and the scripts that read them, are kept outside the repository. Tests use made-up numbers, and the unpushed changes are searched for real values before each push.
 - Fonts are loaded from Google Fonts. That request carries no app data, but it tells Google that the page was opened. To avoid it, the fonts can be saved into `web/` (a small task).
 
@@ -52,7 +53,7 @@ STRIDE is a checklist of six kinds of threat. Each row is one threat that applie
 | **R**epudiation (denying an action) | Not relevant with one user | An API log line records each call (method, address, status, time), with no bodies. | `api.js` |
 | **I**nformation disclosure | The Gemini key leaks | It is read from `.env`, which git ignores. It is sent only in a request header to Google, never to the browser, never in a web address, never logged. CI fails if a key or a `.env` file is committed. | `gemini.js`, `ci.yml` |
 | | Personal data ends up in logs | Request bodies are never logged. | `api.js` |
-| | Someone looks over the user's shoulder | "Hide money" masks every amount in RM. "Hide grades" masks every mark, grade and target. While it is on, the page is not given the raw values at all: the edit forms are removed. A test checks that no raw mark is in the presented data. | `present.js` |
+| | Someone looks over the user's shoulder | "Hide numbers" masks every mark, grade, target and amount. While it is on, the page is not given the raw values at all: the edit forms are removed. A test checks that no raw mark is in the presented data. | `present.js` |
 | | More data than needed goes to the AI | The plan request sends unit codes, targets, averages and verdicts. It does not send unit names, individual marks or anything about money, food or health. A test reads what is sent. | `api.js` |
 | | Reading files outside the web folder through a crafted address | The path is resolved and refused unless it is inside the web folder. Tested with three kinds of `..` address. | `http.js` |
 | | Old data shown from a cache, or kept on a shared computer | API answers are sent with `no-store`. The service worker never caches API calls. | `http.js`, `sw.js` |

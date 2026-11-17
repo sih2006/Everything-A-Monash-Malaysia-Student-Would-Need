@@ -140,7 +140,7 @@ h1, h2, .brand, .big, .mid, .pin, .stop .about strong, .task .head strong { font
 .tool:hover { border-color: var(--muted); }
 .tool[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 /* On a phone the buttons show only their icons. The labels stay for screen readers. */
-#toggleThemeLabel, #toggleGradesLabel, #toggleMoneyLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+#toggleThemeLabel, #toggleNumbersLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .tool:disabled { opacity: 0.55; cursor: not-allowed; }
 select.tool { padding: 0 var(--s2); max-width: 5.5rem; justify-content: flex-start; }
 
@@ -220,7 +220,7 @@ body, .side, .nav, .card, .petal, .banner, .mapview, .here { transition: backgro
   .nav a:hover:not([aria-current="page"]) { background: var(--track); color: var(--ink); }
   .tools { margin-top: auto; flex-direction: column; gap: var(--s2); }
   .tool { justify-content: flex-start; padding: 0 var(--s4); }
-  #toggleThemeLabel, #toggleGradesLabel, #toggleMoneyLabel { position: static; width: auto; height: auto; clip-path: none; }
+  #toggleThemeLabel, #toggleNumbersLabel { position: static; width: auto; height: auto; clip-path: none; }
   select.tool { max-width: none; }
   #view { padding: var(--s6) var(--s7) var(--s7); }
 }

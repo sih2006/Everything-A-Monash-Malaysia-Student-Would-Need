@@ -6,7 +6,7 @@ What is built, what is tested, and what is known to be wrong. **Read it first**,
 
 ## In one paragraph
 
-The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 282 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
+The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 299 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
 
 ## How to run and check it
 
@@ -50,7 +50,9 @@ python tools/check.py                build and run every test
 | Could cut and essential categories | Spending outside essential categories (such as rent) over the last 3 months, by category and by the places paid most | Rule and API tests |
 | Spending map | A treemap of that spending, with a legend, hover tips and a table view | 5 layout tests, browser check |
 | Advice | Text on the Expenses tab, saved with `PUT /api/budget/advice`. A placeholder for now; the AI helper writes it in v0.6. | API test |
-| Hide money | One switch hides every amount on every screen | View-model test |
+| Hide numbers | One switch hides every mark, grade, target and amount on every screen (it replaced Hide grades and Hide money) | View-model tests |
+| Looking back | The Expenses tab switches between this month, 3 months, a year and all time: total spent, essential, could cut, and a month-by-month table of what went where | Rule, API and view-model tests, browser check |
+| Other currencies | A converter, and a switch that shows every amount in USD, OMR, CZK, CAD or IDR. Live rates once a day, or a rate typed by hand ([ADR-0008](../adr/0008-exchange-rates.md)) | API tests with a fake rate service, view-model tests, browser check |
 | Life tree | The Map's Life view: years down the left; studies, money, food and health branching right, down to single days | 8 rule tests, 10 view-model tests |
 | Also in this version | Pass/fail units; GPA, CGPA and WAM that follow the what-if sliders; more grade sorting; body weight with BMI, water, workouts with exercises and best lifts | Core, rule, API and view-model tests |
 

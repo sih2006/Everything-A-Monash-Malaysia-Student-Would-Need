@@ -51,6 +51,10 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | BUD-16 | "Could cut" shows spending outside essential categories over the last 3 months: per month, by category, and the places paid most, with how often and the usual amount. | Should | 0.3 | Built, tested. **3 months is a starting value, not the owner's choice yet.** |
 | BUD-17 | The Expenses tab shows advice. For now it is text written by hand; later the AI helper writes it from the numbers. | Could | 0.3 | Built, tested. The AI part is task D7 |
 | BUD-18 | A bank or e-wallet statement can be imported from a file. | Should | 0.7 | **Not built.** Task C16 |
+| BUD-20 | The Expenses tab looks back over this month, 3 months, a year or all time. For the period it shows the total spent (essential included), the essential part and what could be cut, and the spending map and could-cut list follow it. A period never reaches back before the first spending. | Should | 0.3 | Built, tested |
+| BUD-21 | A month-by-month table of what was spent on each category, for the period chosen. | Should | 0.3 | Built, tested |
+| BUD-22 | A converter shows an amount in ringgit, US dollars, Omani rials, Czech koruna, Canadian dollars and Indonesian rupiah ([ADR-0008](../adr/0008-exchange-rates.md)). | Should | 0.3 | Built, tested |
+| BUD-23 | Every amount in the app can be shown in one of those currencies, at a live rate fetched once a day or a rate typed by hand. Amounts are still typed and stored in ringgit. | Should | 0.3 | Built, tested |
 | BUD-19 | A spending map on the Expenses tab: one block per category outside the essential ones, sized by the average month, with the places inside it. A legend, a hover tip on every block and a table view. | Should | 0.3 | Built, tested. Checked in light, dark and at phone width |
 
 ## Food
@@ -94,7 +98,7 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | ID | Requirement | Priority | Version | State |
 |---|---|---|---|---|
 | APP-01 | A home screen with a headline verdict, one card per area and a list of what needs attention. | Must | 0.2 | Built, tested (presenters) |
-| APP-02 | One press hides every mark, grade and target. The choice is remembered. | Must | 0.2 | Built, tested |
+| APP-02 | One press ("Hide numbers") hides every mark, grade, target and money amount. The choice is remembered. | Must | 0.2 | Built, tested |
 | APP-03 | Works on a phone-sized and a laptop-sized screen with no sideways scrolling. | Must | 0.2 | Built. Checked at 390 px and 1360 px |
 | APP-04 | Light and dark mode. | Should | 0.2 | Built |
 | APP-05 | An empty app explains how to start, and offers example data that can be deleted again. | Must | 0.2 | Built, tested |
@@ -106,7 +110,7 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | APP-11 | Money is shown in MYR, dates in Malaysian time. | Must | 0.2 | Built, tested |
 | APP-12 | Movement on screen has a purpose and is turned off when the device asks for less motion. | Should | 0.2 | Built |
 | APP-13 | The user's data can be exported to one file, and loaded back into an empty app. | Should | 0.2 | Built, tested |
-| APP-14 | One press hides every money amount on every screen. The choice is remembered. | Should | 0.3 | Built, tested. Added 18 November, after the code |
+| APP-14 | One press hides every money amount on every screen. | Should | 0.3 | Built, tested. Since 18 November part of APP-02: one Hide numbers switch for marks and money |
 
 ## The AI helper
 

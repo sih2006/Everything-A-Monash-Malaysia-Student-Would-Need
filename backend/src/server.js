@@ -14,6 +14,7 @@ import { inTransaction, openDatabase } from './db.js';
 import { todayIn } from './domain.js';
 import { createEngine } from './engine.js';
 import { createGemini } from './gemini.js';
+import { createRates } from './rates.js';
 import { loadDemo } from './seed.js';
 import { createStore } from './store.js';
 
@@ -26,6 +27,7 @@ const app = createApp({
   store: createStore(db),
   engine,
   gemini: createGemini({ apiKey: config.geminiKey, model: config.geminiModel }),
+  rates: createRates(),
   webDir: config.webDir,
   token: config.token,
   demo,

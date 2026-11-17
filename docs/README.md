@@ -49,6 +49,7 @@ On 16 November 2026 the owner chose to build first, so most of the other documen
 | [0005](adr/0005-hosting.md) | Where the app is hosted | **No decision yet** |
 | [0006](adr/0006-testing-and-build-tools.md) | Testing and build tools | Proposed |
 | [0007](adr/0007-native-android-app.md) | A native Android app in Kotlin | Accepted in part: the owner chose native and data on the phone |
+| [0008](adr/0008-exchange-rates.md) | Exchange rates for other currencies: free live rates, or typed by hand | Accepted |
 
 ## How planning connects to testing
 

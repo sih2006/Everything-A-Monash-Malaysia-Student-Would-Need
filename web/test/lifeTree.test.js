@@ -87,7 +87,7 @@ test('hidden grades: figures marked as grades become dots and their ring is remo
 test('opening the app straight onto the map loads the tree', async () => {
   // Regression test: the tree once stayed on "Loading" when the app was opened at #map.
   let loads = 0;
-  const api = { overview: () => Promise.resolve({ today: '2026-11-21' }), life: () => { loads += 1; return Promise.resolve(tree); } };
+  const api = { overview: () => Promise.resolve({ today: '2026-11-21' }), currency: () => Promise.resolve(null), life: () => { loads += 1; return Promise.resolve(tree); } };
   const vm = createAppViewModel({ api, storage: { get: () => null, set: () => {} } });
   vm.state.tab = 'map';
   await vm.load();
@@ -97,7 +97,7 @@ test('opening the app straight onto the map loads the tree', async () => {
 
 test('the ViewModel loads the tree when the map opens, and toggles nodes', async () => {
   let loads = 0;
-  const api = { overview: () => Promise.resolve({ today: '2026-11-21' }), life: () => { loads += 1; return Promise.resolve(tree); } };
+  const api = { overview: () => Promise.resolve({ today: '2026-11-21' }), currency: () => Promise.resolve(null), life: () => { loads += 1; return Promise.resolve(tree); } };
   const vm = createAppViewModel({ api, storage: { get: () => null, set: () => {} } });
   await vm.load();
   vm.setTab('map');

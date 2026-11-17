@@ -70,7 +70,7 @@ Every requirement gets a stable ID that tests, issues and commits refer back to.
 A short record for each significant decision: the context, the options considered, the decision and its consequences.
 - **Here:** `docs/adr/`, starting with ADR-0001 on the stack (Expo vs Kotlin Multiplatform vs Flutter). Later ADRs cover AWS vs Supabase, web hosting and state management.
 - **Why:** records why, including the rejected options, so a decision can be revisited with its context instead of being argued again from memory.
-- **Status:** Applied ([docs/adr/](adr/): seven records). Numbers 0002 to 0006, and part of 0007, were taken during the build without the owner and are marked Proposed. The comparison named above (Expo vs Kotlin Multiplatform vs Flutter) is in ADR-0001 and ADR-0003.
+- **Status:** Applied ([docs/adr/](adr/): eight records). Numbers 0002 to 0006, and part of 0007, were taken during the build without the owner and are marked Proposed. The comparison named above (Expo vs Kotlin Multiplatform vs Flutter) is in ADR-0001 and ADR-0003.
 
 ### Docs as code, kept alive
 Documentation lives in the repository as Markdown, is reviewed in pull requests like code, and is updated with a change log when reality changes.

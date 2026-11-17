@@ -117,7 +117,7 @@ Notes:
 - **Nothing worked out is stored.** GPA, verdicts, totals and summaries are calculated when asked for. So they can never be out of step with the marks.
 - **Deleting a unit deletes its assessments.** Deleting a budget category deletes its spending. The database enforces this (`ON DELETE CASCADE`).
 - **Days are text** in the form `YYYY-MM-DD`, worked out in Malaysian time. Text in that form sorts and compares correctly.
-- **`settings` keys:** `academics.currentTerm`, `academics.margin`, `academics.goal`, `academics.termDates`, `budget.limit`, `budget.advice`, `food.targets`, `health.targets`.
+- **`settings` keys:** `academics.currentTerm`, `academics.margin`, `academics.goal`, `academics.termDates`, `budget.limit`, `budget.advice`, `currency.rates` (the last rates fetched, "1 MYR = x"), `currency.manual` (rates typed by hand, "1 x = y MYR"), `food.targets`, `health.targets`.
 - **An account's balance is not stored.** It is worked out from its moves, by day and then in the order entered. A `set` move means "it held exactly this much on this day": moves before it stop counting. A move between two of your own accounts is marked `transfer`, so it is never income or spending.
 - **There is one user**, so no table has a user column. Adding more users means adding one to every table (see section 4).
 - **Changes to the layout** are added as a new step at the end of `MIGRATIONS` in `backend/src/db.js`. The database remembers which steps it has run.
@@ -164,7 +164,7 @@ A change to grades returns the whole new grades report, so the screen can redraw
 
 | Method and address | Body | What it does |
 |---|---|---|
-| `GET /api/budget?month=YYYY-MM` | | The summary for a month (this month if left out). It includes `money` (accounts and total, always as of now), `income` (money in that month), `reducible` (spending outside essential categories over the 3 months up to this one, with the places you pay most) and `advice` |
+| `GET /api/budget?month=YYYY-MM` | | The summary for a month (this month if left out). It includes `money` (accounts and total, always as of now), `income` (money in that month), `spans` (for this month, 3 months, a year and all time: everything spent, and the spending outside essential categories with the places paid most), `reducible` (the same for 3 months), `byMonth` (each month's total by category) and `advice` |
 | `PUT /api/budget/settings` | `limit` (a number or `null`) | Sets the monthly limit |
 | `POST /api/budget/categories` | `name`, `limit`, `essential` | Adds a category |
 | `PATCH /api/budget/categories/:id` | any of `name`, `limit`, `essential` (true or false) | Changes a category |
@@ -172,6 +172,14 @@ A change to grades returns the whole new grades report, so the screen can redraw
 | `DELETE /api/budget/categories/:id` | | Removes a category and its spending |
 | `POST /api/transactions` | `what`, `amount`, `category` (its name), `date`, `accountId` (optional) | Adds spending. The date cannot be in the future. With `accountId`, the account goes down too |
 | `DELETE /api/transactions/:id` | | Removes spending |
+
+### Other currencies
+
+| Method and address | Body | What it does |
+|---|---|---|
+| `GET /api/currency` | | The rates for USD, OMR, CZK, CAD and IDR, and where each came from. Fetches today's rates first if the saved ones are older ([ADR-0008](../adr/0008-exchange-rates.md)) |
+| `POST /api/currency/refresh` | | Fetches the rates again now |
+| `PUT /api/currency/manual` | `code`, `myrPerUnit` (or `null` to remove) | A rate typed by hand, "1 USD = 4.25 MYR". It wins over the live rate |
 
 ### Money accounts
 

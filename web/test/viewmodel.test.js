@@ -56,15 +56,9 @@ const overview = (over = {}) => ({ today: '2026-11-21', academics: report([unit(
 
 // ---------- presenters ----------
 
-test('hide money: every RM amount is masked, nothing else changes, and the choice is remembered', () => {
+test('hiding numbers masks every RM amount and nothing else', () => {
   assert.equal(maskMoney('<b>RM 1,234.56</b> left · RM12 · −RM 5.00 · 64.5 kg · ARMY'), '<b>RM •••</b> left · RM ••• · −RM ••• · 64.5 kg · ARMY');
   assert.equal(maskMoney('data-tip="Food: RM 1,234.50"'), 'data-tip="Food: RM •••"');
-  const saved = {};
-  const vm = createAppViewModel({ api: {}, storage: { get: (k) => saved[k] ?? null, set: (k, v) => { saved[k] = v; } } });
-  assert.equal(vm.state.hideMoney, false);
-  vm.toggleHideMoney();
-  assert.equal(vm.state.hideMoney, true);
-  assert.equal(saved.hideMoney, '1');
 });
 
 test('a unit shows its numbers as finished text', () => {
@@ -312,6 +306,7 @@ function setup(apiOverrides = {}) {
   api.budget ??= () => Promise.resolve(overview().budget);
   api.food ??= () => Promise.resolve(overview().food);
   api.health ??= () => Promise.resolve(overview().health);
+  api.currency ??= () => Promise.resolve(null);       // no exchange rates in these tests
   const vm = createAppViewModel({ api, storage: { get: (k) => saved.get(k) ?? null, set: (k, v) => saved.set(k, v) }, onChange: (state, info) => changes.push(info) });
   return { vm, calls, saved, changes };
 }
@@ -359,7 +354,7 @@ test('an API error becomes a message and the data is left as it was', async () =
 });
 
 test('after a failed command, other changes still redraw the screen', async () => {
-  // Regression test: "Hide grades" once did nothing while an error message was showing.
+  // Regression test: hiding numbers once did nothing while an error message was showing.
   const { vm, changes } = setup({ addUnit: () => Promise.reject(new ApiError(400, 'invalid', 'No.')) });
   await vm.load();
   await vm.addUnit({ code: 'X' });
@@ -370,12 +365,20 @@ test('after a failed command, other changes still redraw the screen', async () =
   assert.equal(vm.state.hidden, true);
 });
 
-test('hide grades is remembered', async () => {
+test('hide numbers is remembered', async () => {
   const { vm, saved } = setup();
   vm.toggleHidden();
-  assert.equal(saved.get('hideGrades'), '1');
+  assert.equal(saved.get('hideNumbers'), '1');
   vm.toggleHidden();
-  assert.equal(saved.get('hideGrades'), '0');
+  assert.equal(saved.get('hideNumbers'), '0');
+});
+
+test('hide numbers starts on if either of the two old switches was on', () => {
+  const start = (values) => createAppViewModel({ api: {}, storage: { get: (k) => values[k] ?? null, set: () => {} } }).state.hidden;
+  assert.equal(start({}), false);
+  assert.equal(start({ hideGrades: '1' }), true);
+  assert.equal(start({ hideMoney: '1' }), true);
+  assert.equal(start({ hideNumbers: '0', hideMoney: '1' }), false);   // the new switch wins once it has been used
 });
 
 test('an empty mark clears it; a typed mark is sent with what it is out of', async () => {
@@ -466,7 +469,8 @@ function periodSetup() {
     budget: (key) => answer('budget', key), food: (key) => answer('food', key), health: (key) => answer('health', key),
     logFood: (entry) => Promise.resolve(food({ date: entry.date })),
     saveHealthDay: (day) => Promise.resolve(health({ date: day })),
-    addSpending: (entry) => Promise.resolve(budget({ month: entry.date.slice(0, 7) }))
+    addSpending: (entry) => Promise.resolve(budget({ month: entry.date.slice(0, 7) })),
+    currency: () => Promise.resolve(null)
   };
   const vm = createAppViewModel({ api, storage: { get: () => null, set: () => {} } });
   return { vm, asked, api };
@@ -588,6 +592,17 @@ test('a screenshot import saves only the rows the user kept, with the user\'s co
   await vm.confirmImport([{ name: 'Assignment 1', weight: '20', score: '17', max: '20' }, { name: 'Exam', weight: '60', score: '', max: '' }]);
   assert.deepEqual(calls.filter(([name]) => name === 'addAssessment').map((c) => c[2]), [{ name: 'Assignment 1', weight: 20, score: 17, max: 20 }, { name: 'Exam', weight: 60 }]);
   assert.equal(vm.state.imported, null);
+});
+
+test('the Expenses period is remembered, and anything unknown falls back to 3 months', () => {
+  const saved = {};
+  const storage = { get: (k) => saved[k] ?? null, set: (k, v) => { saved[k] = v; } };
+  const vm = createAppViewModel({ api: {}, storage, onChange: () => {} });
+  assert.equal(vm.state.expenseSpan, '3m');
+  vm.setExpenseSpan('all');
+  assert.equal(createAppViewModel({ api: {}, storage, onChange: () => {} }).state.expenseSpan, 'all');
+  vm.setExpenseSpan('fortnight');
+  assert.equal(vm.state.expenseSpan, '3m');
 });
 
 test('budget tabs: the open tab and the account picked on each tab are kept for next time', () => {

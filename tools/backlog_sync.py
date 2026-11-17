@@ -205,13 +205,15 @@ def main():
 
     # 2. One milestone for each release. The roadmap's milestones are named "v0.1 Terminal grade tracker" and so on;
     #    a release uses its "v0.1 ..." milestone when there is one, or gets a plain "Release 0.1" milestone.
-    have = json.loads(gh("api", f"repos/{repo}/milestones?state=all&per_page=100", "--jq", "[.[].title]"))
+    #    Milestones are known by number too: an issue for a finished version goes into a closed milestone,
+    #    which only the API (not "gh issue create --milestone") accepts.
+    numbers = dict(json.loads(gh("api", f"repos/{repo}/milestones?state=all&per_page=100", "--jq", "[.[] | [.title, .number]]")))
     milestone_for = {}
     for release in sorted({story["release"] for story in stories}):
-        named = next((t for t in have if t.startswith(f"v{release} ")), None)
+        named = next((t for t in numbers if t.startswith(f"v{release} ")), None)
         milestone_for[release] = named or f"Release {release}"
-        if milestone_for[release] not in have:
-            gh("api", f"repos/{repo}/milestones", "-f", f"title=Release {release}")
+        if milestone_for[release] not in numbers:
+            numbers[milestone_for[release]] = json.loads(gh("api", f"repos/{repo}/milestones", "-f", f"title=Release {release}"))["number"]
             print(f"  made milestone Release {release}")
 
     # 3. Issues. An issue belongs to a story when its title starts with the story ID.
@@ -234,9 +236,10 @@ def main():
 
         if issue is None:
             label_args = [part for label in labels for part in ("--label", label)]
-            url = with_body_file(body, lambda path: gh("issue", "create", "--title", title, "--body-file", path,
-                                                       "--milestone", milestone, *label_args))
-            urls.append(url.splitlines()[-1])
+            url = with_body_file(body, lambda path: gh("issue", "create", "--title", title, "--body-file", path, *label_args))
+            url = url.splitlines()[-1]
+            gh("api", "-X", "PATCH", f"repos/{repo}/issues/{url.rstrip('/').split('/')[-1]}", "-F", f"milestone={numbers[milestone]}")
+            urls.append(url)
             made += 1
             print(f"  made    {title}")
             continue

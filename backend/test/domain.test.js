@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { accountSummary, addDays, budgetSummary, incomeSummary, reducibleSpending, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -239,6 +239,35 @@ test('could cut: after six places in a category, the rest are added up as one', 
   const places = reducibleSpending({ categories: [{ id: 1, name: 'Food' }], transactions, months: 1 }).byCategory[0].places;
   assert.equal(places.length, 7);
   assert.deepEqual(places[6], { what: '2 other places', total: 185, count: 2, perMonth: 185, rest: true });
+});
+
+test('spending by month: the total of each month and what it went on, oldest month first', () => {
+  const t = (date, category, amount) => ({ date, category, amount });
+  assert.deepEqual(monthlySpending([t('2026-10-03', 'Food', 12), t('2026-09-30', 'Rent', 900), t('2026-10-20', 'Food', 8.5), t('2026-10-21', 'Rent', 900)]), [
+    { month: '2026-09', total: 900, byCategory: { Rent: 900 } },
+    { month: '2026-10', total: 920.5, byCategory: { Food: 20.5, Rent: 900 } }
+  ]);
+  assert.deepEqual(monthlySpending([]), []);
+});
+
+test('months between two months, counting both ends', () => {
+  assert.equal(monthsBetween('2026-01', '2026-03'), 3);
+  assert.equal(monthsBetween('2025-11', '2026-02'), 4);
+  assert.equal(monthsBetween('2026-05', '2026-05'), 1);
+});
+
+test('spending spans: this month, 3 months, a year and all time each end with the month shown', () => {
+  const categories = [{ id: 1, name: 'Rent', essential: true }, { id: 2, name: 'Food' }];
+  const t = (date, categoryId, amount) => ({ date, categoryId, category: categoryId === 1 ? 'Rent' : 'Food', what: categoryId === 1 ? 'Rent' : 'Lunch', amount });
+  const transactions = [t('2025-06-10', 2, 10), t('2026-08-05', 2, 30), t('2026-10-02', 1, 900), t('2026-10-15', 2, 20)];
+  const s = spendingSpans({ categories, transactions, month: '2026-10' });
+  assert.deepEqual([s.month.spent, s.month.total, s.month.months, s.month.from], [920, 20, 1, '2026-10-01']);
+  assert.deepEqual([s['3m'].spent, s['3m'].total, s['3m'].perMonth], [950, 50, 16.67]);
+  assert.deepEqual([s.year.spent, s.year.months, s.year.from], [950, 12, '2025-11-01']);
+  assert.deepEqual([s.all.spent, s.all.months, s.all.from], [960, 17, '2025-06-01']);   // June 2025 to October 2026
+  // Records that start in August: "a year" covers only August to October, so its average is not spread over empty months.
+  const short = spendingSpans({ categories, transactions: transactions.slice(1), month: '2026-10' });
+  assert.deepEqual([short.year.months, short.year.from, short.year.perMonth], [3, '2026-08-01', 16.67]);
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {

@@ -5,6 +5,7 @@
 // This file connects them: it draws the View when the state changes, and it
 // turns clicks and submitted forms into ViewModel commands.
 
+import { convertMoneyText, rateOf } from './viewmodels/currency.js';
 import { createApi } from './api.js';
 import { clamp, esc, f1, maskMoney } from './format.js';
 import { createAppViewModel } from './viewmodels/appViewModel.js';
@@ -69,7 +70,12 @@ function draw(state, info = {}) {
         <p>This server was started with <code>--demo</code>. Everything here is made up and is lost when it stops. Your own data is in the app started without <code>--demo</code>.</p></section>`
     : '';
   const screen = (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state));
-  view.innerHTML = demo + (state.hideMoney ? maskMoney(screen) : screen) +
+  // Amounts are hidden, or shown in another currency. Hiding wins. Without a rate, ringgit stays.
+  const rate = rateOf(state.currency, state.showIn);
+  const shownIn = !state.hidden && state.showIn !== 'MYR' && rate
+    ? `<p class="banner-line currency-note">Amounts are shown in ${state.showIn} at 1 RM = ${rate.toLocaleString('en-MY', { maximumSignificantDigits: 6 })} ${state.showIn}. You still type amounts in RM.</p>` : '';
+  const shown = state.hidden ? maskMoney(screen) : shownIn ? convertMoneyText(screen, state.showIn, rate) : screen;
+  view.innerHTML = demo + shownIn + shown +
     (state.overview.empty ? '' : `<p class="foot">${state.overview.demo ? 'Example data, kept in memory only.' : 'Kept on this computer only.'}</p>`);
   for (const key of open) view.querySelector(`details[data-key="${CSS.escape(key)}"]`)?.setAttribute('open', '');
 
@@ -147,6 +153,7 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 // Any other data-action, such as addUnit, goes straight to vm.addUnit(form) (see runCommand).
 const COMMANDS = {
   setBudgetTab: (f, d) => vm.setBudgetTab(d.tab),
+  setExpenseSpan: (f, d) => vm.setExpenseSpan(d.span),
   showAccount: (f, d) => vm.showAccount(d.group, Number(d.id)),
   setEssential: (f, d) => vm.setEssential(Number(d.id), d.essential === 'true'),
   saveAdvice: (f) => vm.saveAdvice(f.text),
@@ -297,14 +304,11 @@ view.addEventListener('input', (e) => {
 // ---------- the controls in the side menu ----------
 
 const root = document.documentElement;
-const moneyButton = $('#toggleMoney');
-const gradesButton = $('#toggleGrades'), themeButton = $('#toggleTheme'), lookSelect = $('#lookSelect');
+const numbersButton = $('#toggleNumbers'), themeButton = $('#toggleTheme'), lookSelect = $('#lookSelect');
 
 function syncControls() {
-  gradesButton.setAttribute('aria-pressed', String(vm.state.hidden));
-  $('#toggleGradesLabel').textContent = vm.state.hidden ? 'Show grades' : 'Hide grades';
-  moneyButton.setAttribute('aria-pressed', String(vm.state.hideMoney));
-  $('#toggleMoneyLabel').textContent = vm.state.hideMoney ? 'Show money' : 'Hide money';
+  numbersButton.setAttribute('aria-pressed', String(vm.state.hidden));
+  $('#toggleNumbersLabel').textContent = vm.state.hidden ? 'Show numbers' : 'Hide numbers';
   const market = root.dataset.look === 'market';      // the night market look is always dark
   const dark = root.dataset.theme === 'dark';
   themeButton.disabled = market;
@@ -316,8 +320,10 @@ function applyLook(look) {
   root.dataset.theme = look === 'market' ? 'dark' : storage.get('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   syncControls();
 }
-gradesButton.addEventListener('click', () => { vm.toggleHidden(); syncControls(); });
-moneyButton.addEventListener('click', () => { vm.toggleHideMoney(); syncControls(); });
+numbersButton.addEventListener('click', () => { vm.toggleHidden(); syncControls(); });
+const currencySelect = $('#currencySelect');
+currencySelect.value = vm.state.showIn;
+currencySelect.addEventListener('change', () => vm.setShowIn(currencySelect.value));
 themeButton.addEventListener('click', () => {
   storage.set('theme', root.dataset.theme === 'dark' ? 'light' : 'dark');
   applyLook(root.dataset.look);

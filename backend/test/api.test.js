@@ -34,6 +34,7 @@ async function start(options = {}) {
     db, store, webDir,
     engine: createEngine(options.enginePath ?? enginePath),
     gemini: createGemini({ apiKey: options.geminiKey ?? '', fetchImpl: options.fetchImpl }),
+    rates: options.rates ?? null,
     today: () => TODAY,
     token: options.token ?? '',
     now: options.now
@@ -355,6 +356,11 @@ describe('money accounts', () => {
     await app.call('POST', '/api/transactions', { category: 'Treats', what: 'Bubble tea', amount: 12, date: '2026-11-03' });
     const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
     assert.ok(month.reducible.top.some((p) => p.what === 'Bubble tea'));
+    assert.deepEqual(Object.keys(month.spans), ['month', '3m', 'year', 'all']);
+    assert.equal(month.spans.month.spent, month.spent);                             // everything this month, rent included ...
+    assert.equal(month.spans.month.spent - month.spans.month.total, 2850);          // ... but rent is not something to cut
+    const november = month.byMonth.at(-1);
+    assert.deepEqual([november.month, november.total, november.byCategory.Housing, november.byCategory.Treats], ['2026-11', month.spent, 2850, 12]);
     assert.ok(!month.reducible.top.some((p) => p.what === 'Rent'));                  // essential: never "could cut"
     assert.equal((await app.call('PATCH', `/api/budget/categories/${treats.id}`, { essential: 'yes' })).status, 400);
     const saved = (await app.call('PUT', '/api/budget/advice', { text: 'Line one.\nLine two.', by: 'Claude' })).body;

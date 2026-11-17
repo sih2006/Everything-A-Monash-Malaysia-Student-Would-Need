@@ -147,6 +147,51 @@ export function reducibleSpending({ categories, transactions, months }) {
   };
 }
 
+// What was spent each month, on what. Every category counts here, essential ones too.
+// `transactions` have {date, category, amount}. Months come out oldest first.
+export function monthlySpending(transactions) {
+  const months = new Map();
+  for (const t of transactions) {
+    const month = t.date.slice(0, 7);
+    const row = months.get(month) ?? { month, total: 0, byCategory: {} };
+    row.total = round2(row.total + t.amount);
+    row.byCategory[t.category] = round2((row.byCategory[t.category] ?? 0) + t.amount);
+    months.set(month, row);
+  }
+  return [...months.values()].sort((a, b) => a.month.localeCompare(b.month));
+}
+
+// How many months from `first` to `last`, counting both. "2026-01" to "2026-03" is 3.
+export function monthsBetween(first, last) {
+  const [y1, m1] = first.split('-').map(Number);
+  const [y2, m2] = last.split('-').map(Number);
+  return (y2 - y1) * 12 + (m2 - m1) + 1;
+}
+
+// The periods the Expenses tab can switch between, each ending with the month shown.
+// No period reaches back before the first month with any spending, so a monthly average is never
+// spread over months with no records. "all" is exactly that: from the first month with spending.
+export const SPENDING_SPANS = { month: 1, '3m': 3, year: 12, all: null };
+
+// For each period: everything spent (essential included), and what could be cut.
+// `transactions` must cover everything up to the end of `month`.
+export function spendingSpans({ categories, transactions, month }) {
+  const first = transactions.reduce((oldest, t) => (t.date.slice(0, 7) < oldest ? t.date.slice(0, 7) : oldest), month);
+  const spans = {};
+  for (const [name, length] of Object.entries(SPENDING_SPANS)) {
+    const recorded = Math.max(1, monthsBetween(first, month));
+    const months = length === null ? recorded : Math.min(length, recorded);
+    const from = `${addMonths(month, -(months - 1))}-01`;
+    const inside = transactions.filter((t) => t.date >= from);
+    spans[name] = {
+      ...reducibleSpending({ categories, transactions: inside, months }),
+      from,
+      spent: round2(inside.reduce((sum, t) => sum + t.amount, 0))
+    };
+  }
+  return spans;
+}
+
 // Money that came in during a month: every "in" move except moves between your own accounts.
 // Grouped by where it came from (the note), biggest first. Net is what is left after the month's spending.
 export function incomeSummary(moves, month, spent) {
