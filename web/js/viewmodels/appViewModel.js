@@ -7,6 +7,7 @@
 // This file has no HTML and does not touch the page, so every command can be
 // tested with a fake API (see web/test/appViewModel.test.js).
 
+import { DEFAULT_SPAN, isSpan } from './expenses.js';
 import { ApiError } from '../api.js';
 import { addDays, addMonths, typedNumber } from '../format.js';
 import { openAll, openToToday, startOpen } from './lifeTree.js';
@@ -19,6 +20,12 @@ const PERIODS = {
   food: { keyOf: (data) => data.date, current: (today) => today, step: addDays },
   health: { keyOf: (data) => data.date, current: (today) => today, step: addDays }
 };
+
+function hiddenAtStart(storage) {
+  const saved = storage.get('hideNumbers');
+  if (saved !== null) return saved === '1';
+  return storage.get('hideGrades') === '1' || storage.get('hideMoney') === '1';
+}
 
 // The Budget screen's tabs: everything at a glance, bank and e-wallet accounts, investing, and spending.
 export const BUDGET_TABS = ['all', 'banking', 'investing', 'expenses'];
@@ -50,10 +57,12 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     resultOrder: storage.get('resultOrder') ?? 'term', // how the finished units are ordered
     budgetTab: BUDGET_TABS.includes(storage.get('budgetTab')) ? storage.get('budgetTab') : 'all', // the Budget tab that is open
     budgetAccount: savedAccounts(storage.get('budgetAccount')),  // the account shown on Banking and on Investing: { banking: id, investing: id }
+    expenseSpan: isSpan(storage.get('expenseSpan')) ? storage.get('expenseSpan') : DEFAULT_SPAN, // the period the Expenses tab looks back over
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
-    hidden: storage.get('hideGrades') === '1',
-    hideMoney: storage.get('hideMoney') === '1',   // every RM amount shows as RM •••
+    // "Hide numbers": marks, grades and targets are masked, and every RM amount shows as RM •••.
+    // It replaced two switches (hide grades, hide money); either one being on keeps numbers hidden.
+    hidden: hiddenAtStart(storage),
     plan: null,            // the AI helper's last plan
     imported: null,        // { code, items } read from a screenshot, waiting for the user to check
     // Data for a past month or day the user is looking at. null means the current one, which lives in `overview`.
@@ -196,6 +205,11 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       storage.set('budgetTab', group);
       changed();
     },
+    setExpenseSpan(span) {
+      state.expenseSpan = isSpan(span) ? span : DEFAULT_SPAN;
+      storage.set('expenseSpan', state.expenseSpan);
+      changed();
+    },
     setSpendingCategory(category) { state.spendingCategory = category || 'all'; state.showAllSpending = false; changed(); },
     toggleAllSpending() { state.showAllSpending = !state.showAllSpending; changed(); },
 
@@ -209,14 +223,9 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       state.views[slice] = next === current ? null : await fetchPeriod(slice, next);
     }),
     showCurrent(slice) { state.views[slice] = null; state.error = null; state.notice = null; changed(); },
-    toggleHideMoney() {
-      state.hideMoney = !state.hideMoney;
-      storage.set('hideMoney', state.hideMoney ? '1' : '0');
-      changed();
-    },
     toggleHidden() {
       state.hidden = !state.hidden;
-      storage.set('hideGrades', state.hidden ? '1' : '0');
+      storage.set('hideNumbers', state.hidden ? '1' : '0');
       state.error = null;
       state.notice = null;
       changed();

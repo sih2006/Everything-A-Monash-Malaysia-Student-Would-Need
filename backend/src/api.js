@@ -7,7 +7,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, addMonths, incomeSummary, reducibleSpending, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
@@ -225,12 +225,16 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       transactions: store.listTransactions(from, to)
     });
     const moves = store.listAccountMoves();
-    // "Could cut" looks at the three months up to the one shown, so one odd month does not decide it.
-    const first = monthRange(addMonths(month, -2)).from;
+    // Everything spent up to the end of the month shown: the Expenses tab can look back this month, 3 months, a year or all time.
+    const upToMonth = store.listTransactions('0000-01-01', to);
+    const spans = spendingSpans({ categories: store.listCategories(), transactions: upToMonth, month });
     return {
       ...summary,
       income: incomeSummary(moves, month, summary.spent),
-      reducible: reducibleSpending({ categories: store.listCategories(), transactions: store.listTransactions(first, to), months: 3 }),
+      // "Could cut" on its own looks at the three months up to the one shown, so one odd month does not decide it.
+      reducible: spans['3m'],
+      spans,
+      byMonth: monthlySpending(upToMonth),
       advice: store.getSetting('budget.advice', null),
       // Balances are always as they are now, whichever month is being looked at.
       money: accountSummary(store.listAccounts(), moves)

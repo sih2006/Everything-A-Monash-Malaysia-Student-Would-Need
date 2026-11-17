@@ -6,6 +6,7 @@
 import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
 import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
 import { presentSpendingMap } from '../viewmodels/spendingMap.js';
+import { DEFAULT_SPAN, EXPENSE_SPANS, presentMonthlyTable, spanWords } from '../viewmodels/expenses.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -432,14 +433,14 @@ function mapLayout(map, kind) {
   </div>`;
 }
 
-function spendingMapCard(reducible) {
+function spendingMapCard(reducible, span, words) {
   const wide = presentSpendingMap(reducible, 1000, 520);
   if (!wide) return '';
   const tall = presentSpendingMap(reducible, 400, 640);
   return `
     <section class="card spend-map-card">
-      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: `${rm(wide.perMonth)} a month`, tone: '' })}</div>
-      <p class="note">Without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}. The average month over the last ${wide.months} months. Bigger block, more money. Point at a block for its numbers.</p>
+      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: span === 'month' ? rm(reducible.total) : `${rm(wide.perMonth)} a month`, tone: '' })}</div>
+      <p class="note">Without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}. ${span === 'month' ? `Spending in ${esc(words)}.` : `The average month over ${esc(words)}.`} Bigger block, more money. Point at a block for its numbers.</p>
       <ul class="sm-legend" aria-label="Categories">
         ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.perMonth)}</span></li>`).join('')}
       </ul>
@@ -455,13 +456,13 @@ function spendingMapCard(reducible) {
     </section>`;
 }
 
-// What could be cut: spending outside the essential categories, over the last three months.
-function couldCut(r) {
-  if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in the last 3 months.</p></section>`;
+// What could be cut: spending outside the essential categories, over the period chosen.
+function couldCut(r, span, words) {
+  if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in ${esc(words)}.</p></section>`;
   const most = r.byCategory[0]?.amount || 1;
   return `
     <section class="card could-cut">
-      <div class="card-head"><h2>Could cut: ${rm(r.perMonth)} a month</h2>${chip({ text: `last ${r.months} months`, tone: '' })}</div>
+      <div class="card-head"><h2>Could cut: ${span === 'month' ? rm(r.total) : `${rm(r.perMonth)} a month`}</h2>${chip({ text: words, tone: '' })}</div>
       <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. ${rm(r.total)} in all.</p>
       ${r.byCategory.slice(0, 6).map((c) => `
         <div class="bar-row">
@@ -492,6 +493,55 @@ function adviceCard(advice) {
     </section>`;
 }
 
+// Looking back over a period that ends with the month shown: totals, the map, what could be cut,
+// advice, and what was spent each month on what.
+function lookingBack(b, state) {
+  const spans = b.spans ?? { '3m': b.reducible };
+  const span = spans[state.expenseSpan] ? state.expenseSpan : DEFAULT_SPAN;
+  const r = spans[span];
+  if (!r) return '';
+  const words = spanWords(span, r, b.monthName);
+  const table = presentMonthlyTable(b.byMonth, r.from.slice(0, 7), b.month, r.essential);
+  return `
+    <section class="card looking-back">
+      <div class="card-head"><h2>Looking back</h2>
+        <div class="seg span-switch" role="group" aria-label="Period">
+          ${EXPENSE_SPANS.map(([id, label]) => `<button type="button" data-action="setExpenseSpan" data-span="${id}" aria-pressed="${id === span}">${label}</button>`).join('')}
+        </div></div>
+      <div class="grid stats">
+        <div><div class="label">Spent in ${esc(words)}</div><div class="big">${rm(r.spent)}</div>${span === 'month' ? '' : `<p class="note">About ${rm(r.spent / r.months)} a month</p>`}</div>
+        <div><div class="label">Essential</div><div class="big">${rm(r.spent - r.total)}</div><p class="note">${r.essential.length ? esc(r.essential.join(', ')) : 'Nothing marked essential yet'}</p></div>
+        <div><div class="label">Could cut</div><div class="big">${rm(r.total)}</div>${span === 'month' ? '' : `<p class="note">About ${rm(r.perMonth)} a month</p>`}</div>
+      </div>
+    </section>
+
+    ${spendingMapCard(r, span, words)}
+
+    <section class="grid wide">
+      ${couldCut(r, span, words)}
+      ${adviceCard(b.advice)}
+    </section>
+
+    ${monthTable(table, words)}`;
+}
+
+// What was spent each month, on what. Wide tables scroll sideways inside their card on a phone.
+function monthTable(t, words) {
+  if (t.months.length === 0) return '';
+  return `
+    <section class="card month-table">
+      <h2>Month by month</h2>
+      <p class="note">Everything spent in ${esc(words)}, essential included, by category.</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Spending month by month">
+        <table>
+          <thead><tr><th scope="col">Category</th>${t.months.map((m) => `<th scope="col">${esc(m.label)}</th>`).join('')}${t.months.length > 1 ? '<th scope="col">Total</th>' : ''}</tr></thead>
+          <tbody>${t.rows.map((row) => `<tr><th scope="row">${esc(row.category)}${row.essential ? ' <span class="dim">(essential)</span>' : ''}</th>${row.cells.map((c) => `<td>${c ? rm(c) : '<span class="dim">-</span>'}</td>`).join('')}${t.months.length > 1 ? `<td><strong>${rm(row.total)}</strong></td>` : ''}</tr>`).join('')}</tbody>
+          <tfoot><tr><th scope="row">Total</th>${t.months.map((m) => `<td><strong>${rm(m.total)}</strong></td>`).join('')}${t.months.length > 1 ? `<td><strong>${rm(t.total)}</strong></td>` : ''}</tr></tfoot>
+        </table>
+      </div>
+    </section>`;
+}
+
 function expensesTab(b, state, isCurrent, spendDay) {
   return `
     ${periodNav('budget', b.monthName, isCurrent, 'month')}
@@ -510,12 +560,7 @@ function expensesTab(b, state, isCurrent, spendDay) {
       <p>The triangle points at today.</p>
     </section>` : ''}
 
-    ${spendingMapCard(b.reducible)}
-
-    <section class="grid wide">
-      ${couldCut(b.reducible)}
-      ${adviceCard(b.advice)}
-    </section>
+    ${lookingBack(b, state)}
 
     <section class="grid wide">
       <div class="card">
