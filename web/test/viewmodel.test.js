@@ -203,6 +203,29 @@ test('units can be ordered by code, by what needs attention, and by the mark nee
   assert.equal(codes(presentGrades(report(units), false, 'attention').units), 'FIT2099 MAT1830 FIT1008 FIT2004');
 });
 
+test('predicted marks: the cards use them, each slider keeps its value, and clearing goes back to "heading"', async () => {
+  const r = report([unit('FIT2004')]);
+  r.finished = { units: 2, credits: 12, gpa: 2.5, cgpa: 3, wam: 65 };
+  r.projected = { units: 3, credits: 18, gpa: 2.6, cgpa: 3.1, wam: 66 };
+  const heading = presentGrades(r);
+  assert.match(heading.stats[0].note, /heading/);
+  const predicted = { units: 3, credits: 18, gpa: 3, cgpa: 3.4, wam: 70.5 };
+  const g = presentGrades(r, false, 'code', 'term', predicted, { FIT2004: 77 });
+  assert.match(g.stats.find((s) => s.key === 'wam').note, /^70\.5 with your predicted marks$/);
+  assert.equal(g.units[0].whatIfStart, 77);                  // the slider stays where it was put
+  assert.equal(presentGrades(r, true, 'code', 'term', predicted, { FIT2004: 77 }).units[0].whatIfStart, 50);   // hidden: no hint
+
+  const asked = [];
+  const { vm } = setup({ predict: (scores) => { asked.push(scores); return Promise.resolve({ whatIf: [], predicted }); } });
+  await vm.load();
+  await vm.predict('FIT2004', '60');
+  await vm.predict('FIT2099', '80');
+  assert.deepEqual(asked.at(-1), { FIT2004: 60, FIT2099: 80 });   // every moved slider is sent each time
+  assert.equal(vm.state.predicted, predicted);
+  vm.clearPredictions();
+  assert.deepEqual([vm.state.predictions, vm.state.predicted], [{}, null]);
+});
+
 test('more unit orders: best average, most work left, and by name', () => {
   const units = [
     unit('FIT2004', { name: 'Zeta' }, { average: 71.75, leftWeight: 60 }),

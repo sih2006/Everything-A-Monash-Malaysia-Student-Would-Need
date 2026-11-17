@@ -193,6 +193,20 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     }
   }));
 
+  // Every slider at once: ?u=ENG1005:60&u=FIT2085:75. Gives each unit's answer and the semester totals with them.
+  route('GET', '/api/academics/predict', ({ query }) => {
+    const asked = query.getAll('u');
+    if (asked.length === 0 || asked.length > 20) throw new HttpError(400, 'invalid', 'Send from 1 to 20 units to predict.', 'u');
+    const questions = asked.map((item) => {
+      const [rawCode, rawScore] = String(item).split(':');
+      const code = (rawCode ?? '').toUpperCase();
+      mustFindUnit(code);
+      return { code, score: check.number(Number(rawScore), 'score', { min: 0, max: 100 }) };
+    });
+    const report = academicsReport(questions);
+    return { whatIf: report.whatIf, predicted: report.predicted };
+  });
+
   route('GET', '/api/academics/whatif', ({ query }) => {
     const code = (query.get('unit') ?? '').toUpperCase();
     mustFindUnit(code);

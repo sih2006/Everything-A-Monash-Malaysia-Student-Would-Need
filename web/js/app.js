@@ -9,7 +9,7 @@ import { createApi } from './api.js';
 import { clamp, esc, f1 } from './format.js';
 import { createAppViewModel } from './viewmodels/appViewModel.js';
 import { layoutLife } from './viewmodels/lifeTree.js';
-import { presentMap } from './viewmodels/present.js';
+import { presentGrades, presentMap } from './viewmodels/present.js';
 import { createMapCamera, mapView, placeStops, stopDetail } from './views/mapView.js';
 import { budgetView, foodView, gradesView, healthView, homeView } from './views/screens.js';
 
@@ -165,6 +165,7 @@ const COMMANDS = {
   deleteAssessment: (f, d) => vm.deleteAssessment(d.id),
   addResult: (f) => vm.addResult(f),
   deleteResult: (f, d) => vm.deleteResult(d.id),
+  clearPredictions: () => vm.clearPredictions(),
   saveGoal: (f) => vm.saveGoal(f),
   clearGoal: () => vm.clearGoal(),
   saveTermDates: (f) => vm.saveTermDates(f),
@@ -288,8 +289,16 @@ view.addEventListener('input', (e) => {
   $('[data-whatif-value]', box).textContent = slider.value;
   clearTimeout(whatIfTimer);
   whatIfTimer = setTimeout(async () => {
-    const answer = await vm.whatIf(slider.dataset.whatif, slider.value);
+    const result = await vm.predict(slider.dataset.whatif, slider.value);
+    if (!result) return;
+    const answer = result.whatIf.find((w) => w.code === slider.dataset.whatif);
     if (!answer) return;
+    // The three numbers at the top follow the sliders. Only their text changes, so the slider keeps focus.
+    const report = vm.state.overview.academics;
+    const g = presentGrades(report, vm.state.hidden, vm.state.unitOrder, vm.state.resultOrder, vm.state.predicted, vm.state.predictions);
+    for (const s of g.stats) { const note = $(`[data-stat="${s.key}"]`, view); if (note) note.textContent = s.note; }
+    const bar = $('[data-predict-bar]', view);
+    if (bar) bar.hidden = false;
     $('[data-whatif-out]', box).textContent = answer.hurdleFail
       ? `Final mark ${f1(answer.finalMark)}, but that is below a hurdle, so the unit would be a hurdle fail.`
       : `Final mark ${f1(answer.finalMark)}, grade ${answer.grade}.${answer.reachesTarget === null ? '' : answer.reachesTarget ? ' Target reached.' : ' Below your target.'}`;

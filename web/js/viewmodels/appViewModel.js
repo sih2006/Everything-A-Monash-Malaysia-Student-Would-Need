@@ -36,6 +36,8 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     lifeSelected: null,     // the node whose details show under the tree
     mapFull: false,         // the map fills the whole page
     unitOrder: storage.get('unitOrder') ?? 'code',   // how the units on Grades are ordered
+    predictions: {},        // the what-if sliders that were moved: { unit code: percent on what is left }
+    predicted: null,        // the semester totals with those predictions, from the engine
     resultOrder: storage.get('resultOrder') ?? 'term', // how the finished units are ordered
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
@@ -245,6 +247,23 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     clearGoal: () => act('academics', () => api.saveAcademicsSettings({ goal: null }), 'Goal removed.'),
 
     // A question, not a change: nothing is saved and the screen is not redrawn.
+    // Moves one slider: asks the engine for that unit's answer and the semester totals with every slider.
+    // Nothing is saved; the predictions last until the app is closed or they are cleared.
+    async predict(code, score) {
+      state.predictions = { ...state.predictions, [code]: Number(score) };
+      const asked = state.predictions;
+      try {
+        const answer = await api.predict(asked);
+        if (state.predictions !== asked) return null;      // a newer slider move is on its way
+        state.predicted = answer.predicted;
+        return answer;
+      } catch { return null; }
+    },
+    clearPredictions() {
+      state.predictions = {};
+      state.predicted = null;
+      changed();
+    },
     async whatIf(code, score) {
       try { return await api.whatIf(code, score); } catch { return null; }
     },

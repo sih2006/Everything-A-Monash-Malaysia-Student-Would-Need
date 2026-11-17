@@ -53,6 +53,7 @@ export function presentUnit(unit, hidden = false) {
     doneCount: s.doneCount, totalCount: s.totalCount,
     weightMissing: unit.totalWeight < 100 ? plain(100 - unit.totalWeight) : null,
     whatIfStart: hidden ? 50 : clamp(Math.round(s.needMax ?? s.average ?? 50), 0, 100),
+    predictedScore: null,
     canWhatIf: !hidden && s.leftWeight > 0,
     assessments: unit.assessments.map((a) => ({
       id: a.id, name: a.name, weight: plain(a.weight), done: a.done,
@@ -158,16 +159,27 @@ export function orderResults(terms, order) {
   return all.sort(sorts[order] ?? byCode);
 }
 
-export function presentGrades(report, hidden = false, order = 'code', resultOrder = 'term') {
+export function presentGrades(report, hidden = false, order = 'code', resultOrder = 'term', predicted = null, predictions = {}) {
   const m = (text) => mask(hidden, text);
   const finished = report.finished, projected = report.projected;
   const has = finished.units > 0;
   const stat = (label, key, format) => ({
     label,
     value: has ? m(format(finished[key])) : '—',
-    note: !has ? 'No finished units yet' : projected ? `${m(format(projected[key]))} if this semester ends where it is heading` : 'All finished units'
+    note: statNote(key, format),
+    key
   });
-  const units = orderUnits(report.units, order).map((u) => presentUnit(u, hidden));
+  // With predictions from the sliders, the line under each number uses them instead of "heading".
+  function statNote(key, format) {
+    if (!has) return 'No finished units yet';
+    if (predicted) return `${m(format(predicted[key]))} with your predicted marks`;
+    return projected ? `${m(format(projected[key]))} if this semester ends where it is heading` : 'All finished units';
+  }
+  const units = orderUnits(report.units, order).map((u) => {
+    const shown = presentUnit(u, hidden);
+    const chosen = predictions[u.code];
+    return chosen === undefined || hidden ? shown : { ...shown, whatIfStart: chosen, predictedScore: chosen };
+  });
   const withTarget = units.filter((u) => u.hasTarget);
 
   return {

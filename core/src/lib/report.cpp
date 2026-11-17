@@ -325,6 +325,31 @@ std::string engine_report(const Tracker& t, const LoadReport& load) {
     }
     json.end_array();
 
+    // ----- the totals if each what-if were the real result -----
+    // A unit with a what-if counts at that final mark; any other unit at the mark it is heading for.
+    // Pass or fail units never count. With no what-if questions there is nothing to predict.
+    if (load.questions.size() > 0) {
+        Totals predicted = o.finished;
+        for (const std::string& code : codes) {
+            const Unit& u = *t.find_unit(code);
+            if (u.pass_fail) continue;
+            const Question* asked = nullptr;
+            for (const Question& q : load.questions) {
+                if (q.code == code) asked = &q;      // the last question for a unit wins
+            }
+            if (asked != nullptr) {
+                WhatIf w = what_if(u, asked->score);
+                predicted.add(u.code, u.credit, w.final_mark, w.hurdle_fail ? NH : w.grade);
+                continue;
+            }
+            Standing s = standing_for(u, t.margin, fallback);
+            if (s.has_projected) predicted.add(u.code, u.credit, s.projected, s.projected_grade);
+        }
+        write_totals(json, "predicted", predicted);
+    } else {
+        json.null("predicted");
+    }
+
     // ----- the scales, so screens can show them without copying the numbers -----
     json.begin_object("scales");
     write_scale(json, gpa_scheme());

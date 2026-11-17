@@ -196,7 +196,8 @@ export function gradesView(state) {
     return pageHead('Grades', 'Units, marks, targets and your results.') +
       emptyCard('Grades cannot load', state.overview.academicsError ?? 'The grade engine is not ready.');
   }
-  const g = presentGrades(report, state.hidden, state.unitOrder, state.resultOrder);
+  const g = presentGrades(report, state.hidden, state.unitOrder, state.resultOrder, state.predicted, state.predictions);
+  const predicting = Boolean(state.predicted);
   const goal = g.goalValues;
   const addUnit = `
     <form class="form" data-action="addUnit">
@@ -213,8 +214,10 @@ export function gradesView(state) {
 
     <section class="grid stats" aria-label="Overall results">
       ${g.stats.map((s) => `
-        <div class="card"><div class="label">${esc(s.label)}</div><div class="big">${esc(s.value)}</div><p class="note">${esc(s.note)}</p></div>`).join('')}
+        <div class="card"><div class="label">${esc(s.label)}</div><div class="big">${esc(s.value)}</div><p class="note" data-stat="${s.key}">${esc(s.note)}</p></div>`).join('')}
     </section>
+    <p class="note" data-predict-bar ${predicting ? '' : 'hidden'}>Using the marks you predicted with the sliders. Nothing is saved.
+      <button type="button" class="link" data-action="clearPredictions">Clear predictions</button></p>
     <p class="note">CGPA and GPA use different scales, so they give different numbers for the same grades. In Malaysia a Distinction counts 3.67; on the standard scale it counts 3.</p>
 
     ${g.goal ? `<section class="banner scallop ${g.goal.tone}"><h2>${esc(g.goal.title)}</h2><p>${esc(g.goal.text)}</p></section>` : ''}

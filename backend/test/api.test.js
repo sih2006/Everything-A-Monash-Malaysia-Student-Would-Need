@@ -181,6 +181,24 @@ describe('academics', () => {
     await app.call('PATCH', '/api/units/FIT2004', { credit: 6 });
   });
 
+  test('predicted marks from the sliders give the semester totals; nothing is saved', async () => {
+    await app.call('POST', '/api/units', { code: 'FIT3170', name: 'Project', term: 'S2 2026' });
+    await app.call('POST', '/api/units/FIT3170/assessments', { name: 'Report', weight: 50, score: 80, max: 100 });
+    const plain = (await app.call('GET', '/api/academics')).body;
+    assert.equal(plain.predicted, null);
+    const low = await app.call('GET', '/api/academics/predict?u=FIT3170:20');
+    const high = await app.call('GET', '/api/academics/predict?u=fit3170:90');
+    assert.equal(low.status, 200);
+    assert.equal(low.body.whatIf[0].finalMark, 50);                       // 40 earned + 20% of the last 50
+    assert.ok(high.body.predicted.wam > low.body.predicted.wam);
+    assert.equal(high.body.whatIf[0].code, 'FIT3170');
+    assert.deepEqual((await app.call('GET', '/api/academics')).body.units.find((u) => u.code === 'FIT3170').assessments.length, 1);   // nothing saved
+    assert.equal((await app.call('GET', '/api/academics/predict')).status, 400);
+    assert.equal((await app.call('GET', '/api/academics/predict?u=FIT3170:150')).status, 400);
+    assert.equal((await app.call('GET', '/api/academics/predict?u=NOPE1000:50')).status, 404);
+    await app.call('DELETE', '/api/units/FIT3170');
+  });
+
   test('a unit can be marked pass or fail only; then it never counts in GPA, CGPA or WAM', async () => {
     const before = (await app.call('GET', '/api/academics')).body.current;
     await app.call('POST', '/api/units', { code: 'FIT2107', name: 'Software quality', term: 'S2 2026' });

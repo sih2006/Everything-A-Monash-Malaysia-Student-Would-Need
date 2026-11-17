@@ -60,6 +60,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     deleteResult: (id) => remove(`/api/results/${id}`),
     saveAcademicsSettings: (settings) => put('/api/academics/settings', settings),
     whatIf: (code, score) => get(`/api/academics/whatif?unit=${part(code)}&score=${part(score)}`),
+    // scores: { ENG1005: 60, FIT2085: 75 }
+    predict: (scores) => get(`/api/academics/predict?${Object.entries(scores).map(([code, score]) => `u=${part(`${code}:${score}`)}`).join('&')}`),
     plan: () => post('/api/advisor/plan'),
     readScreenshot: (image, mimeType) => post('/api/import/screenshot', { image, mimeType }),
 
