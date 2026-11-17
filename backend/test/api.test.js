@@ -34,6 +34,7 @@ async function start(options = {}) {
     db, store, webDir,
     engine: createEngine(options.enginePath ?? enginePath),
     gemini: createGemini({ apiKey: options.geminiKey ?? '', fetchImpl: options.fetchImpl }),
+    rates: options.rates ?? null,
     today: () => TODAY,
     token: options.token ?? '',
     now: options.now

@@ -11,6 +11,7 @@ import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, m
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
+import { CURRENCIES, RATES_SOURCE, RatesUnavailable } from './rates.js';
 import { loadDemo } from './seed.js';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -20,7 +21,7 @@ const SMALL = 64 * 1024;            // size limit for normal requests
 const PICTURE = 8 * 1024 * 1024;    // size limit for a screenshot, or a file of exported data
 const EXPORT_FORMAT = 'student-companion-export';
 
-export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now(), demo = false }) {
+export function createApp({ db, store, engine, gemini, rates = null, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now(), demo = false }) {
   const router = createRouter();
   const route = (method, pattern, handler, limit = SMALL) => router.add(method, pattern, { handler, limit });
 
@@ -544,6 +545,59 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   route('GET', '/api/status', () => ({ ok: true, version: '0.1.0', today: today(), engine: engine.available(), ai: gemini.configured, empty: store.isEmpty(), demo }));
 
   // One call for the home screen. If the engine is not built, the other three parts still load.
+  // ================= currencies =================
+
+  // Rates are saved and fetched again at most once a day, or when the user asks. If the service cannot be
+  // reached, the last saved rates are used and the answer says why. A rate typed by hand always wins.
+  // Rates are stored as "1 MYR = x"; a rate typed by hand is "1 x = y MYR", the way people say it.
+  async function currencyState({ refresh = false } = {}) {
+    let saved = store.getSetting('currency.rates', null);
+    let error = null;
+    if (rates && (refresh || !saved || saved.fetchedOn !== today())) {
+      try {
+        saved = { ...(await rates.latest()), fetchedOn: today() };
+        store.setSetting('currency.rates', saved);
+      } catch (problem) {
+        if (!(problem instanceof RatesUnavailable)) throw problem;
+        error = problem.message;
+      }
+    }
+    const manual = store.getSetting('currency.manual', {});
+    return {
+      base: 'MYR',
+      updated: saved?.updated ?? null,
+      fetchedOn: saved?.fetchedOn ?? null,
+      error,
+      source: RATES_SOURCE,
+      currencies: Object.entries(CURRENCIES).map(([code, name]) => {
+        const live = saved?.rates?.[code] ?? null;
+        const byHand = manual[code] ?? null;
+        return {
+          code, name, live, myrPerUnitByHand: byHand,
+          perMyr: byHand ? 1 / byHand : live,
+          from: byHand ? 'hand' : live ? 'live' : 'none'
+        };
+      })
+    };
+  }
+  const currencyCode = (value) => {
+    const code = check.text(value, 'code', { max: 3 }).toUpperCase();
+    if (!CURRENCIES[code]) throw new HttpError(400, 'invalid', `The app does not have ${code}. It has ${Object.keys(CURRENCIES).join(', ')}.`, 'code');
+    return code;
+  };
+
+  route('GET', '/api/currency', () => currencyState());
+  route('POST', '/api/currency/refresh', () => currencyState({ refresh: true }));
+  // Sets a rate by hand ("1 USD = 4.25 MYR"), or removes it with null so the live rate counts again.
+  route('PUT', '/api/currency/manual', ({ body }) => {
+    const code = currencyCode(body.code);
+    const manual = { ...store.getSetting('currency.manual', {}) };
+    if (body.myrPerUnit === null) delete manual[code];
+    else manual[code] = check.number(body.myrPerUnit, 'myrPerUnit', { min: 0.000001, max: 1e6 });
+    store.setSetting('currency.manual', manual);
+    return currencyState();
+  });
+
   route('GET', '/api/overview', () => {
     let academics = null, academicsError = null;
     try { academics = academicsReport(); } catch (error) {
