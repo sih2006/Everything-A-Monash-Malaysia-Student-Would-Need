@@ -52,6 +52,15 @@ export const fold = (key, summary, body, open = false) =>
 export const emptyCard = (title, text, extra = '') => `
   <section class="card empty"><h2>${esc(title)}</h2><p class="note">${esc(text)}</p>${extra}</section>`;
 
+// Previous and next buttons for a month or a day. "Next" stops at the current one.
+export const periodNav = (slice, label, isCurrent, unit) => `
+  <nav class="period" aria-label="Choose a ${unit}">
+    <button type="button" class="btn quiet" data-action="showPeriod" data-slice="${slice}" data-step="-1" aria-label="Previous ${unit}">‹ Previous</button>
+    <strong aria-live="polite">${esc(label)}</strong>
+    <button type="button" class="btn quiet" data-action="showPeriod" data-slice="${slice}" data-step="1" aria-label="Next ${unit}" ${isCurrent ? 'disabled' : ''}>Next ›</button>
+    ${isCurrent ? '' : `<button type="button" class="link" data-action="showCurrent" data-slice="${slice}">Back to this ${unit}</button>`}
+  </nav>`;
+
 // A column chart for a week: one column per day, with a dashed line at the target.
 export function columns(rows, max, target, format, tipLabel) {
   const plot = 150;

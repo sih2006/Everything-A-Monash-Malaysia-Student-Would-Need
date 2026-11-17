@@ -110,6 +110,8 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 const COMMANDS = {
   loadDemo: () => vm.loadDemo(),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
+  showPeriod: (f, d) => vm.showPeriod(d.slice, Number(d.step)),
+  showCurrent: (f, d) => vm.showCurrent(d.slice),
   setMapKind: (f, d) => { mapSelected = -1; camera.reset(); vm.setMapKind(d.kind); },
 
   addUnit: (f) => vm.addUnit(f),

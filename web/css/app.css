@@ -52,6 +52,12 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .fold[open] > summary { color: var(--ink); text-decoration: none; }
 .fold-body { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s2) 0 var(--s3); }
 
+/* ---------- previous and next ---------- */
+
+.period { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.period strong { font-family: var(--display); font-size: 1.25rem; min-width: 9em; text-align: center; font-synthesis: none; }
+.period .btn { padding: 0 var(--s4); }
+
 /* ---------- lists with actions ---------- */
 
 .list li.stack { flex-direction: column; align-items: stretch; gap: 0; }

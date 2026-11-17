@@ -306,6 +306,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const { from, to } = weekRange(date);
     return healthSummary({
       date,
+      today: today(),
       targets: store.getSetting('health.targets', { steps: 0, sleepMinutes: 0, workouts: 0 }),
       days: store.listHealthDays(from, to),
       workouts: store.listWorkouts(from, to)
@@ -330,12 +331,13 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     if (body.sleepMinutes !== undefined) values.sleepMinutes = check.number(body.sleepMinutes, 'sleepMinutes', { min: 0, max: 1440, whole: true, nullable: true });
     if (body.restingHr !== undefined) values.restingHr = check.number(body.restingHr, 'restingHr', { min: 20, max: 250, whole: true, nullable: true });
     store.saveHealthDay(day, values);
-    return healthFor(today());
+    return healthFor(day);
   });
 
   route('POST', '/api/workouts', ({ body }) => {
-    store.insertWorkout({ date: dayOf(body.date), name: check.text(body.name, 'name', { max: 60 }), notes: check.text(body.notes, 'notes', { max: 300, required: false }) });
-    return healthFor(today());
+    const date = dayOf(body.date);
+    store.insertWorkout({ date, name: check.text(body.name, 'name', { max: 60 }), notes: check.text(body.notes, 'notes', { max: 300, required: false }) });
+    return healthFor(date);
   });
 
   route('DELETE', '/api/workouts/:id', ({ params }) => {

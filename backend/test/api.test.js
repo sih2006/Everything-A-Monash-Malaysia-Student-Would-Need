@@ -299,6 +299,23 @@ describe('food and health', () => {
     assert.equal((await app.call('DELETE', `/api/workouts/${body.workouts.list[0].id}`)).body.workouts.done, 0);
   });
 
+  test('health: a past day can be filled in and looked at', async () => {
+    const saved = await app.call('PUT', '/api/health/days/2026-11-17', { steps: 9100 });
+    assert.equal(saved.body.date, '2026-11-17');
+    assert.equal(saved.body.steps, 9100);
+    const workout = await app.call('POST', '/api/workouts', { name: 'Leg day', date: '2026-11-18' });
+    assert.equal(workout.body.date, '2026-11-18');
+    assert.equal((await app.call('GET', '/api/health?date=2026-11-10')).body.week[0].date, '2026-11-09');
+  });
+
+  test('food: a past day can be logged and looked at', async () => {
+    const { body } = await app.call('POST', '/api/food/log', { food: 'Roti canai', kcal: 360, date: '2026-11-19' });
+    assert.equal(body.date, '2026-11-19');
+    assert.equal(body.log.length, 1);
+    assert.equal((await app.call('GET', '/api/food?date=2026-11-19')).body.kcal, 360);
+    assert.equal((await app.call('GET', '/api/food?date=2026-11-21')).status, 400);
+  });
+
   test('health: impossible values and future days are refused', async () => {
     assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { steps: -1 })).status, 400);
     assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { steps: 12.5 })).status, 400);

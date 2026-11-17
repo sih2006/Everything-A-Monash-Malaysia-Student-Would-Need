@@ -3,9 +3,9 @@
 // A screen decides nothing. It shows what the presenters prepared, and marks
 // buttons and forms with data-action="..." so app.js can call the right command.
 
-import { dayText, esc, f2, hm, num, plain, rm } from '../format.js';
+import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
 import { presentGrades, presentHome } from '../viewmodels/present.js';
-import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, select, trendChart } from './parts.js';
+import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
 const remove = (action, data, label) =>
@@ -258,10 +258,15 @@ export function gradesView(state) {
 // ================= budget =================
 
 export function budgetView(state) {
-  const b = state.overview.budget;
-  const head = pageHead('Budget', `${b.monthName}, day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
+  const b = state.views.budget ?? state.overview.budget;
+  const isCurrent = !state.views.budget;
+  const today = state.overview.today;
+  // New spending goes on today, or on the last day of a past month being looked at. The user can change it.
+  const spendDay = isCurrent ? today : lastDayOf(b.month);
+  const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
   return `
     ${head}
+    ${periodNav('budget', b.monthName, isCurrent, 'month')}
     ${b.hasLimit ? `
     <section class="grid stats" aria-label="Month so far">
       <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div><p class="note">${Math.round(b.spentPercent)}% of your limit</p></div>
@@ -308,10 +313,11 @@ export function budgetView(state) {
           ${field('What was it?', 'what', 'required maxlength="60"')}
           ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
           ${select('Category', 'category', b.categories.map((c) => [c.name, c.name]))}
+          ${field('Day', 'date', `type="date" required value="${spendDay}" min="${b.month}-01" max="${spendDay}"`)}
           <button class="btn primary" type="submit">Add</button>
         </form>`}
         <h2>Latest spending</h2>
-        ${b.recent.length === 0 ? '<p class="note">Nothing recorded this month.</p>' : `<ul class="list">
+        ${b.recent.length === 0 ? `<p class="note">Nothing recorded in ${esc(b.monthName)}.</p>` : `<ul class="list">
           ${b.recent.map((x) => `
             <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}</span></span>
             <span class="end">${rm(x.amount)} ${remove('deleteSpending', `data-id="${x.id}"`, `Remove ${x.what}`)}</span></li>`).join('')}
@@ -323,9 +329,12 @@ export function budgetView(state) {
 // ================= food =================
 
 export function foodView(state) {
-  const f = state.overview.food;
+  const f = state.views.food ?? state.overview.food;
+  const isCurrent = !state.views.food;
+  const when = isCurrent ? 'today' : `on ${dayText(f.date)}`;
   return `
-    ${pageHead('Food', f.hasTargets ? `Today. Your targets are ${num(f.targetKcal)} kcal${f.targetProtein ? ` and ${num(f.targetProtein)} g of protein` : ''}.` : 'Today. Set your own daily targets to get a verdict.', mood('t-food', 'Joel', f.mood))}
+    ${pageHead('Food', f.hasTargets ? `Your daily targets are ${num(f.targetKcal)} kcal${f.targetProtein ? ` and ${num(f.targetProtein)} g of protein` : ''}.` : 'Set your own daily targets to get a verdict.', mood('t-food', 'Joel', f.mood))}
+    ${periodNav('food', isCurrent ? `Today, ${dayText(f.date)}` : dayText(f.date), isCurrent, 'day')}
 
     ${f.hasTargets ? `
     <section class="grid wide" aria-label="Today so far">
@@ -381,8 +390,8 @@ export function foodView(state) {
     </section>
 
     <section class="card">
-      <h2>Logged today</h2>
-      ${f.log.length === 0 ? '<p class="note">Nothing logged yet today.</p>' : `<ul class="list">
+      <h2>Logged ${when}</h2>
+      ${f.log.length === 0 ? `<p class="note">Nothing logged ${when}.</p>` : `<ul class="list">
         ${f.log.map((e) => `
           <li><span><strong>${esc(e.food)}</strong> <span class="dim">· ${esc(e.meal)}</span></span>
           <span class="end">${num(e.kcal)} kcal <span class="dim">· ${num(e.protein)} g</span> ${remove('deleteFood', `data-id="${e.id}"`, `Remove ${e.food}`)}</span></li>`).join('')}
@@ -393,24 +402,27 @@ export function foodView(state) {
 // ================= health =================
 
 export function healthView(state) {
-  const h = state.overview.health;
+  const h = state.views.health ?? state.overview.health;
+  const isCurrent = !state.views.health;
+  const when = isCurrent ? 'today' : `on ${dayText(h.date)}`;
   const clock = (minutes) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
   const stepsMax = Math.max(10000, h.stepTarget, ...h.week.map((d) => d.steps ?? 0));
   const sleepMax = Math.max(540, h.sleepTargetMinutes, ...h.week.map((d) => d.sleepMinutes ?? 0));
   return `
     ${pageHead('Health', 'Type in your numbers for now. Reading them from your phone comes with the Android app.', mood('t-health', 'No mascot yet', 'not designed'))}
+    ${periodNav('health', isCurrent ? `Today, ${dayText(h.date)}` : dayText(h.date), isCurrent, 'day')}
 
     <section class="grid stats" aria-label="Today">
       <div class="card">
-        <div class="card-head"><div class="label">Steps today</div>${h.steps === null || !h.stepTarget ? '' : chip(h.stepsOk ? { text: 'Target reached', tone: 'good' } : { text: 'Behind', tone: 'warn' })}</div>
+        <div class="card-head"><div class="label">Steps ${when}</div>${h.steps === null || !h.stepTarget ? '' : chip(h.stepsOk ? { text: 'Target reached', tone: 'good' } : { text: 'Behind', tone: 'warn' })}</div>
         <div class="big">${h.steps === null ? '—' : num(h.steps)}</div>
         ${h.steps !== null && h.stepTarget ? bar(h.steps / h.stepTarget * 100) : ''}
-        <p class="note">${h.steps === null ? 'Not logged yet' : !h.stepTarget ? 'No target set' : h.stepsOk ? 'Target reached' : `${num(h.stepsLeft)} short of your ${num(h.stepTarget)} target`}</p>
+        <p class="note">${h.steps === null ? (isCurrent ? 'Not logged yet' : 'Not logged') : !h.stepTarget ? 'No target set' : h.stepsOk ? 'Target reached' : `${num(h.stepsLeft)} short of your ${num(h.stepTarget)} target`}</p>
       </div>
       <div class="card">
-        <div class="card-head"><div class="label">Sleep last night</div>${h.sleepMinutes === null || !h.sleepTargetMinutes ? '' : chip(h.sleepShort > 0 ? { text: 'Under target', tone: 'warn' } : { text: 'Target reached', tone: 'good' })}</div>
+        <div class="card-head"><div class="label">${isCurrent ? 'Sleep last night' : `Sleep before ${dayText(h.date)}`}</div>${h.sleepMinutes === null || !h.sleepTargetMinutes ? '' : chip(h.sleepShort > 0 ? { text: 'Under target', tone: 'warn' } : { text: 'Target reached', tone: 'good' })}</div>
         <div class="big">${h.sleepMinutes === null ? '—' : hm(h.sleepMinutes)}</div>
-        <p class="note ${h.sleepShort > 0 ? 'warn' : ''}">${h.sleepMinutes === null ? 'Not logged yet' : !h.sleepTargetMinutes ? 'No target set' : h.sleepShort > 0 ? `${hm(h.sleepShort)} under your ${hm(h.sleepTargetMinutes)} target` : 'Target reached'}</p>
+        <p class="note ${h.sleepShort > 0 ? 'warn' : ''}">${h.sleepMinutes === null ? (isCurrent ? 'Not logged yet' : 'Not logged') : !h.sleepTargetMinutes ? 'No target set' : h.sleepShort > 0 ? `${hm(h.sleepShort)} under your ${hm(h.sleepTargetMinutes)} target` : 'Target reached'}</p>
       </div>
       <div class="card">
         <div class="label">Resting heart rate</div>
@@ -420,7 +432,7 @@ export function healthView(state) {
     </section>
 
     <section class="card">
-      <h2>Today's numbers</h2>
+      <h2>Numbers for ${isCurrent ? 'today' : dayText(h.date)}</h2>
       <form class="form" data-action="saveToday">
         ${field('Steps', 'steps', `inputmode="numeric" value="${h.steps ?? ''}"`)}
         ${field('Sleep: hours', 'sleepHours', `inputmode="numeric" value="${h.sleepMinutes === null ? '' : Math.floor(h.sleepMinutes / 60)}"`)}
@@ -454,7 +466,7 @@ export function healthView(state) {
       </ul>`}
       <form class="form" data-action="addWorkout">
         ${field('Workout', 'name', 'required maxlength="60" placeholder="Push day"')}
-        <button class="btn primary" type="submit">Add today</button>
+        <button class="btn primary" type="submit">Add ${isCurrent ? 'today' : `on ${dayText(h.date)}`}</button>
       </form>
     </section>
 

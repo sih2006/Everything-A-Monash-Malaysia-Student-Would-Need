@@ -60,6 +60,11 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     plan: () => post('/api/advisor/plan'),
     readScreenshot: (image, mimeType) => post('/api/import/screenshot', { image, mimeType }),
 
+    // budget, food and health for another month or day. Leave the argument out for the current one.
+    budget: (month) => get(`/api/budget${month ? `?month=${part(month)}` : ''}`),
+    food: (day) => get(`/api/food${day ? `?date=${part(day)}` : ''}`),
+    health: (day) => get(`/api/health${day ? `?date=${part(day)}` : ''}`),
+
     // budget
     saveBudgetLimit: (limit) => put('/api/budget/settings', { limit }),
     addCategory: (category) => post('/api/budget/categories', category),

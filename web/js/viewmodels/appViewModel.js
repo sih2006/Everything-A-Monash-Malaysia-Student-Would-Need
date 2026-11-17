@@ -8,9 +8,16 @@
 // tested with a fake API (see web/test/appViewModel.test.js).
 
 import { ApiError } from '../api.js';
-import { typedNumber } from '../format.js';
+import { addDays, addMonths, typedNumber } from '../format.js';
 
 const TABS = ['home', 'map', 'grades', 'budget', 'food', 'health', 'more'];
+
+// Budget is looked at by month, food and health by day. These say how to name and fetch a period.
+const PERIODS = {
+  budget: { keyOf: (data) => data.month, current: (today) => today.slice(0, 7), step: addMonths },
+  food: { keyOf: (data) => data.date, current: (today) => today, step: addDays },
+  health: { keyOf: (data) => data.date, current: (today) => today, step: addDays }
+};
 
 export function createAppViewModel({ api, storage, onChange = () => {} }) {
   const state = {
@@ -24,7 +31,10 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     mapKind: 'studies',
     hidden: storage.get('hideGrades') === '1',
     plan: null,            // the AI helper's last plan
-    imported: null         // { code, items } read from a screenshot, waiting for the user to check
+    imported: null,        // { code, items } read from a screenshot, waiting for the user to check
+    // Data for a past month or day the user is looking at. null means the current one, which lives in `overview`.
+    // Home and the map always use `overview`, so they always show today.
+    views: { budget: null, food: null, health: null }
   };
   // Tells the View to draw again. `failed` means "a command just failed": the View then
   // only shows the message and leaves the screen alone, so typed text is not lost.
@@ -46,8 +56,9 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     let failed = false;
     try {
       const result = await work();
+      if (PERIODS[slice]) await settlePeriod(slice, result);
+      else if (slice) state.overview[slice] = result;
       if (slice) {
-        state.overview[slice] = result;
         state.overview.empty = false;
         if (slice === 'academics') state.overview.academicsError = null;
       }
@@ -62,6 +73,23 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       state.busy = false;
       changed({ failed });
     }
+  }
+
+  // The data now on the Budget, Food or Health screen.
+  const shown = (slice) => state.views[slice] ?? state.overview[slice];
+  const fetchPeriod = (slice, key) => api[slice](key);
+
+  // After a change, both the period being looked at and the current one must be up to date,
+  // whichever one the change happened to answer with.
+  async function settlePeriod(slice, result) {
+    const period = PERIODS[slice];
+    const current = period.current(state.overview.today);
+    const answered = period.keyOf(result);
+    if (state.views[slice]) {
+      const viewed = period.keyOf(state.views[slice]);
+      state.views[slice] = answered === viewed ? result : await fetchPeriod(slice, viewed);
+    }
+    state.overview[slice] = answered === current ? result : await fetchPeriod(slice);
   }
 
   async function load() {
@@ -88,6 +116,17 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       changed();
     },
     setMapKind(kind) { state.mapKind = kind; changed(); },
+
+    shown,
+    // Moves Budget back or forward a month, or Food and Health back or forward a day. Never past today.
+    showPeriod: (slice, step) => act(null, async () => {
+      const period = PERIODS[slice];
+      const current = period.current(state.overview.today);
+      const next = period.step(period.keyOf(shown(slice)), step);
+      if (next > current) throw new ApiError(400, 'invalid', 'That has not happened yet.');
+      state.views[slice] = next === current ? null : await fetchPeriod(slice, next);
+    }),
+    showCurrent(slice) { state.views[slice] = null; state.error = null; state.notice = null; changed(); },
     toggleHidden() {
       state.hidden = !state.hidden;
       storage.set('hideGrades', state.hidden ? '1' : '0');
@@ -162,15 +201,15 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     saveBudgetLimit: (text) => act('budget', () => api.saveBudgetLimit(number(text, 'The limit', { required: false })), 'Limit saved.'),
     addCategory: (f) => act('budget', () => api.addCategory({ name: f.name, limit: number(f.limit, 'The category limit', { required: false }) ?? 0 }), 'Category added.'),
     deleteCategory: (id) => act('budget', () => api.deleteCategory(id), 'Category removed.'),
-    addSpending: (f) => act('budget', () => api.addSpending({ what: f.what, category: f.category, amount: number(f.amount, 'The amount') }), 'Spending added.'),
+    addSpending: (f) => act('budget', () => api.addSpending({ what: f.what, category: f.category, amount: number(f.amount, 'The amount'), ...(f.date ? { date: f.date } : {}) }), 'Spending added.'),
     deleteSpending: (id) => act('budget', () => api.deleteSpending(id), 'Spending removed.'),
 
     // ----- food -----
     saveFoodTargets: (f) => act('food', () => api.saveFoodTargets({ targetKcal: number(f.kcal, 'The calorie target'), targetProtein: number(f.protein, 'The protein target', { required: false }) ?? 0 }), 'Targets saved.'),
-    logFood: (f) => act('food', () => api.logFood({ food: f.food, meal: f.meal, remember: f.remember === 'on', kcal: number(f.kcal, 'Calories'), protein: number(f.protein, 'Protein', { required: false }) ?? 0 }), 'Food logged.'),
+    logFood: (f) => act('food', () => api.logFood({ date: shown('food').date, food: f.food, meal: f.meal, remember: f.remember === 'on', kcal: number(f.kcal, 'Calories'), protein: number(f.protein, 'Protein', { required: false }) ?? 0 }), 'Food logged.'),
     quickAddFood(id, meal) {
       const food = state.overview.food.foods.find((x) => x.id === Number(id));
-      return act('food', () => api.logFood({ food: food.name, kcal: food.kcal, protein: food.protein, meal }), `${food.name} logged.`);
+      return act('food', () => api.logFood({ date: shown('food').date, food: food.name, kcal: food.kcal, protein: food.protein, meal }), `${food.name} logged.`);
     },
     deleteFood: (id) => act('food', () => api.deleteFood(id), 'Entry removed.'),
     forgetFood: (id) => act('food', () => api.forgetFood(id), 'Removed from quick add.'),
@@ -192,9 +231,9 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       if (hours !== null || minutes !== null) values.sleepMinutes = (hours ?? 0) * 60 + (minutes ?? 0);
       if (heart !== null) values.restingHr = heart;
       if (Object.keys(values).length === 0) throw new ApiError(400, 'invalid', 'Fill in at least one box.');
-      return api.saveHealthDay(state.overview.today, values);
+      return api.saveHealthDay(shown('health').date, values);
     }, 'Saved.'),
-    addWorkout: (f) => act('health', () => api.addWorkout({ name: f.name }), 'Workout added.'),
+    addWorkout: (f) => act('health', () => api.addWorkout({ name: f.name, date: shown('health').date }), 'Workout added.'),
     deleteWorkout: (id) => act('health', () => api.deleteWorkout(id), 'Workout removed.')
   };
 }
