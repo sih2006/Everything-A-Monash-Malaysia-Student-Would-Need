@@ -2,7 +2,7 @@
 """Copy the product backlog to GitHub issues.
 
 The backlog file is the source. For each story in it, this script makes sure
-there is one GitHub issue with the right title, text, labels and milestone.
+there is one GitHub issue with the right title, text and labels. A milestone is set when the issue is made.
 It is safe to run again and again: it only creates what is missing and only
 changes what is different. It never closes, reopens or deletes an issue.
 
@@ -212,12 +212,13 @@ def main():
         managed = {name for name in current if name.split(":")[0] in COLOURS}
         to_add = [label for label in labels if label not in current]
         to_remove = sorted(managed - set(labels))
-        current_milestone = (issue.get("milestone") or {}).get("title")
-        if issue["title"] == title and same_text(issue["body"], body) and not to_add and not to_remove \
-                and current_milestone == milestone:
+        # The backlog gives a new issue its first milestone. After that the board decides: an issue moved to a
+        # later version on purpose (or sitting in a closed milestone) is never moved back.
+        has_milestone = bool(issue.get("milestone"))
+        if issue["title"] == title and same_text(issue["body"], body) and not to_add and not to_remove and has_milestone:
             same += 1
             continue
-        edit = ["issue", "edit", str(issue["number"]), "--title", title, "--milestone", milestone]
+        edit = ["issue", "edit", str(issue["number"]), "--title", title] + ([] if has_milestone else ["--milestone", milestone])
         for label in to_add:
             edit += ["--add-label", label]
         for label in to_remove:
