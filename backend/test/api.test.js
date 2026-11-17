@@ -362,6 +362,17 @@ describe('money accounts', () => {
     assert.equal((await app.call('PUT', '/api/budget/advice', { text: null })).body.advice, null);
   });
 
+  test('a balance set for an earlier day keeps the moves after that day, even ones entered before it', async () => {
+    const made = (await app.call('POST', '/api/accounts', { name: 'Wallet', kind: 'ewallet' })).body;
+    const id = made.money.accounts.find((a) => a.name === 'Wallet').id;
+    await app.call('POST', `/api/accounts/${id}/income`, { amount: 100, date: '2026-03-01' });
+    await app.call('PUT', `/api/accounts/${id}/balance`, { balance: 15, date: '2026-01-01' });
+    await app.call('POST', `/api/accounts/${id}/income`, { amount: 5, date: '2025-12-01' });   // before the set: it no longer counts
+    const after = (await app.call('GET', '/api/budget')).body;
+    assert.equal(after.money.accounts.find((a) => a.id === id).balance, 115);
+    await app.call('DELETE', `/api/accounts/${id}`);
+  });
+
   test('accounts are checked', async () => {
     assert.equal((await app.call('POST', '/api/accounts', { name: 'maybank' })).status, 409);
     assert.equal((await app.call('POST', '/api/accounts', { name: 'Crypto', kind: 'magic' })).status, 400);

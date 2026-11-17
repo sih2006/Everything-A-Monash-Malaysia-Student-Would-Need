@@ -80,9 +80,10 @@ export function createStore(db) {
     insertAccount: (a) => Number(db.prepare('INSERT INTO accounts (name, kind) VALUES (?, ?)').run(a.name, a.kind).lastInsertRowid),
     renameAccount: (id, name, kind) => db.prepare('UPDATE accounts SET name = ?, kind = ? WHERE id = ?').run(name, kind, id).changes,
     deleteAccount: (id) => db.prepare('DELETE FROM accounts WHERE id = ?').run(id).changes,
-    // Every move of every account, in the order they were entered. The order is what decides a balance.
+    // Every move of every account, by day, and in the order entered within a day. The order is what decides a balance:
+    // a balance set for an earlier day must not wipe out moves that happened after it, even if they were entered first.
     listAccountMoves: () => db.prepare(`SELECT id, account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId, transfer
-      FROM account_moves ORDER BY id`).all().map((m) => ({ ...m, transfer: m.transfer === 1 })),
+      FROM account_moves ORDER BY moved_on, id`).all().map((m) => ({ ...m, transfer: m.transfer === 1 })),
     insertAccountMove: (m) => Number(db.prepare('INSERT INTO account_moves (account_id, kind, amount, moved_on, note, transaction_id, transfer) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(m.accountId, m.kind, m.amount, m.date, m.note ?? '', m.transactionId ?? null, m.transfer ? 1 : 0).lastInsertRowid),
     getAccountMove: (id) => db.prepare('SELECT id, transaction_id AS transactionId FROM account_moves WHERE id = ?').get(id),
