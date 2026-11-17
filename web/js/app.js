@@ -6,7 +6,7 @@
 // turns clicks and submitted forms into ViewModel commands.
 
 import { createApi } from './api.js';
-import { clamp, esc, f1 } from './format.js';
+import { clamp, esc, f1, maskMoney } from './format.js';
 import { createAppViewModel } from './viewmodels/appViewModel.js';
 import { layoutLife } from './viewmodels/lifeTree.js';
 import { presentGrades, presentMap } from './viewmodels/present.js';
@@ -68,7 +68,8 @@ function draw(state, info = {}) {
     ? `<section class="banner warn demo" role="note"><h2>Example data, not yours</h2>
         <p>This server was started with <code>--demo</code>. Everything here is made up and is lost when it stops. Your own data is in the app started without <code>--demo</code>.</p></section>`
     : '';
-  view.innerHTML = demo + (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state)) +
+  const screen = (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state));
+  view.innerHTML = demo + (state.hideMoney ? maskMoney(screen) : screen) +
     (state.overview.empty ? '' : `<p class="foot">${state.overview.demo ? 'Example data, kept in memory only.' : 'Kept on this computer only.'}</p>`);
   for (const key of open) view.querySelector(`details[data-key="${CSS.escape(key)}"]`)?.setAttribute('open', '');
 
@@ -309,11 +310,14 @@ view.addEventListener('input', (e) => {
 // ---------- the controls in the side menu ----------
 
 const root = document.documentElement;
+const moneyButton = $('#toggleMoney');
 const gradesButton = $('#toggleGrades'), themeButton = $('#toggleTheme'), lookSelect = $('#lookSelect');
 
 function syncControls() {
   gradesButton.setAttribute('aria-pressed', String(vm.state.hidden));
   $('#toggleGradesLabel').textContent = vm.state.hidden ? 'Show grades' : 'Hide grades';
+  moneyButton.setAttribute('aria-pressed', String(vm.state.hideMoney));
+  $('#toggleMoneyLabel').textContent = vm.state.hideMoney ? 'Show money' : 'Hide money';
   const market = root.dataset.look === 'market';      // the night market look is always dark
   const dark = root.dataset.theme === 'dark';
   themeButton.disabled = market;
@@ -326,6 +330,7 @@ function applyLook(look) {
   syncControls();
 }
 gradesButton.addEventListener('click', () => { vm.toggleHidden(); syncControls(); });
+moneyButton.addEventListener('click', () => { vm.toggleHideMoney(); syncControls(); });
 themeButton.addEventListener('click', () => {
   storage.set('theme', root.dataset.theme === 'dark' ? 'light' : 'dark');
   applyLook(root.dataset.look);

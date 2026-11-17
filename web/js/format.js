@@ -3,6 +3,9 @@
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Hide money: every "RM 1,234.56" in a piece of text becomes "RM •••". Layout and everything else stay the same.
+export const maskMoney = (text) => text.replace(/\bRM\s?-?[\d,]*\d(?:\.\d+)?/g, 'RM •••');
+
 export const rm = (n) => 'RM ' + Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const num = (n) => Math.round(n).toLocaleString('en-MY');
 export const f1 = (n) => Number(n).toFixed(1);

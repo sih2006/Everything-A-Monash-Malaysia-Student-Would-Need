@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { ApiError } from '../js/api.js';
-import { typedNumber } from '../js/format.js';
+import { maskMoney, typedNumber } from '../js/format.js';
 import { createAppViewModel } from '../js/viewmodels/appViewModel.js';
 import { MASK, orderResults, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
 
@@ -55,6 +55,17 @@ const health = (over = {}) => ({
 const overview = (over = {}) => ({ today: '2026-11-21', academics: report([unit('FIT2004')]), academicsError: null, budget: budget(), food: food(), health: health(), ai: false, empty: false, ...over });
 
 // ---------- presenters ----------
+
+test('hide money: every RM amount is masked, nothing else changes, and the choice is remembered', () => {
+  assert.equal(maskMoney('<b>RM 1,234.56</b> left · RM12 · −RM 5.00 · 64.5 kg · ARMY'), '<b>RM •••</b> left · RM ••• · −RM ••• · 64.5 kg · ARMY');
+  assert.equal(maskMoney('data-tip="Food: RM 1,234.50"'), 'data-tip="Food: RM •••"');
+  const saved = {};
+  const vm = createAppViewModel({ api: {}, storage: { get: (k) => saved[k] ?? null, set: (k, v) => { saved[k] = v; } } });
+  assert.equal(vm.state.hideMoney, false);
+  vm.toggleHideMoney();
+  assert.equal(vm.state.hideMoney, true);
+  assert.equal(saved.hideMoney, '1');
+});
 
 test('a unit shows its numbers as finished text', () => {
   const u = presentUnit(unit('FIT2004'));

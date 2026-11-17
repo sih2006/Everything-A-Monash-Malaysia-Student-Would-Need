@@ -42,6 +42,7 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
     hidden: storage.get('hideGrades') === '1',
+    hideMoney: storage.get('hideMoney') === '1',   // every RM amount shows as RM •••
     plan: null,            // the AI helper's last plan
     imported: null,        // { code, items } read from a screenshot, waiting for the user to check
     // Data for a past month or day the user is looking at. null means the current one, which lives in `overview`.
@@ -183,6 +184,11 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       state.views[slice] = next === current ? null : await fetchPeriod(slice, next);
     }),
     showCurrent(slice) { state.views[slice] = null; state.error = null; state.notice = null; changed(); },
+    toggleHideMoney() {
+      state.hideMoney = !state.hideMoney;
+      storage.set('hideMoney', state.hideMoney ? '1' : '0');
+      changed();
+    },
     toggleHidden() {
       state.hidden = !state.hidden;
       storage.set('hideGrades', state.hidden ? '1' : '0');
