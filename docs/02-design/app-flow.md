@@ -28,7 +28,7 @@ flowchart TB
 
 - Six screens, all one press away from each other. On a phone the menu is a bar at the bottom; on a laptop it is a list at the side.
 - Each screen has its own address (`#grades`, `#map` and so on), so the browser's back button works and a screen can be bookmarked.
-- Four controls are always in reach: the look, **Hide grades**, **Hide money** and dark mode.
+- Four controls are always in reach: the look, the currency amounts are shown in, **Hide numbers** and dark mode.
 - There are no pop-up windows. Forms open in place, inside the card they belong to.
 
 | Screen | Sections, top to bottom |
@@ -36,7 +36,7 @@ flowchart TB
 | **Home** | Headline verdict with the penguin egg's mood. Start here (only when empty). Four area cards. Needs your attention. Your data: download, load from a file, delete everything. |
 | **Map** | Life or a path. The life tree (years down the left, areas branching right) or the path of stops to a goal. Details of the chosen node or stop. |
 | **Grades** | CGPA, GPA and WAM (they follow the what-if sliders). Final goal. CGPA by semester. One card per unit, in the order you choose. Add a unit. Study plan from the AI helper. Finished units. |
-| **Budget** | Your money (total). Four tabs: **Overview** (every account, this month in short), **Banking** and **Investing** (one account at a time), **Expenses** (month, limit, where your money goes, could cut, advice, categories, add spending, the list). |
+| **Budget** | Your money (total). Four tabs: **Overview** (every account, this month in short, a currency converter and the exchange rates), **Banking** and **Investing** (one account at a time), **Expenses** (the month and its limit; looking back over this month, 3 months, a year or all time with where your money goes, could cut, advice and month by month; categories, add spending, the list). |
 | **Food** | Calories and protein. Log food and quick add. Change the quick-add list. Logged today. |
 | **Health** | Today's steps, sleep, heart rate and water. Steps and sleep this week. Body weight with BMI. Workouts and best lifts. Targets. |
 
@@ -128,7 +128,8 @@ flowchart TD
   what -- Money came in --> income[Add money in]
   what -- Moved between my accounts --> move[Move money.<br/>Not spending, not income]
   what -- The real balance is different --> set[Set the balance by hand,<br/>for today or an earlier day]
-  tab -- Expenses --> spend[Where your money goes,<br/>could cut, advice]
+  tab -- Expenses --> period[Pick a period: this month,<br/>3 months, a year, all time]
+  period --> spend[Where your money goes, could cut,<br/>advice, month by month]
   spend -- "rent, fees" --> ess[Mark the category essential:<br/>it leaves could cut]
 ```
 

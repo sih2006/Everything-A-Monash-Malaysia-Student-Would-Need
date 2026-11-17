@@ -48,7 +48,8 @@ flowchart LR
     subgraph all [Across the app]
       uc15(See the home summary)
       uc16(Follow the map)
-      uc17(Hide grades or money)
+      uc17(Hide numbers)
+      uc24(See money in another currency)
       uc23(Download or load my data)
       uc18(Delete all data)
     end
@@ -58,7 +59,7 @@ flowchart LR
   student --- uc9 & uc10
   student --- uc19 & uc11 & uc20 & uc21 & uc14
   student --- uc12 & uc13 & uc22
-  student --- uc15 & uc16 & uc17 & uc23 & uc18
+  student --- uc15 & uc16 & uc17 & uc24 & uc23 & uc18
   uc9 --- gemini
   uc10 --- gemini
   uc2 -.->|includes| uc4
@@ -208,12 +209,24 @@ Mermaid has no use-case diagram of its own, so this one is drawn as a flowchart.
 - 4a. No final goal is set: the last stop says so and points to where to set one.
 - 1a. Grades or money are hidden: those numbers are masked on the map too.
 
-### UC-17: Hide grades or money
+### UC-17: Hide numbers
 
-1. The student presses "Hide grades". ("Hide money" does the same for every amount in RM.)
-2. Every mark, grade, target, GPA, CGPA and WAM is replaced by dots, on every screen.
+1. The student presses "Hide numbers".
+2. Every mark, grade, target, GPA, CGPA, WAM and money amount is replaced by dots, on every screen.
 3. The forms that would show a mark are removed.
 4. The choice is remembered until the student presses "Show grades".
+
+### UC-24: See money in another currency
+
+1. The student picks a currency (USD, OMR, CZK, CAD or IDR) in the menu.
+2. Every amount on every screen is shown in that currency, with a line at the top naming the rate.
+3. The student still types amounts in RM.
+
+**Other paths**
+
+- 1a. The student only wants one amount: the converter on Budget's Overview tab shows it in all six currencies.
+- 2a. The rate service cannot be reached: the last saved rates are used, and the rates card says why.
+- 2b. The student types a rate by hand: it is used instead of the live one until it is removed.
 
 ### UC-18: Delete all data
 

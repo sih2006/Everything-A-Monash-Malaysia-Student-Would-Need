@@ -8,7 +8,7 @@ Each version has one main theme. A version is finished when its theme works, its
 |---|---|---|
 | **0.1** | **Terminal grade tracker.** The C++ core with the grade rules and hand-built data structures, used from the terminal. | Done: [v0.1.0](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases/tag/v0.1.0) |
 | **0.2** | **Study app.** The backend and the web app, with grades at the centre: GPA, CGPA and WAM, targets, what-if, screenshot import, export. | Done: [v0.2.0](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases/tag/v0.2.0) |
-| **0.3** | **Money.** Accounts, money in, budget tabs, Could cut, the spending map, Hide money. | Done: [v0.3.0](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases/tag/v0.3.0) |
+| **0.3** | **Money.** Accounts, money in, budget tabs, Could cut, the spending map, looking back by period, other currencies, Hide numbers. | Done: [v0.3.0](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases/tag/v0.3.0) |
 | **0.4** | **Health.** Builds on the start in 0.3 (weight, BMI, water, workouts with exercises): steps, sleep and heart rate made complete, trends, and the health mascot. | Next |
 | **0.5** | **Food.** Builds on the simple food log: a Malaysian food list, meals, protein, and Joel's moods. | Planned |
 | **0.6** | **API integration.** The AI helper for real (study plan, screenshot import, spending advice on the Expenses tab), handbook lookup, future goals, and what people say about a unit. | Planned |

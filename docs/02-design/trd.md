@@ -11,15 +11,17 @@ flowchart TB
   student([Student<br/>the only user])
   app[Student companion<br/>grades, budget, food, health]
   gemini[Google Gemini<br/>writes a study plan,<br/>reads a screenshot]
+  rates[Exchange-rate service<br/>one request a day]
   monash[Monash pages<br/>grade rules, read by hand]
 
   student -->|enters marks, spending,<br/>meals, health numbers| app
   app -->|shows standing, verdicts<br/>and the path to the goal| student
   app -.->|only if a key is set:<br/>a short summary or a picture| gemini
+  app -.->|the code MYR, nothing else| rates
   monash -.->|rules copied into the code,<br/>with sources| app
 ```
 
-The dotted lines are optional or manual. With no Gemini key the app talks to nothing outside the laptop.
+The dotted lines are optional or manual. With no Gemini key, the only outside request is the daily one for exchange rates, which carries no personal data ([ADR-0008](../adr/0008-exchange-rates.md)).
 
 ## 2. The parts (C4 level 2: containers)
 
@@ -80,6 +82,7 @@ flowchart TB
   server --> db[db.js<br/>opens SQLite, runs migrations]
   server --> store[store.js<br/>all SQL]
   server --> gemini[gemini.js<br/>the AI helper]
+  server --> rates[rates.js<br/>exchange rates]
   server --> api
   api[api.js<br/>routes, input checks] --> http[http.js<br/>router, JSON, checks, static files]
   api --> domain[domain.js<br/>budget, food, health rules]
@@ -103,6 +106,8 @@ flowchart LR
   app --> vm[viewmodels/appViewModel.js<br/>state and commands]
   screens --> present[viewmodels/present.js<br/>presenters]
   screens --> smap[viewmodels/spendingMap.js<br/>treemap layout]
+  screens --> exp[viewmodels/expenses.js<br/>periods, month table]
+  app --> cur[viewmodels/currency.js<br/>other currencies]
   lifev --> ltree[viewmodels/lifeTree.js<br/>tree layout]
   vm --> apijs[api.js<br/>the only fetch]
   vm --> ltree

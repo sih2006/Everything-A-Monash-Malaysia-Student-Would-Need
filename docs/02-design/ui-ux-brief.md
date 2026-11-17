@@ -25,7 +25,9 @@ In the owner's words, gathered from the sessions of 15 and 16 November 2026:
 | "I want the app to decide what good is ... that's what the penguin is for" | The app gives the verdict; the mascot's mood shows it |
 | Chose "Tropical print" from three options, then asked to see the others | Four looks can be switched; none is final yet |
 | "I liked it when it was vertical years and expanding on the right" (17 November) | The life tree: years down the left, each area branching right |
-| "make hide money an option too" (18 November) | A Hide money switch next to Hide grades |
+| "make hide money an option too" (18 November), then "switch the hide numbers and money to hide just numbers" | One Hide numbers switch for marks and money |
+| "add a feature that allows conversion into other currencies" (18 November) | A converter, and a switch in the menu that shows every amount in USD, OMR, CZK, CAD or IDR |
+| "I wanted the expenses to show per month, what I spent per month on what", "an option to switch between current month, 3 months, a year and all time" | Looking back on the Expenses tab: a period switch and a month-by-month table |
 | "I want the other accounts to be hidden or in a tab form whenever I'm looking at one" (18 November) | Budget tabs: Overview, Banking, Investing, Expenses; one account at a time |
 | "graph out my expenses in a sort of map ... without the rent and utilities" (18 November) | The spending map on the Expenses tab, with essential categories left out |
 

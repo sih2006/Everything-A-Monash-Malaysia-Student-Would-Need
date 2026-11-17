@@ -11,11 +11,11 @@ The name is not chosen yet, so the app shows `[APP NAME]`.
 | Part | What it does |
 |---|---|
 | **Grades** | Units, assessments, marks, hurdles and targets. For each unit: what you need on the rest, whether that is *possible*, and whether it is *realistic*. GPA, CGPA (Malaysia scale) and WAM, kept apart. Pass/fail units that never count. A what-if slider that moves the totals. A final goal that sets default targets. |
-| **Budget** | Bank, e-wallet, investing and cash accounts with a total. Money in, moves between accounts, a monthly limit and categories. An Expenses tab with what could be cut, a map of where the money goes, and advice. |
+| **Budget** | Bank, e-wallet, investing and cash accounts with a total. Money in, moves between accounts, a monthly limit and categories. An Expenses tab that looks back over a month, 3 months, a year or all time: what could be cut, a map of where the money goes, a month-by-month table, and advice. Amounts can be shown in USD, OMR, CZK, CAD or IDR. |
 | **Food** | Daily calorie and protein targets, a food log and quick add. |
 | **Health** | Steps, sleep, heart rate, water, body weight with BMI, and workouts with exercises and best lifts, typed in by hand. |
 | **Map** | A life tree (years down the left, each area branching right, down to single days), and a path to the goal for each area. |
-| **Privacy** | Hide grades and hide money with one press each. Download all your data to one file, load it back, or delete everything. |
+| **Privacy** | Hide every number (marks and money) with one press. Download all your data to one file, load it back, or delete everything. |
 | **Terminal program** | The grades part also runs as a menu in a terminal, with its own save file. |
 
 Not built yet: mascot art, the AI features with a real key, hosting and login, the Android app beyond its first screen, reading steps from the phone. The order is in the [roadmap](docs/03-plan/roadmap.md).
@@ -40,7 +40,7 @@ The terminal program: `core/build/tracker` (on Windows: `core\build\tracker.exe`
 python tools/check.py
 ```
 
-This builds the core and runs all 282 tests: 106 for the C++ core (75 white-box with a leak check on each, 31 black-box), 112 for the backend and 64 for the web app. CI runs the same command on Linux for every pull request. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt).
+This builds the core and runs all 299 tests: 106 for the C++ core (75 white-box with a leak check on each, 31 black-box), 119 for the backend and 74 for the web app. CI runs the same command on Linux for every pull request. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt).
 
 ## How it is built
 
@@ -72,4 +72,4 @@ Every grade rule lives in the C++ core and nowhere else. The backend sends the s
 
 ## Privacy
 
-Everything you enter stays in one file on your computer (`backend/data/app.db`), which git ignores. Nothing is sent anywhere unless you turn on the AI helper, which sends a short summary to Google's Gemini. Details: [docs/02-design/security-privacy.md](docs/02-design/security-privacy.md).
+Everything you enter stays in one file on your computer (`backend/data/app.db`), which git ignores. Nothing about you is sent anywhere unless you turn on the AI helper, which sends a short summary to Google's Gemini. Once a day the app asks a free service for exchange rates; that request carries only the currency code. Details: [docs/02-design/security-privacy.md](docs/02-design/security-privacy.md).
