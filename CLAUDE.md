@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository.
 
 ## Project
 
-A personal companion app for one Monash University Malaysia student (working title; final name still to be picked). Modules: grades and Monash GPA, budget, calories, and later health (steps, heart rate, sleep). Each module has a mascot whose mood shows whether the user is on target: a penguin egg (grades), a crab (budget) and Joel the gym-bro (calories). The mascot art is drawn by the user's artist friend. The user sets every target; the app never hardcodes what "good" means.
+A personal companion app for one Monash University Malaysia student (working title; final name still to be picked). Modules: grades and Monash GPA, budget, calories, and later health (steps, heart rate, sleep). Each module has a mascot whose mood shows whether the user is on target: a penguin egg (grades), a crab (budget) and Joel the gym-bro (calories). The mascot art is drawn by the user's artist friend. The user sets every target and final goal. The app gives the verdict on progress against a target (on track or not, realistic or not) and may offer a default target worked out from the user's own final goal, but it never chooses the goal itself.
 
 Runs on Android (Samsung Galaxy S24 Ultra) and in a desktop browser. Free tiers only.
 
@@ -16,6 +16,10 @@ There is no app code yet. The planning hub is [docs/README.md](docs/README.md). 
 - Every significant decision gets an ADR in `docs/adr/` listing the options considered.
 - Requirements get stable IDs (for example `ACA-01`) so tests and issues can trace back to them.
 - Diagrams: Mermaid inside Markdown. draw.io (`.drawio.svg`) in `docs/diagrams/` for use-case, deployment and AWS diagrams. Wireframes and mockups in Claude Design artifacts.
+
+## Engineering principles
+
+The project follows [docs/engineering-principles.md](docs/engineering-principles.md). When a principle or practice is put into practice, change its status there from Planned to Applied and link the evidence. Only create extension points (interfaces meant for future variation) where that document lists them.
 
 ## Skill routing
 

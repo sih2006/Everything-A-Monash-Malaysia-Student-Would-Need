@@ -60,12 +60,12 @@ flowchart LR
 
 1. There is one user, but with a proper login, because the data is stored in the cloud.
 2. The app runs on Android (Samsung Galaxy S24 Ultra) and in desktop Chrome. No iOS.
-3. The stack is Expo (React Native with web support) in TypeScript. Not yet confirmed: this becomes ADR-0001 during the TRD.
+3. The `gpa` and `academics` modules are written in C++ with hand-built data structures, and run first as a terminal program on a laptop ([ADR-0001](../adr/0001-cpp-core-for-academics-tracker.md), proposed). The stack for the screens and the other modules is not yet decided and gets its own ADR.
 4. The app is offline-first: the phone works without internet and syncs later.
 5. The backend runs on the AWS free tier, with a USD 1 budget alert.
 6. Gemini is only ever called through the backend, never directly from the app.
 7. Money is in MYR, times are Malaysian time, and grades use Monash's 4-point GPA (HD 4, D 3, C 2, P 1, N 0), to be checked against the current Monash handbook.
-8. The user sets every target. The app may suggest defaults but never decides what "good" means.
+8. The user sets every target and final goal. The app may offer a default target worked out from the user's own final goal, and it gives the verdict on progress against a target (on track or not, realistic or not). It never chooses the goal itself.
 9. Mascots start as 2D art from the user's artist friend. 3D is a stretch goal.
 10. Steps come from the phone. Heart rate and sleep need a smartwatch.
 11. There is no bank connection. Spending is entered by hand.
@@ -79,3 +79,5 @@ Timetable, assignment deadlines, and reminders or notifications. To be decided i
 | Date | Change |
 |---|---|
 | 2026-10-02 | First version approved. |
+| 2026-11-15 | Assumption 3 changed: the `gpa` and `academics` core is written in C++ instead of Expo and TypeScript, starting as a laptop terminal program. See ADR-0001. |
+| 2026-11-15 | Assumption 8 reworded: the user still sets every target and goal, but the app gives the verdict on progress and may offer default targets worked out from the user's final goal. |

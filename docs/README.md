@@ -20,6 +20,7 @@ A document counts as approved only when its author can explain every decision in
 | Concept | 2 | [00-concept/capability-map.md](00-concept/capability-map.md) | Which modules exist, how they depend on each other, build order | Module dependency graph | Approved |
 | Concept | 3 | `00-concept/research.md` (optional, recommended) | What already exists, what other Monash students want | | Not started |
 | Requirements | 4 | `01-requirements/prd.md` | What each module must do: user stories, acceptance criteria, non-functional requirements, release slices | | Not started |
+| Requirements | | [01-requirements/product-backlog.md](01-requirements/product-backlog.md) | Academics tracker only: epics, user stories, acceptance criteria and priorities per release | | Draft |
 | Requirements | 5 | `01-requirements/use-cases.md` | Who does what with the system | UML use-case diagram | Not started |
 | Design | 6 | `02-design/app-flow.md` | How a user moves through the app | Flowcharts, navigation map, screen inventory | Not started |
 | Design | 7 | `02-design/ui-ux-brief.md` and `/DESIGN.md` | Look, feel, tone, mascot behaviour, accessibility | Wireframes and mockups (Claude Design) | Not started |
@@ -29,6 +30,7 @@ A document counts as approved only when its author can explain every decision in
 | Design | 11 | `02-design/security-privacy.md` | What could go wrong with grade, money and health data, and the defences | Data-flow diagram, threat model | Not started |
 | Plan | 12 | `03-plan/test-plan.md` | How we prove it works, including black-box test cases | Requirements traceability matrix | Not started |
 | Plan | 13 | `03-plan/implementation-plan.md` | Order of work: milestones, tasks, definition of done, risks, running costs | Roadmap | Not started |
+| All | | [engineering-principles.md](engineering-principles.md) | Which engineering principles the project follows, where and why | | In review |
 | All | | `adr/NNNN-title.md` | Why each big decision was made | | Ongoing |
 
 ## How planning connects to testing
