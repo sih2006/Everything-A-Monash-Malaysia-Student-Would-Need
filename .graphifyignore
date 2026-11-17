@@ -1,0 +1,12 @@
+# What graphify leaves out of the code graph (same rules as .gitignore).
+# Build output and caches
+core/build/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+graphify-out/
+# Third-party skills and their references: not this project's code
+.claude/
+# The early design prototype, replaced by web/
+prototype/

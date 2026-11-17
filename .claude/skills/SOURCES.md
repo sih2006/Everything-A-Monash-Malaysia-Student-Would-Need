@@ -15,6 +15,7 @@ Every skill was read before install. Only the folders listed here were copied. N
 | `ponytail-review` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | e3ba2aa | 148k | MIT |
 | `web-design-guidelines`, `react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) (official Vercel) | 063bee9 | 32k | see repo |
 | `playwright-cli` | [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli) (official Microsoft) | b85c7a7 (matches CLI 0.1.22) | 14k | Apache-2.0 |
+| `graphify` (added 2026-11-18) | [Graphify-Labs/graphify](https://github.com/safishamsi/graphify), PyPI package `graphifyy` 0.9.112 | installed by its own CLI (`graphify install --platform claude --project`) | not checked | Apache-2.0 and MIT |
 | `spec-driven-development`, `planning-and-task-breakdown`, `incremental-implementation`, `test-driven-development`, `code-review-and-quality`, `debugging-and-error-recovery`, `documentation-and-adrs`, `git-workflow-and-versioning`, `ci-cd-and-automation`, `security-and-hardening`, `api-and-interface-design`, `observability-and-instrumentation`, `interview-me`, `idea-refine` (plus `../references/`) | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 2686b62 | 100k | MIT |
 
 ## Local modifications
@@ -23,12 +24,14 @@ Every skill was read before install. Only the folders listed here were copied. N
 - `img2threejs`: removed `forge/tests/` (1.7 MB).
 - `impeccable`: skill payload only. Its optional hooks (SessionStart, PostToolUse on Edit/Write, Stop) were NOT installed. They can be added during the UI build stage if wanted.
 - `awesome-design-md`: only the 74 `DESIGN.md` files plus README and LICENSE.
+- `graphify`: skill payload only. Its installer also added a section to `CLAUDE.md`, a new `.claude/CLAUDE.md` and PreToolUse and SessionStart hooks in `.claude/settings.json`. All three were removed the same day: they were not asked for, and the hooks called a `graphify` command that is not on the PATH. `.graphifyignore` keeps build output, `.claude/` and `prototype/` out of the graph.
 
 ## Runtime notes
 - `playwright-cli` needs the global CLI (`npm install -g @playwright/cli@latest`). Installed 2026-10-02; uses the local Chrome.
 - `impeccable` downloads its engine binary (pinned version, SHA-256 checked) from its GitHub releases on first use, into `~/.impeccable/`.
 - `ui-ux-pro-max` and `img2threejs` scripts need Python 3 (standard library only, local, no network).
 - `web-design-guidelines` fetches Vercel's current guideline list from GitHub on each run.
+- `graphify` runs from its own Python 3.13 environment: `~/.venvs/graphify/Scripts/graphify.exe` (Windows Python, not the MSYS2 one, which cannot install its tree-sitter parts). `graphify update .` rebuilds the code graph into `graphify-out/` (ignored by git) with no network and no key. Only `/graphify` on docs or images uses a model: Gemini if `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set in the shell, otherwise Claude itself. Query log: `~/.cache/graphify-queries.log` (turn off with `GRAPHIFY_QUERY_LOG_DISABLE=1`).
 - `motion`: docs search is free. Audits and spring tools need Motion+ (paid) and are optional.
 
 ## Licence texts
