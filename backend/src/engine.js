@@ -22,7 +22,7 @@ export function buildEngineText(state, questions = []) {
   lines.push(`margin\t${state.margin}`);
   if (state.goal) lines.push(`goal\t${field(state.goal.measure)}\t${state.goal.value}\t${state.goal.totalCredits}`);
   for (const u of state.units) {
-    lines.push(['unit', field(u.code), field(u.name), u.credit, numberOrDash(u.target), field(u.term)].join('\t'));
+    lines.push(['unit', field(u.code), field(u.name), u.credit, numberOrDash(u.target), field(u.term), ...(u.passFail ? ['passfail'] : [])].join('\t'));
   }
   for (const a of state.assessments) {
     lines.push(['assess', field(a.unitCode), a.id, field(a.name), a.weight, numberOrDash(a.score), a.max, numberOrDash(a.hurdle)].join('\t'));

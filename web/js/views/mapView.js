@@ -7,6 +7,7 @@
 import { clamp, esc } from '../format.js';
 import { MAP_KINDS, presentMap } from '../viewmodels/present.js';
 import { ICON, bar, chip, pageHead } from './parts.js';
+import { lifeView } from './lifeView.js';
 
 const STEP = 250, PAD = 150, HEIGHT = 400, MIDDLE = 180;
 const PIN_HALF = { done: 38, ahead: 38, now: 54, goal: 84 };
@@ -56,6 +57,7 @@ export function stopDetail(stop) {
 }
 
 export function mapView(state, selected) {
+  if (state.mapKind === 'life') return lifeView(state, MAP_KINDS);
   const map = presentMap(state.mapKind, state.overview, state.hidden);
   const stops = placeStops(map.stops);
   const now = stops.findIndex((s) => s.kind === 'now');
@@ -95,7 +97,7 @@ export function mapView(state, selected) {
     </section>
 
     ${stops.length === 0 ? '' : `
-    <section class="mapbox" aria-label="Your path to the goal">
+    <section class="mapbox ${state.mapFull ? 'full' : ''}" aria-label="Your path to the goal">
       <div class="mapbar">
         <p class="note" id="mapHelp">Drag to move. Pinch, or hold Ctrl and scroll, to zoom. Pick a stop to see it below.</p>
         <div class="zoom" role="group" aria-label="Zoom">
@@ -103,6 +105,7 @@ export function mapView(state, selected) {
           <button type="button" data-zoom="fit">Show all</button>
           <button type="button" data-zoom="here">Find me</button>
           <button type="button" data-zoom="in" aria-label="Zoom in">${ICON.plus}</button>
+          <button type="button" data-zoom="full" aria-pressed="${Boolean(state.mapFull)}">${state.mapFull ? 'Exit full page' : 'Full page'}</button>
         </div>
       </div>
       <div class="mapview" id="mapview" tabindex="0" aria-label="Map. Arrow keys move it. Plus and minus zoom." aria-describedby="mapHelp">
@@ -120,8 +123,8 @@ export function mapView(state, selected) {
             </button>`).join('')}
         </div>
       </div>
-    </section>
-    <section class="here" id="mapDetail" aria-live="polite">${stopDetail(stops[chosen])}</section>`}`;
+    <section class="here" id="mapDetail" aria-live="polite">${stopDetail(stops[chosen])}</section>
+    </section>`}`;
 }
 
 // Holds where the map is looking: how far it has moved (x, y) and how much it is zoomed (k).
@@ -251,6 +254,14 @@ export function createMapCamera() {
     mount, apply, goTo, showAll, zoomBy,
     reset() { placed = false; },
     findMe() { cam.k = 1; return stops.findIndex((s) => s.kind === 'now'); },
-    stop: (index) => stops[index]
+    stop: (index) => stops[index],
+    stopById: (id) => stops.find((s) => s.id === id),
+    // Moves the view by how far a node moved, so it stays still on screen when the tree around it changes.
+    follow(before, after) {
+      if (!before || !after) return;
+      cam.x -= (after.x - before.x) * cam.k;
+      cam.y -= (after.y - before.y) * cam.k;
+      apply(false);
+    }
   };
 }

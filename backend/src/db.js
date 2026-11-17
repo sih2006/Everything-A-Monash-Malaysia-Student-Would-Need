@@ -94,6 +94,61 @@ const MIGRATIONS = [
     notes   TEXT NOT NULL DEFAULT ''
   );
   CREATE INDEX workouts_by_day ON workouts(done_on);
+  `,
+  // Step 2: money accounts (bank, e-wallet, investing). An account's balance is not stored:
+  // it is worked out from its moves, by day and then in the order entered (see listAccountMoves in store.js).
+  `
+  CREATE TABLE accounts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    kind       TEXT NOT NULL DEFAULT 'bank',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- kind: 'set' = the user typed the real balance (a manual overwrite),
+  --       'in'  = money came in, 'out' = money went out.
+  -- A move made by a spending entry points at it, and goes when the spending is deleted.
+  CREATE TABLE account_moves (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    kind           TEXT NOT NULL,
+    amount         REAL NOT NULL,
+    moved_on       TEXT NOT NULL,
+    note           TEXT NOT NULL DEFAULT '',
+    transaction_id INTEGER REFERENCES transactions(id) ON DELETE CASCADE
+  );
+  CREATE INDEX account_moves_by_account ON account_moves(account_id, id);
+  CREATE INDEX account_moves_by_transaction ON account_moves(transaction_id);
+  `,
+  // Step 3: more health. Body weight and water for a day, the kind and length of a workout,
+  // and the exercises done in it (sets, reps and the weight lifted).
+  `
+  ALTER TABLE health_days ADD COLUMN weight_kg REAL;
+  ALTER TABLE health_days ADD COLUMN water_ml INTEGER;
+  ALTER TABLE workouts ADD COLUMN kind TEXT NOT NULL DEFAULT 'other';
+  ALTER TABLE workouts ADD COLUMN minutes INTEGER;
+
+  CREATE TABLE exercises (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    sets       INTEGER NOT NULL,
+    reps       INTEGER NOT NULL,
+    weight_kg  REAL
+  );
+  CREATE INDEX exercises_by_workout ON exercises(workout_id, id);
+  `,
+  // Step 4: units graded pass or fail only. They never count in GPA, CGPA or WAM.
+  `
+  ALTER TABLE units ADD COLUMN pass_fail INTEGER NOT NULL DEFAULT 0;
+  `,
+  // Step 5: a move between two of your own accounts is marked, so it never counts as income or spending.
+  `
+  ALTER TABLE account_moves ADD COLUMN transfer INTEGER NOT NULL DEFAULT 0;
+  `,
+  // Step 6: a category can be marked essential (rent, tuition). Essential spending is never listed as "could cut".
+  `
+  ALTER TABLE budget_categories ADD COLUMN essential INTEGER NOT NULL DEFAULT 0;
   `
 ];
 

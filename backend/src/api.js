@@ -7,9 +7,10 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, addMonths, incomeSummary, reducibleSpending, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
+import { lifeTree } from './life.js';
 import { loadDemo } from './seed.js';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -19,7 +20,7 @@ const SMALL = 64 * 1024;            // size limit for normal requests
 const PICTURE = 8 * 1024 * 1024;    // size limit for a screenshot, or a file of exported data
 const EXPORT_FORMAT = 'student-companion-export';
 
-export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now() }) {
+export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now(), demo = false }) {
   const router = createRouter();
   const route = (method, pattern, handler, limit = SMALL) => router.add(method, pattern, { handler, limit });
 
@@ -52,7 +53,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     // The engine only knows positions; give the screens the database ids they need for edits.
     for (const term of report.terms) for (const unit of term.units) unit.id = state.results[unit.index].id;
     for (const unit of report.units) for (const a of unit.assessments) a.id = Number(a.id);
-    report.settings = { currentTerm: state.currentTerm, margin: state.margin, goal: state.goal };
+    report.settings = { currentTerm: state.currentTerm, margin: state.margin, goal: state.goal, termDates: store.getSetting('academics.termDates', null) };
     return report;
   }
 
@@ -79,6 +80,13 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
 
   route('GET', '/api/academics', () => academicsReport());
 
+  function termDates(value) {
+    const { start, end } = value ?? {};
+    if (!isDay(start) || !isDay(end)) throw new HttpError(400, 'invalid', 'Semester dates look like 2026-07-27.', 'termDates');
+    if (start > end) throw new HttpError(400, 'invalid', 'The semester must end after it starts.', 'termDates');
+    return { start, end };
+  }
+
   route('POST', '/api/units', ({ body }) => {
     const unit = {
       code: unitCode(body.code),
@@ -101,6 +109,10 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     if (body.term !== undefined) fields.term = check.text(body.term, 'term', { max: 40, required: false });
     if (body.credit !== undefined) fields.credit = check.number(body.credit, 'credit', { min: 0.5, max: 48 });
     if (body.target !== undefined) fields.target = check.number(body.target, 'target', { min: 1, max: 100, nullable: true });
+    if (body.passFail !== undefined) {
+      if (typeof body.passFail !== 'boolean') throw new HttpError(400, 'invalid', 'Pass or fail must be true or false.', 'passFail');
+      fields.passFail = body.passFail ? 1 : 0;
+    }
     return changeAcademics(() => store.updateUnit(code, fields));
   });
 
@@ -164,6 +176,9 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   });
 
   route('PUT', '/api/academics/settings', ({ body }) => changeAcademics(() => {
+    // The current semester's first and last day, so screens can show how much of it has gone.
+    if (body.termDates === null) store.setSetting('academics.termDates', null);
+    else if (body.termDates !== undefined) store.setSetting('academics.termDates', termDates(body.termDates));
     if (body.currentTerm !== undefined) store.setSetting('academics.currentTerm', check.text(body.currentTerm, 'currentTerm', { max: 40, required: false }));
     if (body.margin !== undefined) store.setSetting('academics.margin', check.number(body.margin, 'margin', { min: 0, max: 100 }));
     if (body.goal === null) store.setSetting('academics.goal', null);
@@ -178,6 +193,20 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     }
   }));
 
+  // Every slider at once: ?u=ENG1005:60&u=FIT2085:75. Gives each unit's answer and the semester totals with them.
+  route('GET', '/api/academics/predict', ({ query }) => {
+    const asked = query.getAll('u');
+    if (asked.length === 0 || asked.length > 20) throw new HttpError(400, 'invalid', 'Send from 1 to 20 units to predict.', 'u');
+    const questions = asked.map((item) => {
+      const [rawCode, rawScore] = String(item).split(':');
+      const code = (rawCode ?? '').toUpperCase();
+      mustFindUnit(code);
+      return { code, score: check.number(Number(rawScore), 'score', { min: 0, max: 100 }) };
+    });
+    const report = academicsReport(questions);
+    return { whatIf: report.whatIf, predicted: report.predicted };
+  });
+
   route('GET', '/api/academics/whatif', ({ query }) => {
     const code = (query.get('unit') ?? '').toUpperCase();
     mustFindUnit(code);
@@ -189,13 +218,37 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
 
   function budgetFor(month) {
     const { from, to } = monthRange(month);
-    return budgetSummary({
+    const summary = budgetSummary({
       month, today: today(),
       limit: store.getSetting('budget.limit', null),
       categories: store.listCategories(),
       transactions: store.listTransactions(from, to)
     });
+    const moves = store.listAccountMoves();
+    // "Could cut" looks at the three months up to the one shown, so one odd month does not decide it.
+    const first = monthRange(addMonths(month, -2)).from;
+    return {
+      ...summary,
+      income: incomeSummary(moves, month, summary.spent),
+      reducible: reducibleSpending({ categories: store.listCategories(), transactions: store.listTransactions(first, to), months: 3 }),
+      advice: store.getSetting('budget.advice', null),
+      // Balances are always as they are now, whichever month is being looked at.
+      money: accountSummary(store.listAccounts(), moves)
+    };
   }
+  const budgetNow = () => budgetFor(today().slice(0, 7));
+  const accountKind = (value) => {
+    const kind = check.text(value ?? 'bank', 'kind', { max: 12 });
+    if (!ACCOUNT_KINDS.includes(kind)) throw new HttpError(400, 'invalid', 'An account is a bank, an e-wallet, an investment or cash.', 'kind');
+    return kind;
+  };
+  const mustFindAccount = (id) => {
+    const account = store.getAccount(id);
+    if (!account) throw new HttpError(404, 'not_found', 'That account does not exist.');
+    return account;
+  };
+  const balanceValue = (value, field = 'balance') => Math.round(check.number(value, field, { min: -1e8, max: 1e9 }) * 100) / 100;
+  const moveAmount = (value, field = 'amount') => Math.round(check.number(value, field, { min: 0.01, max: 1e8 }) * 100) / 100;
   const monthOf = (query) => {
     const month = query.get('month') ?? today().slice(0, 7);
     if (!isMonth(month)) throw new HttpError(400, 'invalid', 'A month looks like 2026-11.', 'month');
@@ -219,7 +272,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   route('POST', '/api/budget/categories', ({ body }) => {
     const name = check.text(body.name, 'name', { max: 30 });
     if (store.getCategoryByName(name)) throw new HttpError(409, 'exists', `There is already a category called ${name}.`, 'name');
-    store.insertCategory({ name, limit: check.number(body.limit ?? 0, 'limit', { min: 0, max: 1e7 }) });
+    store.insertCategory({ name, limit: check.number(body.limit ?? 0, 'limit', { min: 0, max: 1e7 }), essential: body.essential === true });
     return budgetFor(today().slice(0, 7));
   });
 
@@ -227,10 +280,25 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const fields = {};
     if (body.name !== undefined) fields.name = check.text(body.name, 'name', { max: 30 });
     if (body.limit !== undefined) fields.limit = check.number(body.limit, 'limit', { min: 0, max: 1e7 });
+    if (body.essential !== undefined) {
+      if (typeof body.essential !== 'boolean') throw new HttpError(400, 'invalid', 'Essential must be true or false.', 'essential');
+      fields.essential = body.essential ? 1 : 0;
+    }
     const other = fields.name ? store.getCategoryByName(fields.name) : null;
     if (other && other.id !== check.id(params.id)) throw new HttpError(409, 'exists', `There is already a category called ${fields.name}.`, 'name');
     if (Object.keys(fields).length && !store.updateCategory(check.id(params.id), fields)) throw new HttpError(404, 'not_found', 'That category does not exist.');
     return budgetFor(today().slice(0, 7));
+  });
+
+  // Advice shown on the Expenses tab. For now it is written by hand (by Claude); later the AI helper fills it.
+  route('PUT', '/api/budget/advice', ({ body }) => {
+    if (body.text === null) store.setSetting('budget.advice', null);
+    else store.setSetting('budget.advice', {
+      text: check.text(String(body.text ?? '').replace(/\r?\n/g, ' \u2028 '), 'text', { max: 6000 }).replace(/ \u2028 /g, '\n'),
+      by: check.text(body.by, 'by', { max: 60, required: false }) || 'You',
+      on: today()
+    });
+    return budgetNow();
   });
 
   route('DELETE', '/api/budget/categories/:id', ({ params }) => {
@@ -242,11 +310,17 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const category = store.getCategoryByName(check.text(body.category, 'category', { max: 30 }));
     if (!category) throw new HttpError(400, 'invalid', 'Pick one of your categories, or add a new one first.', 'category');
     const date = dayOf(body.date);
-    store.insertTransaction({
+    const account = body.accountId === undefined || body.accountId === null || body.accountId === '' ? null : mustFindAccount(check.id(body.accountId));
+    const entry = {
       categoryId: category.id,
       what: check.text(body.what, 'what', { max: 60 }),
       amount: Math.round(check.number(body.amount, 'amount', { min: 0.01, max: 1e6 }) * 100) / 100,
       date
+    };
+    inTransaction(db, () => {
+      const id = store.insertTransaction(entry);
+      // Paid from an account: that account goes down by the same amount.
+      if (account) store.insertAccountMove({ accountId: account.id, kind: 'out', amount: entry.amount, date, note: entry.what, transactionId: id });
     });
     return budgetFor(date.slice(0, 7));
   });
@@ -254,6 +328,70 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   route('DELETE', '/api/transactions/:id', ({ params }) => {
     if (!store.deleteTransaction(check.id(params.id))) throw new HttpError(404, 'not_found', 'That spending entry does not exist.');
     return budgetFor(today().slice(0, 7));
+  });
+
+  // ================= money accounts =================
+
+  route('POST', '/api/accounts', ({ body }) => {
+    const name = check.text(body.name, 'name', { max: 30 });
+    if (store.getAccountByName(name)) throw new HttpError(409, 'exists', `There is already an account called ${name}.`, 'name');
+    const kind = accountKind(body.kind);
+    const balance = body.balance === undefined || body.balance === null || body.balance === '' ? null : balanceValue(body.balance);
+    inTransaction(db, () => {
+      const id = store.insertAccount({ name, kind });
+      if (balance !== null) store.insertAccountMove({ accountId: id, kind: 'set', amount: balance, date: today(), note: 'Starting balance' });
+    });
+    return budgetNow();
+  });
+
+  route('PATCH', '/api/accounts/:id', ({ params, body }) => {
+    const account = mustFindAccount(check.id(params.id));
+    const name = body.name === undefined ? account.name : check.text(body.name, 'name', { max: 30 });
+    const other = store.getAccountByName(name);
+    if (other && other.id !== account.id) throw new HttpError(409, 'exists', `There is already an account called ${name}.`, 'name');
+    store.renameAccount(account.id, name, body.kind === undefined ? account.kind : accountKind(body.kind));
+    return budgetNow();
+  });
+
+  route('DELETE', '/api/accounts/:id', ({ params }) => {
+    if (!store.deleteAccount(check.id(params.id))) throw new HttpError(404, 'not_found', 'That account does not exist.');
+    return budgetNow();
+  });
+
+  // The manual overwrite: "this account holds exactly this much now". Earlier moves stop counting.
+  route('PUT', '/api/accounts/:id/balance', ({ params, body }) => {
+    const account = mustFindAccount(check.id(params.id));
+    store.insertAccountMove({ accountId: account.id, kind: 'set', amount: balanceValue(body.balance), date: dayOf(body.date), note: check.text(body.note, 'note', { max: 60, required: false }) || 'Balance set by hand' });
+    return budgetNow();
+  });
+
+  route('POST', '/api/accounts/:id/income', ({ params, body }) => {
+    const account = mustFindAccount(check.id(params.id));
+    store.insertAccountMove({ accountId: account.id, kind: 'in', amount: moveAmount(body.amount), date: dayOf(body.date), note: check.text(body.note, 'note', { max: 60, required: false }) || 'Money in' });
+    return budgetNow();
+  });
+
+  // Moving money between two of your own accounts, for example topping up Touch 'n Go from a bank.
+  // It is not spending, so it does not count against the budget.
+  route('POST', '/api/accounts/transfer', ({ body }) => {
+    const from = mustFindAccount(check.id(body.from));
+    const to = mustFindAccount(check.id(body.to));
+    if (from.id === to.id) throw new HttpError(400, 'invalid', 'Pick two different accounts.', 'to');
+    const amount = moveAmount(body.amount);
+    const date = dayOf(body.date);
+    inTransaction(db, () => {
+      store.insertAccountMove({ accountId: from.id, kind: 'out', amount, date, note: `To ${to.name}`, transfer: true });
+      store.insertAccountMove({ accountId: to.id, kind: 'in', amount, date, note: `From ${from.name}`, transfer: true });
+    });
+    return budgetNow();
+  });
+
+  route('DELETE', '/api/account-moves/:id', ({ params }) => {
+    const move = store.getAccountMove(check.id(params.id));
+    if (!move) throw new HttpError(404, 'not_found', 'That entry does not exist.');
+    if (move.transactionId !== null) throw new HttpError(400, 'invalid', 'This came from a spending entry. Remove the spending instead.');
+    store.deleteAccountMove(move.id);
+    return budgetNow();
   });
 
   // ================= food =================
@@ -310,18 +448,45 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       today: today(),
       targets: store.getSetting('health.targets', { steps: 0, sleepMinutes: 0, workouts: 0 }),
       days: store.listHealthDays(from, to),
-      workouts: store.listWorkouts(from, to)
+      workouts: store.listWorkouts(from, to),
+      weights: store.listHealthDays(addDays(date, -365), date).filter((d) => d.weightKg !== null),
+      bests: store.listExerciseBests(date)
     });
   }
+
+  // Health targets: every one is optional. The goal weight is the user's own choice; the app only shows the distance to it.
+  const healthTargets = (b) => ({
+    steps: check.number(b.steps ?? 0, 'stepTarget', { min: 0, max: 100000, whole: true }),
+    sleepMinutes: check.number(b.sleepMinutes ?? 0, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
+    workouts: check.number(b.workouts ?? 0, 'workoutTarget', { min: 0, max: 21, whole: true }),
+    waterMl: check.number(b.waterMl ?? 0, 'waterTarget', { min: 0, max: 10000, whole: true }),
+    weightGoalKg: check.number(b.weightGoalKg ?? null, 'weightGoalKg', { min: 20, max: 400, nullable: true }),
+    heightCm: check.number(b.heightCm ?? null, 'heightCm', { min: 100, max: 250, nullable: true })
+  });
+  const workoutKind = (value) => {
+    const kind = value ?? 'other';
+    if (!WORKOUT_KINDS.includes(kind)) throw new HttpError(400, 'invalid', `A workout is one of: ${WORKOUT_KINDS.join(', ')}.`, 'kind');
+    return kind;
+  };
+  const exercise = (x) => ({
+    name: check.text(x?.name, 'exerciseName', { max: 60 }),
+    sets: check.number(x?.sets, 'sets', { min: 1, max: 50, whole: true }),
+    reps: check.number(x?.reps, 'reps', { min: 1, max: 500, whole: true }),
+    weightKg: check.number(x?.weightKg ?? null, 'weightKg', { min: 0, max: 1000, nullable: true })
+  });
+  const exerciseList = (value) => {
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value) || value.length > 40) throw new HttpError(400, 'invalid', 'Exercises must be a list of at most 40.', 'exercises');
+    return value.map(exercise);
+  };
 
   route('GET', '/api/health', ({ query }) => healthFor(dayOf(query.get('date') ?? undefined)));
 
   route('PUT', '/api/health/settings', ({ body }) => {
-    store.setSetting('health.targets', {
-      steps: check.number(body.stepTarget ?? 0, 'stepTarget', { min: 0, max: 100000, whole: true }),
-      sleepMinutes: check.number(body.sleepTargetMinutes ?? 0, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
-      workouts: check.number(body.workoutTarget ?? 0, 'workoutTarget', { min: 0, max: 21, whole: true })
-    });
+    store.setSetting('health.targets', healthTargets({
+      steps: body.stepTarget, sleepMinutes: body.sleepTargetMinutes, workouts: body.workoutTarget,
+      waterMl: body.waterTarget, weightGoalKg: body.weightGoalKg, heightCm: body.heightCm
+    }));
     return healthFor(today());
   });
 
@@ -331,14 +496,38 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     if (body.steps !== undefined) values.steps = check.number(body.steps, 'steps', { min: 0, max: 100000, whole: true, nullable: true });
     if (body.sleepMinutes !== undefined) values.sleepMinutes = check.number(body.sleepMinutes, 'sleepMinutes', { min: 0, max: 1440, whole: true, nullable: true });
     if (body.restingHr !== undefined) values.restingHr = check.number(body.restingHr, 'restingHr', { min: 20, max: 250, whole: true, nullable: true });
+    if (body.weightKg !== undefined) values.weightKg = check.number(body.weightKg, 'weightKg', { min: 20, max: 400, nullable: true });
+    if (body.waterMl !== undefined) values.waterMl = check.number(body.waterMl, 'waterMl', { min: 0, max: 10000, whole: true, nullable: true });
     store.saveHealthDay(day, values);
     return healthFor(day);
   });
 
   route('POST', '/api/workouts', ({ body }) => {
     const date = dayOf(body.date);
-    store.insertWorkout({ date, name: check.text(body.name, 'name', { max: 60 }), notes: check.text(body.notes, 'notes', { max: 300, required: false }) });
+    const workout = {
+      date,
+      name: check.text(body.name, 'name', { max: 60 }),
+      notes: check.text(body.notes, 'notes', { max: 300, required: false }),
+      kind: workoutKind(body.kind),
+      minutes: check.number(body.minutes ?? null, 'minutes', { min: 1, max: 600, whole: true, nullable: true }),
+      exercises: exerciseList(body.exercises)
+    };
+    inTransaction(db, () => store.insertWorkout(workout));
     return healthFor(date);
+  });
+
+  route('POST', '/api/workouts/:id/exercises', ({ params, body }) => {
+    const workout = store.getWorkout(check.id(params.id));
+    if (!workout) throw new HttpError(404, 'not_found', 'That workout does not exist.');
+    store.insertExercise(workout.id, exercise(body));
+    return healthFor(workout.date);
+  });
+
+  route('DELETE', '/api/exercises/:id', ({ params }) => {
+    const found = store.getExercise(check.id(params.id));
+    if (!found) throw new HttpError(404, 'not_found', 'That exercise does not exist.');
+    store.deleteExercise(found.id);
+    return healthFor(found.date);
   });
 
   route('DELETE', '/api/workouts/:id', ({ params }) => {
@@ -348,7 +537,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
 
   // ================= everything at once =================
 
-  route('GET', '/api/status', () => ({ ok: true, version: '0.1.0', today: today(), engine: engine.available(), ai: gemini.configured, empty: store.isEmpty() }));
+  route('GET', '/api/status', () => ({ ok: true, version: '0.1.0', today: today(), engine: engine.available(), ai: gemini.configured, empty: store.isEmpty(), demo }));
 
   // One call for the home screen. If the engine is not built, the other three parts still load.
   route('GET', '/api/overview', () => {
@@ -358,7 +547,28 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       academicsError = error.message;
     }
     const day = today();
-    return { today: day, academics, academicsError, budget: budgetFor(day.slice(0, 7)), food: foodFor(day), health: healthFor(day), ai: gemini.configured, empty: store.isEmpty() };
+    return { today: day, academics, academicsError, budget: budgetFor(day.slice(0, 7)), food: foodFor(day), health: healthFor(day), ai: gemini.configured, empty: store.isEmpty(), demo };
+  });
+
+  // ================= the life tree =================
+
+  // Everything ever recorded, as one tree. If the grade engine is not built, the tree is drawn without Studies.
+  route('GET', '/api/life', () => {
+    let report = null;
+    try { report = academicsReport(); } catch (error) { if (!(error instanceof HttpError)) throw error; }
+    return lifeTree({
+      today: today(),
+      report,
+      termDates: store.getSetting('academics.termDates', null),
+      goal: store.getSetting('academics.goal', null),
+      transactions: store.listTransactions('0000-01-01', '9999-12-31').reverse(),
+      limit: store.getSetting('budget.limit', null) ?? (store.listCategories().reduce((sum, c) => sum + c.limit, 0) || null),
+      foodLog: store.listFoodLogAll(),
+      foodTargets: store.getSetting('food.targets', null),
+      healthDays: store.listHealthDays('0000-01-01', '9999-12-31'),
+      workouts: store.listWorkouts('0000-01-01', '9999-12-31').reverse(),
+      healthTargets: store.getSetting('health.targets', null)
+    });
   });
 
   // ================= export and import =================
@@ -386,6 +596,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const s = file.settings ?? {};
     if (typeof s !== 'object' || Array.isArray(s)) throw new HttpError(400, 'invalid', 'The settings in the file are damaged.');
     if (s['academics.currentTerm'] !== undefined) settings['academics.currentTerm'] = check.text(s['academics.currentTerm'], 'currentTerm', { max: 40, required: false });
+    if (s['academics.termDates']) settings['academics.termDates'] = termDates(s['academics.termDates']);
     if (s['academics.margin'] !== undefined) settings['academics.margin'] = check.number(s['academics.margin'], 'margin', { min: 0, max: 100 });
     if (s['academics.goal']) {
       const g = s['academics.goal'];
@@ -405,11 +616,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     }
     if (s['health.targets']) {
       const h = s['health.targets'];
-      settings['health.targets'] = {
-        steps: check.number(h.steps, 'stepTarget', { min: 0, max: 100000, whole: true }),
-        sleepMinutes: check.number(h.sleepMinutes, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
-        workouts: check.number(h.workouts, 'workoutTarget', { min: 0, max: 21, whole: true })
-      };
+      settings['health.targets'] = healthTargets(h);
     }
 
     const units = list('units', 500).map((u) => ({
@@ -417,7 +624,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       name: check.text(u.name, 'name', { required: false }),
       term: check.text(u.term, 'term', { max: 40, required: false }),
       credit: check.number(u.credit, 'credit', { min: 0.5, max: 48 }),
-      target: maybe(u.target, 'target', { min: 1, max: 100 })
+      target: maybe(u.target, 'target', { min: 1, max: 100 }),
+      passFail: u.passFail === true
     }));
     const codes = new Set(units.map((u) => u.code));
     if (codes.size !== units.length) throw new HttpError(400, 'invalid', 'The file has the same unit twice.');
@@ -451,7 +659,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const categories = list('categories', 200).map((c) => ({
       id: check.number(c.id, 'id', { min: 1, max: 1e9, whole: true }),
       name: check.text(c.name, 'name', { max: 30 }),
-      limit: check.number(c.limit, 'limit', { min: 0, max: 1e7 })
+      limit: check.number(c.limit, 'limit', { min: 0, max: 1e7 }),
+      essential: c.essential === true
     }));
     const categoryIds = new Set(categories.map((c) => c.id));
     if (categoryIds.size !== categories.length || new Set(categories.map((c) => c.name.toLowerCase())).size !== categories.length) {
@@ -486,15 +695,45 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       day: day(d.day, 'day'),
       steps: maybe(d.steps, 'steps', { min: 0, max: 100000, whole: true }),
       sleepMinutes: maybe(d.sleepMinutes, 'sleepMinutes', { min: 0, max: 1440, whole: true }),
-      restingHr: maybe(d.restingHr, 'restingHr', { min: 20, max: 250, whole: true })
+      restingHr: maybe(d.restingHr, 'restingHr', { min: 20, max: 250, whole: true }),
+      weightKg: maybe(d.weightKg, 'weightKg', { min: 20, max: 400 }),
+      waterMl: maybe(d.waterMl, 'waterMl', { min: 0, max: 10000, whole: true })
     }));
     const workouts = list('workouts', 20000).map((w) => ({
       date: day(w.date, 'date'),
       name: check.text(w.name, 'name', { max: 60 }),
-      notes: check.text(w.notes, 'notes', { max: 300, required: false })
+      notes: check.text(w.notes, 'notes', { max: 300, required: false }),
+      kind: workoutKind(w.kind),
+      minutes: maybe(w.minutes, 'minutes', { min: 1, max: 600, whole: true }),
+      exercises: exerciseList(w.exercises)
     }));
 
-    return { settings, units, assessments, results, categories, transactions, foods, foodLog, healthDays, workouts };
+    const accounts = list('accounts', 100).map((a) => ({
+      id: check.number(a.id, 'id', { min: 1, max: 1e9, whole: true }),
+      name: check.text(a.name, 'name', { max: 30 }),
+      kind: accountKind(a.kind)
+    }));
+    const accountIds = new Set(accounts.map((a) => a.id));
+    if (accountIds.size !== accounts.length || new Set(accounts.map((a) => a.name.toLowerCase())).size !== accounts.length) {
+      throw new HttpError(400, 'invalid', 'The file has the same account twice.');
+    }
+    const usedSpending = new Set();
+    const accountMoves = list('accountMoves', 100000).map((m) => {
+      if (!accountIds.has(m.accountId)) throw new HttpError(400, 'invalid', 'An account entry in the file has no account.');
+      if (!['set', 'in', 'out'].includes(m.kind)) throw new HttpError(400, 'invalid', 'An account entry in the file is damaged.');
+      const transaction = m.transaction === null || m.transaction === undefined ? null : check.number(m.transaction, 'transaction', { min: 0, max: transactions.length - 1, whole: true });
+      if (transaction !== null && (m.kind !== 'out' || usedSpending.has(transaction))) throw new HttpError(400, 'invalid', 'An account entry in the file is damaged.');
+      if (transaction !== null) usedSpending.add(transaction);
+      return {
+        accountId: m.accountId, kind: m.kind,
+        amount: m.kind === 'set' ? balanceValue(m.amount, 'amount') : moveAmount(m.amount),
+        date: day(m.date, 'date'),
+        note: check.text(m.note, 'note', { max: 60, required: false }),
+        transaction,
+        transfer: m.transfer === true
+      };
+    });
+    return { settings, units, assessments, results, categories, transactions, foods, foodLog, healthDays, workouts, accounts, accountMoves };
   }
 
   // Loads an exported file into an empty app. Everything is checked first, and the grade

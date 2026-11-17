@@ -14,7 +14,7 @@ When a task is finished, move it to the "Done" table in [STATUS.md](STATUS.md).
 |---|---|---|
 | A1 | **Run the app and try everything.** `node backend/src/server.js`, open the address, load the example data, click through every screen, then delete the data and enter two of your own units. | You have used every screen once and written down anything that felt wrong |
 | A2 | **Read the five ADRs** in [docs/adr/](../adr/). Numbers 0002 to 0006 were decided by Claude during the build sprint and are marked "Proposed". For each one: accept it, or say what to change. | Each ADR's status is "Accepted" or it has been replaced |
-| A3 | **Push the five branches and merge them** ([github-setup.md](github-setup.md), parts 1 to 4). | `main` on GitHub has everything and the Actions tab shows a green run |
+| A3 | **Merge the branches** ([github-setup.md](github-setup.md), parts 1 to 4). They were pushed on 18 November; open one pull request per branch, in the order in STATUS.md. | `main` on GitHub has everything and the Actions tab shows a green run |
 | A4 | **Check the grade rules against your own results.** Enter one finished semester and compare the CGPA with Monash's own CGPA calculator. | The numbers match, or you have reported the difference |
 | A5 | **Do the worked example** in [mvvm-guide.md](mvvm-guide.md) yourself: add notes to workouts. It is small on purpose, and it takes you through every layer once. | The note shows on the Health screen and the new test passes |
 
@@ -27,6 +27,8 @@ When a task is finished, move it to the "Done" table in [STATUS.md](STATUS.md).
 | B3 | **Hosting:** Route A or Route B in [aws-setup.md](aws-setup.md), or Supabase. | Decides what the storage and login work looks like |
 | B4 | **Mascot art from your artist:** a penguin egg, a crab and Joel, each in a few moods, plus an app icon. | The app has labelled empty spaces where they go |
 | B5 | **How "realistic" should treat a unit with no marks yet.** Now it compares with the average of your finished units. | Open question 3 in the backlog |
+| B7 | **What are the two "ask" shops?** They show up again and again in your records (names are in your local app). | Their spending sits in "ask" categories, so Could cut cannot say if they are avoidable |
+| B8 | **The advice source.** Gemini (the key is already planned for) or the Claude API. Either way the key stays on the backend. | Task D7 |
 | B6 | **Hurdle kinds.** The app supports "a minimum on one assessment". Do your units have other kinds, such as a minimum across all exams together? | Open question 2 in the backlog |
 
 ## C. Agent tasks that need nothing from the owner
@@ -48,6 +50,14 @@ In rough order of value. Each one is a small pull request.
 | C9 | **Done.** **Sort and filter spending and units** (by date, by category, by verdict). | `web/js/viewmodels/` | Presenter tests cover each order |
 | C10 | **Done.** **Demo mode** (`node backend/src/server.js --demo`) and a [walkthrough](demo-script.md). | `tools/` | One command gives a clean demo state |
 
+| C11 | **Done.** Money accounts, the life tree, semester dates, more grade sorting and more health. See [STATUS.md](STATUS.md). | `backend/`, `web/` | Tests at each layer |
+| C15 | **Done (18 November).** Pass/fail units, what-if totals, money in, height and BMI, Hide money, Budget tabs, essential categories, Could cut, advice, and the fix for balances by date. See [STATUS.md](STATUS.md). | `core/`, `backend/`, `web/` | Tests at each layer |
+| C16 | **Import a bank statement from a file** (CSV first). Today statements were read by a one-off script outside the repository. Make it a feature: pick the file, check the rows, sort them into categories, skip moves between your own accounts. | `backend/`, `web/` | A test file with known rows gives the right totals, and running it twice adds nothing twice |
+| C17 | **Rules that sort spending by shop name** (for example "GRAB" goes to Eating out), kept in the app and editable, so new spending sorts itself | `backend/`, `web/` | Tests for matching and for a rule that changes |
+| C12 | **Android: port the budget, food and health rules to Kotlin**, with the same worked examples as `backend/test/domain.test.js`. | `android/` on `feat/android` | JUnit tests pass with the same numbers |
+| C13 | **Android: a database on the phone** (Room or plain SQLite) with the same tables as `backend/src/db.js`. | `android/` | Data stays after the app is closed |
+| C14 | **Android: screens in Compose, MVVM**, starting with Grades. | `android/` | The phone shows the same report as the laptop for the same data |
+
 ## D. Agent tasks that wait for an owner decision
 
 | # | Task | Waits for |
@@ -57,7 +67,8 @@ In rough order of value. Each one is a small pull request.
 | D3 | The DynamoDB store, the Lambda entry point, Cognito login and the CDK code ([aws-setup.md](aws-setup.md), the table of 8 tasks) | B3, and the AWS account |
 | D4 | Show the mascot art, with one picture per mood, and add the app icons to the manifest | B4 |
 | D5 | Run the two AI features against the real Gemini API and fix whatever the first real run shows | The Gemini key ([gemini-setup.md](gemini-setup.md)) |
-| D6 | The Android wrapper and the Health Connect plugin ([android-setup.md](android-setup.md), way 3) | B3 (it needs the app online) and Android Studio |
+| D6 | Health Connect in the native Android app ([ADR-0007](../adr/0007-native-android-app.md)), so steps, sleep and heart rate arrive without typing | C12 to C14 |
+| D7 | **AI advice on the Expenses tab**: the backend sends the Could cut numbers (never names of people) to the AI and saves the answer with `PUT /api/budget/advice`. The placeholder text shows what it should look like | B8 and a key |
 
 ## E. Later releases from the backlog
 

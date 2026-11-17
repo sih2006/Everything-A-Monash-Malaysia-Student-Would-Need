@@ -12,8 +12,13 @@ import { addDays, weekRange } from './domain.js';
 
 export function loadDemo(store, today) {
   // ----- academics -----
-  store.setSetting('academics.currentTerm', 'S1 2027');
+  // The made-up semesters follow today's date: this semester is in this year, the finished ones in the year before.
+  const year = Number(today.slice(0, 4));
+  const thisTerm = `S2 ${year}`, lastYear1 = `S1 ${year - 1}`, lastYear2 = `S2 ${year - 1}`;
+  store.setSetting('academics.currentTerm', thisTerm);
   store.setSetting('academics.margin', 10);
+  // A made-up semester that started six weeks ago and has six weeks left.
+  store.setSetting('academics.termDates', { start: addDays(today, -42), end: addDays(today, 42) });
   store.setSetting('academics.goal', { measure: 'cgpa', value: 3.5, totalCredits: 144 });
 
   const units = [
@@ -27,7 +32,7 @@ export function loadDemo(store, today) {
       assessments: [['Weekly assignments', 20, 58], ['Mid-semester test', 20, 45], ['Final exam', 60, null, 40]] }
   ];
   for (const u of units) {
-    store.insertUnit({ code: u.code, name: u.name, term: 'S1 2027', credit: 6 });
+    store.insertUnit({ code: u.code, name: u.name, term: thisTerm, credit: 6 });
     store.updateUnit(u.code, { target: u.target });
     for (const [name, weight, score, hurdle] of u.assessments) {
       store.insertAssessment({ unitCode: u.code, name, weight, score, max: 100, hurdle: hurdle ?? null });
@@ -35,10 +40,10 @@ export function loadDemo(store, today) {
   }
 
   const results = [
-    ['FIT1045', 'Introduction to programming', 78, 'S1 2026'], ['FIT1047', 'Computer systems and networks', 72, 'S1 2026'],
-    ['FIT1049', 'IT professional practice', 71, 'S1 2026'], ['MAT1841', 'Continuous mathematics', 64, 'S1 2026'],
-    ['FIT1008', 'Fundamentals of algorithms', 81, 'S2 2026'], ['FIT1050', 'Web fundamentals', 75, 'S2 2026'],
-    ['FIT1055', 'Professional practice and ethics', 72, 'S2 2026'], ['FIT1058', 'Foundations of computing', 66, 'S2 2026']
+    ['FIT1045', 'Introduction to programming', 78, lastYear1], ['FIT1047', 'Computer systems and networks', 72, lastYear1],
+    ['FIT1049', 'IT professional practice', 71, lastYear1], ['MAT1841', 'Continuous mathematics', 64, lastYear1],
+    ['FIT1008', 'Fundamentals of algorithms', 81, lastYear2], ['FIT1050', 'Web fundamentals', 75, lastYear2],
+    ['FIT1055', 'Professional practice and ethics', 72, lastYear2], ['FIT1058', 'Foundations of computing', 66, lastYear2]
   ];
   for (const [code, name, mark, term] of results) store.insertResult({ code, name, credit: 6, mark, grade: null, term });
 
@@ -56,9 +61,23 @@ export function loadDemo(store, today) {
     [12, 'Food court', 'Food', 11.2], [13, 'Weekly groceries', 'Groceries', 41.6], [14, 'Stationery', 'Study', 12.4], [15, 'Dinner out', 'Food', 32], [16, 'Streaming, shared', 'Fun', 15]
   ];
   const monthStart = today.slice(0, 8) + '01';
+  // ----- money accounts: made-up balances -----
+  const maybank = store.insertAccount({ name: 'Maybank', kind: 'bank' });
+  const tng = store.insertAccount({ name: "Touch 'n Go", kind: 'ewallet' });
+  const invest = store.insertAccount({ name: 'Investing', kind: 'investment' });
+  store.insertAccountMove({ accountId: maybank, kind: 'set', amount: 2340.5, date: monthStart, note: 'Starting balance' });
+  store.insertAccountMove({ accountId: tng, kind: 'set', amount: 35.2, date: monthStart, note: 'Starting balance' });
+  store.insertAccountMove({ accountId: invest, kind: 'set', amount: 1500, date: monthStart, note: 'Starting balance' });
+  store.insertAccountMove({ accountId: maybank, kind: 'out', amount: 100, date: monthStart, note: "To Touch 'n Go" });
+  store.insertAccountMove({ accountId: tng, kind: 'in', amount: 100, date: monthStart, note: 'From Maybank' });
+  store.insertAccountMove({ accountId: maybank, kind: 'in', amount: 450, date: monthStart, note: 'Allowance' });
+
   for (const [daysAgo, what, category, amount] of spending) {
     const date = addDays(today, -daysAgo);
-    if (date >= monthStart) store.insertTransaction({ categoryId: categoryId[category], what, amount, date });
+    if (date < monthStart) continue;
+    const id = store.insertTransaction({ categoryId: categoryId[category], what, amount, date });
+    // Small spending is paid with Touch 'n Go, bigger spending from the bank.
+    store.insertAccountMove({ accountId: amount < 20 ? tng : maybank, kind: 'out', amount, date, note: what, transactionId: id });
   }
 
   // ----- food -----
@@ -74,16 +93,35 @@ export function loadDemo(store, today) {
   store.insertFoodLog({ date: today, meal: 'Snack', food: 'Banana', kcal: 100, protein: 1 });
 
   // ----- health: this week, up to today -----
-  store.setSetting('health.targets', { steps: 8000, sleepMinutes: 450, workouts: 4 });
+  store.setSetting('health.targets', { steps: 8000, sleepMinutes: 450, workouts: 4, waterMl: 2500, weightGoalKg: 70, heightCm: 175 });
   const { from } = weekRange(today);
   const days = [[7810, 425, 63], [9240, 400, 62], [5130, 450, 64], [8460, 350, 63], [6420, 370, 62], [7200, 480, 61], [4100, 510, 62]];
+  const water = [2100, 2600, 1800, 2500, 2300, 2700, 1500];
   days.forEach(([steps, sleepMinutes, restingHr], index) => {
     const day = addDays(from, index);
-    if (day <= today) store.saveHealthDay(day, { steps, sleepMinutes, restingHr });
+    if (day <= today) store.saveHealthDay(day, { steps, sleepMinutes, restingHr, waterMl: water[index] });
   });
-  ['Pull day', 'Leg day', 'Push day'].forEach((name, index) => {
+  // Body weight about twice a week for the last two months, slowly going down.
+  for (let back = 60; back >= 0; back -= 3) {
+    store.saveHealthDay(addDays(today, -back), { weightKg: Math.round((72.4 - (60 - back) * 0.03 + (back % 2) * 0.2) * 10) / 10 });
+  }
+  const sessions = [
+    { name: 'Pull day', kind: 'gym', minutes: 70, exercises: [
+      { name: 'Deadlift', sets: 3, reps: 5, weightKg: 100 }, { name: 'Lat pulldown', sets: 3, reps: 10, weightKg: 50 }, { name: 'Barbell row', sets: 3, reps: 8, weightKg: 55 }] },
+    { name: 'Leg day', kind: 'gym', minutes: 65, exercises: [
+      { name: 'Squat', sets: 4, reps: 6, weightKg: 85 }, { name: 'Leg press', sets: 3, reps: 12, weightKg: 140 }] },
+    { name: 'Evening run', kind: 'run', minutes: 30, exercises: [] },
+    { name: 'Push day', kind: 'gym', minutes: 60, exercises: [
+      { name: 'Bench press', sets: 4, reps: 6, weightKg: 62.5 }, { name: 'Overhead press', sets: 3, reps: 8, weightKg: 37.5 }] }
+  ];
+  // Last week too, a little lighter, so the best lifts have a history.
+  sessions.forEach((w, index) => {
+    const before = addDays(from, index * 2 - 7);
+    store.insertWorkout({ ...w, date: before, notes: '', exercises: w.exercises.map((x) => ({ ...x, weightKg: x.weightKg - 2.5 })) });
+  });
+  sessions.forEach((w, index) => {
     const day = addDays(from, index * 2);
-    if (day <= today) store.insertWorkout({ date: day, name, notes: '' });
+    if (day <= today) store.insertWorkout({ ...w, date: day, notes: '' });
   });
 }
 

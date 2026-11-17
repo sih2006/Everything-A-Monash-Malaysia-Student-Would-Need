@@ -32,3 +32,6 @@ backend/data/
 tracker-data.tsv
 *.tsv.bak
 *.tsv.new
+
+# graphify's code graph: rebuilt locally with `graphify update .`
+graphify-out/

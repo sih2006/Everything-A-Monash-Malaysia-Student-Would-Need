@@ -4,10 +4,15 @@
 // buttons and forms with data-action="..." so app.js can call the right command.
 
 import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
-import { UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
-import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart } from './parts.js';
+import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
+import { presentSpendingMap } from '../viewmodels/spendingMap.js';
+import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
+const WORKOUT_KINDS = [['gym', 'Gym'], ['run', 'Run'], ['walk', 'Walk'], ['cycle', 'Cycle'], ['swim', 'Swim'], ['sport', 'Sport'], ['other', 'Other']];
+const KIND_NAME = Object.fromEntries(WORKOUT_KINDS);
+const litres = (ml) => `${plain(Math.round(ml / 100) / 10)} L`;
+const signed = (kg) => `${kg > 0 ? '+' : kg < 0 ? '−' : ''}${plain(Math.abs(kg))} kg`;
 const remove = (action, data, label) =>
   `<button type="button" class="link danger" data-action="${action}" ${data} aria-label="${esc(label)}">Remove</button>`;
 
@@ -83,7 +88,7 @@ function unitCard(u, state) {
     <article class="card unit">
       <div class="card-head">
         <h2>${esc(u.code)}</h2>
-        <span class="note">Target: <strong>${esc(u.targetText)}</strong></span>
+        ${u.passFail ? chip({ text: 'Pass or fail only', tone: '' }) : `<span class="note">Target: <strong>${esc(u.targetText)}</strong></span>`}
       </div>
       ${u.name ? `<p class="note">${esc(u.name)}</p>` : ''}
       ${u.chips.length ? `<div class="row">${u.chips.map(chip).join('')}</div>` : ''}
@@ -155,6 +160,7 @@ function unitCard(u, state) {
           ${field('Name', 'name', `maxlength="80" value="${esc(u.name)}"`)}
           ${field('Credit points', 'credit', `required inputmode="decimal" value="${plain(u.credit)}"`)}
           ${field('Semester', 'term', `maxlength="40" value="${esc(u.term)}"`)}
+          <div class="field tick"><label><input type="checkbox" name="passFail" ${u.passFail ? 'checked' : ''}> Pass or fail only (does not count in GPA, CGPA or WAM)</label></div>
           <button class="btn quiet" type="submit">Save details</button>
         </form>
         <p class="note">The unit code cannot be changed. To fix a wrong code, add the unit again and remove this one.</p>
@@ -191,7 +197,8 @@ export function gradesView(state) {
     return pageHead('Grades', 'Units, marks, targets and your results.') +
       emptyCard('Grades cannot load', state.overview.academicsError ?? 'The grade engine is not ready.');
   }
-  const g = presentGrades(report, state.hidden, state.unitOrder);
+  const g = presentGrades(report, state.hidden, state.unitOrder, state.resultOrder, state.predicted, state.predictions);
+  const predicting = Boolean(state.predicted);
   const goal = g.goalValues;
   const addUnit = `
     <form class="form" data-action="addUnit">
@@ -208,8 +215,10 @@ export function gradesView(state) {
 
     <section class="grid stats" aria-label="Overall results">
       ${g.stats.map((s) => `
-        <div class="card"><div class="label">${esc(s.label)}</div><div class="big">${esc(s.value)}</div><p class="note">${esc(s.note)}</p></div>`).join('')}
+        <div class="card"><div class="label">${esc(s.label)}</div><div class="big">${esc(s.value)}</div><p class="note" data-stat="${s.key}">${esc(s.note)}</p></div>`).join('')}
     </section>
+    <p class="note" data-predict-bar ${predicting ? '' : 'hidden'}>Using the marks you predicted with the sliders. Nothing is saved.
+      <button type="button" class="link" data-action="clearPredictions">Clear predictions</button></p>
     <p class="note">CGPA and GPA use different scales, so they give different numbers for the same grades. In Malaysia a Distinction counts 3.67; on the standard scale it counts 3.</p>
 
     ${g.goal ? `<section class="banner scallop ${g.goal.tone}"><h2>${esc(g.goal.title)}</h2><p>${esc(g.goal.text)}</p></section>` : ''}
@@ -223,6 +232,13 @@ export function gradesView(state) {
         </form>
         ${goal ? '<button type="button" class="link danger" data-action="clearGoal">Remove the goal</button>' : ''}
         <p class="note">The app works out what you need each semester from this goal, and offers it as the default target.</p>`, !g.goal && !g.empty)}
+      ${fold('term-dates', g.termDates ? `Semester dates: ${dayText(g.termDates.start)} to ${dayText(g.termDates.end)}` : 'Set the semester dates', `
+        <form class="form" data-action="saveTermDates">
+          ${field('First day', 'start', `type="date" required value="${g.termDates?.start ?? ''}"`)}
+          ${field('Last day, exams included', 'end', `type="date" required value="${g.termDates?.end ?? ''}"`)}
+          <button class="btn primary" type="submit">Save dates</button>
+        </form>
+        <p class="note">With these, the map shows how much of the semester has gone next to how much of each unit is marked.</p>`)}
     </section>`}
 
     ${g.trend.length >= 2 ? `<section class="card"><h2>CGPA by semester</h2>${trendChart(g.trend, g.trendGoal, f2)}</section>` : ''}
@@ -247,7 +263,12 @@ export function gradesView(state) {
 
     <section class="card">
       <h2>Finished units</h2>
-      ${g.terms.length === 0 ? '<p class="note">None yet. Add your past results so your CGPA, GPA and WAM include them.</p>' : g.terms.map((t) => `
+      ${g.terms.length && !state.hidden ? `<div class="row sorter"><label>Order the finished units
+        <select data-choose="resultOrder">${RESULT_ORDERS.map(([value, text]) => `<option value="${value}" ${value === g.resultOrder ? 'selected' : ''}>${text}</option>`).join('')}</select></label></div>` : ''}
+      ${g.flatResults ? `<ul class="list">
+        ${g.flatResults.map((u) => `<li><span>${esc(u.code)} <span class="dim">· ${esc(u.name)} · ${esc(u.term)}</span></span>
+          <span class="end">${esc(u.result)} ${remove('deleteResult', `data-id="${u.id}" data-confirm="Remove ${esc(u.code)} from your finished units?"`, `Remove ${u.code}`)}</span></li>`).join('')}
+      </ul>` : g.terms.length === 0 ? '<p class="note">None yet. Add your past results so your CGPA, GPA and WAM include them.</p>' : g.terms.map((t) => `
         <h3 class="label">${esc(t.term)} · ${esc(t.summary)}</h3>
         <ul class="list">
           ${t.units.map((u) => `<li><span>${esc(u.code)} <span class="dim">· ${esc(u.name)}</span></span>
@@ -266,37 +287,234 @@ export function gradesView(state) {
     </section>`;
 }
 
+// ================= money accounts =================
+
+const KIND_NAMES = { bank: 'Bank', ewallet: 'E-wallet', investment: 'Investment', cash: 'Cash' };
+const MOVE_WORDS = { set: 'Set to', in: 'In', out: 'Out' };
+
+function accountCard(a) {
+  return `
+    <article class="card account">
+      <div class="card-head"><h2>${esc(a.name)}</h2>${chip({ text: KIND_NAMES[a.kind] ?? a.kind, tone: '' })}</div>
+      <div class="big">${rm(a.balance)}</div>
+      <p class="note">${a.lastSet ? `Last set by hand on ${esc(dayText(a.lastSet))}` : 'Never set by hand'}</p>
+      ${a.recent.length ? `<ul class="list">
+        ${a.recent.map((m) => `<li><span>${esc(m.note || MOVE_WORDS[m.kind])} <span class="dim">· ${esc(dayText(m.date))}</span></span>
+          <span class="end">${m.kind === 'set' ? `= ${rm(m.amount)}` : `${m.kind === 'in' ? '+' : '−'} ${rm(m.amount)}`}
+          ${m.fromSpending ? '' : `<button type="button" class="link danger" data-action="deleteAccountMove" data-id="${m.id}" aria-label="Remove this entry">Remove</button>`}</span></li>`).join('')}
+      </ul>` : ''}
+      ${fold(`acc-set-${a.id}`, 'Set the balance by hand', `
+        <form class="form" data-action="setBalance" data-id="${a.id}">
+          ${field('What it holds now (RM)', 'balance', `required inputmode="decimal" value="${a.balance}"`)}
+          <button class="btn primary" type="submit">Save balance</button>
+        </form>
+        <p class="note">Use this when the app and your real account do not match. It replaces the worked-out balance from now on.</p>`)}
+      ${fold(`acc-in-${a.id}`, 'Add money in', `
+        <form class="form" data-action="addIncome" data-id="${a.id}">
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          ${field('From', 'note', 'maxlength="60" placeholder="Allowance, part-time job"', 'optional')}
+          <button class="btn primary" type="submit">Add</button>
+        </form>`)}
+      <button type="button" class="link danger" data-action="deleteAccount" data-id="${a.id}" data-confirm="Remove ${esc(a.name)} and its history? Spending paid from it stays.">Remove account</button>
+    </article>`;
+}
+
+// The accounts split into the two money tabs. Cash and e-wallets sit with the banks: money you can spend.
+const GROUPS = { banking: ['bank', 'ewallet', 'cash'], investing: ['investment'] };
+const groupOf = (a) => (GROUPS.investing.includes(a.kind) ? 'investing' : 'banking');
+const TABS = [['all', 'Overview'], ['banking', 'Banking'], ['investing', 'Investing'], ['expenses', 'Expenses']];
+
+function budgetTabs(active) {
+  return `<div class="seg budget-tabs" role="group" aria-label="Budget sections">
+    ${TABS.map(([id, label]) => `<button type="button" data-action="setBudgetTab" data-tab="${id}" aria-pressed="${active === id}">${label}</button>`).join('')}
+  </div>`;
+}
+
+// Your total, always as it is now, whichever month the tabs below show.
+function moneyBanner(money) {
+  const accounts = money.accounts;
+  return `
+    <section class="banner money ${money.total < 0 ? 'warn' : 'good'}">
+      <h2>Your money: ${rm(money.total)}</h2>
+      <p>${accounts.length === 0 ? 'Add your accounts, such as a bank, an e-wallet and an investing account, to see your total here.'
+        : `${rm(money.spendable)} to spend${money.invested ? ` and ${rm(money.invested)} invested` : ''}, across ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}.`}</p>
+    </section>`;
+}
+
+// Overview: one short row per account. Picking a row opens that account on its own tab.
+function overviewTab(b) {
+  const accounts = b.money.accounts;
+  const options = accounts.map((a) => [String(a.id), a.name]);
+  return `
+    ${accounts.length ? `<section class="card">
+      <h2>Accounts</h2>
+      <ul class="list account-rows">
+        ${accounts.map((a) => `<li><button type="button" class="link account-row" data-action="showAccount" data-group="${groupOf(a)}" data-id="${a.id}">
+          <span>${esc(a.name)} <span class="dim">· ${esc(KIND_NAMES[a.kind] ?? a.kind)}</span></span><span class="end">${rm(a.balance)}</span></button></li>`).join('')}
+      </ul>
+      <p class="note">Pick an account to see its history and change it.</p>
+    </section>` : ''}
+    <section class="grid stats" aria-label="This month">
+      <div class="card"><div class="label">Money in, ${esc(b.monthName)}</div><div class="big">${rm(b.income?.total ?? 0)}</div></div>
+      <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div>${b.hasLimit ? `<p class="note">${Math.round(b.spentPercent)}% of your limit</p>` : ''}</div>
+      <div class="card"><div class="label">Could cut</div><div class="big">${rm(b.reducible?.perMonth ?? 0)}</div><p class="note">a month, from the last 3 months</p></div>
+    </section>
+    <section class="card">
+      ${fold('add-account', 'Add an account', `
+        <form class="form" data-action="addAccount">
+          ${field('Name', 'name', 'required maxlength="30" placeholder="Maybank"')}
+          ${select('Kind', 'kind', Object.entries(KIND_NAMES))}
+          ${field('What it holds now (RM)', 'balance', 'inputmode="decimal"', 'optional')}
+          <button class="btn primary" type="submit">Add</button>
+        </form>`, accounts.length === 0)}
+      ${accounts.length > 1 ? fold('transfer', 'Move money between accounts', `
+        <form class="form" data-action="transfer">
+          ${select('From', 'from', options, options[0][0])}
+          ${select('To', 'to', options, options[1][0])}
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          <button class="btn primary" type="submit">Move</button>
+        </form>
+        <p class="note">For example topping up Touch 'n Go from your bank. It is not spending, so the budget does not change.</p>`) : ''}
+    </section>`;
+}
+
+// Banking or Investing: pills to pick one account, then only that account.
+function accountTab(b, state, group) {
+  const accounts = b.money.accounts.filter((a) => groupOf(a) === group);
+  const word = group === 'investing' ? 'investing' : 'bank, e-wallet or cash';
+  if (accounts.length === 0) return emptyCard(`No ${word} accounts yet`, 'Add one on the Overview tab.');
+  const chosen = accounts.find((a) => a.id === state.budgetAccount?.[group]) ?? accounts[0];
+  const total = accounts.reduce((sum, a) => sum + a.balance, 0);
+  return `
+    <div class="row account-pick">
+      ${accounts.length > 1 ? `<div class="seg" role="group" aria-label="Pick an account">
+        ${accounts.map((a) => `<button type="button" data-action="showAccount" data-group="${group}" data-id="${a.id}" aria-pressed="${a.id === chosen.id}">${esc(a.name)}</button>`).join('')}
+      </div>` : ''}
+      <span class="note">${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'} · ${rm(total)} in all</span>
+    </div>
+    ${accountCard(chosen)}`;
+}
+
 // ================= budget =================
 
-export function budgetView(state) {
-  const b = state.views.budget ?? state.overview.budget;
-  const isCurrent = !state.views.budget;
-  const today = state.overview.today;
-  // New spending goes on today, or on the last day of a past month being looked at. The user can change it.
-  const spendDay = isCurrent ? today : lastDayOf(b.month);
-  const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
+// Money in during the month shown, where it came from, and what is left after spending.
+function incomeSection(b, day) {
+  const income = b.income ?? { total: 0, net: 0, sources: [] };
+  const accounts = b.money?.accounts ?? [];
   return `
-    ${head}
+    <section class="card">
+      <div class="card-head"><h2>Money in: ${rm(income.total)}</h2>${income.total ? chip(income.net >= 0 ? { text: `${rm(income.net)} left after spending`, tone: 'good' } : { text: `${rm(-income.net)} more out than in`, tone: 'warn' }) : ''}</div>
+      ${income.sources.length ? `<ul class="list">${income.sources.map((s) => `<li><span>${esc(s.source)}</span><span class="end">${rm(s.amount)}</span></li>`).join('')}</ul>`
+        : '<p class="note">Nothing came in this month yet. Moving money between your own accounts does not count.</p>'}
+      ${accounts.length ? fold('money-in', 'Add money in', `
+        <form class="form" data-action="addMoneyIn">
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          ${field('From', 'note', 'maxlength="60" placeholder="Money from home, part-time job"', 'optional')}
+          ${select('Into', 'account', accounts.map((a) => [String(a.id), a.name]))}
+          ${field('Date', 'date', `type="date" value="${day}"`)}
+          <button class="btn primary" type="submit">Add</button>
+        </form>`) : '<p class="note">Add an account first, so the money has somewhere to go.</p>'}
+    </section>`;
+}
+
+// The spending map: one block per category, sized by what it costs a month, with its places inside.
+// Two layouts are drawn, a wide one for a laptop and a tall one for a phone; CSS shows the one that fits.
+function mapLayout(map, kind) {
+  const pc = (n, of) => `${((n / of) * 100).toFixed(3)}%`;
+  const box = (r) => `left:${pc(r.x, map.width)};top:${pc(r.y, map.height)};width:${pc(r.w, map.width)};height:${pc(r.h, map.height)}`;
+  return `<div class="spend-map ${kind}" style="aspect-ratio:${map.width} / ${map.height}" role="img" aria-label="Spending map. The same numbers are in the table below.">
+    ${map.blocks.map((b) => `
+      <div class="sm-cat c${b.colour}" style="${box(b)}" data-tip="${esc(b.category)}: ${rm(b.perMonth)} a month">
+        ${b.labelled ? `<div class="sm-head"><strong>${esc(b.category)}</strong> <span>${rm(b.perMonth)}</span></div>` : ''}
+      </div>
+      ${b.places.map((p) => `<div class="sm-place c${b.colour}" style="${box(p)}" data-tip="${esc(p.what)} · ${esc(b.category)}: ${rm(p.perMonth)} a month, ${p.count}×">
+        ${p.labelled ? `<span class="sm-name">${esc(p.what)}</span><span class="sm-value">${rm(p.perMonth)}</span>` : ''}</div>`).join('')}`).join('')}
+  </div>`;
+}
+
+function spendingMapCard(reducible) {
+  const wide = presentSpendingMap(reducible, 1000, 520);
+  if (!wide) return '';
+  const tall = presentSpendingMap(reducible, 400, 640);
+  return `
+    <section class="card spend-map-card">
+      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: `${rm(wide.perMonth)} a month`, tone: '' })}</div>
+      <p class="note">Without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}. The average month over the last ${wide.months} months. Bigger block, more money. Point at a block for its numbers.</p>
+      <ul class="sm-legend" aria-label="Categories">
+        ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.perMonth)}</span></li>`).join('')}
+      </ul>
+      ${mapLayout(wide, 'wide')}${mapLayout(tall, 'tall')}
+      <details class="sm-table">
+        <summary>Show as a table</summary>
+        <table>
+          <thead><tr><th scope="col">Category</th><th scope="col">Place</th><th scope="col">Times</th><th scope="col">A month</th></tr></thead>
+          <tbody>${wide.blocks.map((b) => b.places.map((p, i) => `<tr>${i === 0 ? `<th scope="rowgroup" rowspan="${b.places.length}">${esc(b.category)}<br><span class="dim">${rm(b.perMonth)}</span></th>` : ''}
+            <td>${esc(p.what)}</td><td>${p.count}</td><td>${rm(p.perMonth)}</td></tr>`).join('')).join('')}</tbody>
+        </table>
+      </details>
+    </section>`;
+}
+
+// What could be cut: spending outside the essential categories, over the last three months.
+function couldCut(r) {
+  if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in the last 3 months.</p></section>`;
+  const most = r.byCategory[0]?.amount || 1;
+  return `
+    <section class="card could-cut">
+      <div class="card-head"><h2>Could cut: ${rm(r.perMonth)} a month</h2>${chip({ text: `last ${r.months} months`, tone: '' })}</div>
+      <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. ${rm(r.total)} in all.</p>
+      ${r.byCategory.slice(0, 6).map((c) => `
+        <div class="bar-row">
+          <div class="top"><strong>${esc(c.category)}</strong><span>${rm(c.perMonth)} <span class="note">a month</span></span></div>
+          ${bar((c.amount / most) * 100, '')}
+        </div>`).join('')}
+      <h3>The places you pay most</h3>
+      <ol class="list ranked">
+        ${r.top.map((p) => `<li><span>${esc(p.what)} <span class="dim">· ${esc(p.category)} · ${p.count}× at about ${rm(p.average)}</span></span><span class="end">${rm(p.perMonth)}<span class="dim"> /month</span></span></li>`).join('')}
+      </ol>
+    </section>`;
+}
+
+function adviceCard(advice) {
+  return `
+    <section class="card advice">
+      <div class="card-head"><h2>Advice</h2>${advice ? chip({ text: advice.by, tone: '' }) : ''}</div>
+      ${advice ? `${advice.text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => line.startsWith('- ')
+          ? `<p class="advice-tip">${esc(line.slice(2))}</p>` : `<p>${esc(line)}</p>`).join('')}
+        <p class="note">Written on ${esc(dayText(advice.on))}. Later the AI helper will write this from your own numbers.</p>`
+        : '<p class="note">No advice yet. Later the AI helper will write it from your spending. You can write your own below.</p>'}
+      ${fold('advice-edit', advice ? 'Change the advice' : 'Write advice', `
+        <form class="form" data-action="saveAdvice">
+          <label class="field"><span>Advice (start a line with "- " for a tip)</span><textarea name="text" rows="8" maxlength="6000">${esc(advice?.text ?? '')}</textarea></label>
+          <button class="btn primary" type="submit">Save advice</button>
+          ${advice ? '<button type="button" class="link danger" data-action="clearAdvice">Remove the advice</button>' : ''}
+        </form>`)}
+    </section>`;
+}
+
+function expensesTab(b, state, isCurrent, spendDay) {
+  return `
     ${periodNav('budget', b.monthName, isCurrent, 'month')}
-    ${b.hasLimit ? `
-    <section class="grid stats" aria-label="Month so far">
-      <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div><p class="note">${Math.round(b.spentPercent)}% of your limit</p></div>
+    <section class="grid stats" aria-label="Spending this month">
+      <div class="card"><div class="label">Spent in ${esc(b.monthName)}</div><div class="big">${rm(b.spent)}</div>
+        <p class="note">${b.hasLimit ? `${Math.round(b.spentPercent)}% of your ${rm(b.limit)} limit` : 'No monthly limit set'}</p></div>
+      ${b.hasLimit ? `
       <div class="card"><div class="label">${b.over ? 'Over by' : 'Left'}</div><div class="big">${rm(Math.abs(b.left))}</div><p class="note">with ${b.daysLeft} ${b.daysLeft === 1 ? 'day' : 'days'} to go</p></div>
-      <div class="card"><div class="label">Per day to stay inside</div><div class="big">${rm(b.perDay)}</div><p class="note">You have averaged ${rm(b.perDaySoFar)}</p></div>
+      <div class="card"><div class="label">Per day to stay inside</div><div class="big">${rm(b.perDay)}</div><p class="note">You have averaged ${rm(b.perDaySoFar)}</p></div>` : ''}
     </section>
+    ${b.hasLimit ? `
     <section class="banner scallop ${b.tone}">
       <h2>${esc(b.verdict)}</h2>
       <p>${Math.round(b.monthPercent)}% of the month has passed and ${Math.round(b.spentPercent)}% of your limit is spent.</p>
       ${bar(b.spentPercent, b.tone, b.monthPercent)}
       <p>The triangle points at today.</p>
-    </section>` : emptyCard('Set a monthly limit', 'You decide the limit. The app then tells you if your spending is on pace.')}
+    </section>` : ''}
 
-    <section class="card">
-      ${fold('limit', b.hasLimit ? 'Change the monthly limit' : 'Set the monthly limit', `
-        <form class="form" data-action="saveBudgetLimit">
-          ${field('Monthly limit (RM)', 'limit', `inputmode="decimal" value="${b.hasLimit ? plain(b.limit) : ''}"`, 'empty = add up the category limits')}
-          <button class="btn primary" type="submit">Save limit</button>
-        </form>`, !b.hasLimit)}
+    ${spendingMapCard(b.reducible)}
+
+    <section class="grid wide">
+      ${couldCut(b.reducible)}
+      ${adviceCard(b.advice)}
     </section>
 
     <section class="grid wide">
@@ -307,8 +525,15 @@ export function budgetView(state) {
             <div class="top"><strong>${esc(c.name)}</strong><span>${rm(c.spent)}${c.limit > 0 ? ` <span class="note">of ${rm(c.limit)}</span>` : ''}</span></div>
             ${c.limit > 0 ? bar(c.percent, c.over ? 'warn' : '') : ''}
             <div class="rowline"><span class="note ${c.over ? 'warn' : ''}">${c.limit <= 0 ? 'No limit' : c.over ? 'Over by ' + rm(c.spent - c.limit) : rm(c.left) + ' left'}</span>
-              ${remove('deleteCategory', `data-id="${c.id}" data-confirm="Remove ${esc(c.name)} and all spending in it?"`, `Remove ${c.name}`)}</div>
+              <span><button type="button" class="link essential" data-action="setEssential" data-id="${c.id}" data-essential="${!c.essential}" aria-pressed="${c.essential}">${c.essential ? 'Essential' : 'Mark essential'}</button>
+              ${remove('deleteCategory', `data-id="${c.id}" data-confirm="Remove ${esc(c.name)} and all spending in it?"`, `Remove ${c.name}`)}</span></div>
           </div>`).join('')}
+        <p class="note">Essential spending, such as rent and fees, is never listed under Could cut.</p>
+        ${fold('limit', b.hasLimit ? 'Change the monthly limit' : 'Set the monthly limit', `
+          <form class="form" data-action="saveBudgetLimit">
+            ${field('Monthly limit (RM)', 'limit', `inputmode="decimal" value="${b.hasLimit ? plain(b.limit) : ''}"`, 'empty = add up the category limits')}
+            <button class="btn primary" type="submit">Save limit</button>
+          </form>`)}
         ${fold('add-category', 'Add a category', `
           <form class="form" data-action="addCategory">
             ${field('Name', 'name', 'required maxlength="30" placeholder="Food"')}
@@ -324,6 +549,7 @@ export function budgetView(state) {
           ${field('What was it?', 'what', 'required maxlength="60"')}
           ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
           ${select('Category', 'category', b.categories.map((c) => [c.name, c.name]))}
+          ${b.money.accounts.length ? select('Paid from', 'accountId', [['', 'Not from an account'], ...b.money.accounts.map((a) => [String(a.id), a.name])]) : ''}
           ${field('Day', 'date', `type="date" required value="${spendDay}" min="${b.month}-01" max="${spendDay}"`)}
           <button class="btn primary" type="submit">Add</button>
         </form>`}
@@ -331,6 +557,25 @@ export function budgetView(state) {
         ${spendingList(b, state)}
       </div>
     </section>`;
+}
+
+export function budgetView(state) {
+  const b = state.views.budget ?? state.overview.budget;
+  const isCurrent = !state.views.budget;
+  const today = state.overview.today;
+  // New spending goes on today, or on the last day of a past month being looked at. The user can change it.
+  const spendDay = isCurrent ? today : lastDayOf(b.month);
+  const tab = state.budgetTab ?? 'all';
+  const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
+  const body = tab === 'banking' ? `${accountTab(b, state, 'banking')}${periodNav('budget', b.monthName, isCurrent, 'month')}${incomeSection(b, spendDay)}`
+    : tab === 'investing' ? accountTab(b, state, 'investing')
+    : tab === 'expenses' ? expensesTab(b, state, isCurrent, spendDay)
+    : overviewTab(b);
+  return `
+    ${head}
+    ${moneyBanner(b.money)}
+    ${budgetTabs(tab)}
+    ${body}`;
 }
 
 // The spending list with its category filter. Kept apart so the budget screen above stays readable.
@@ -347,7 +592,7 @@ function spendingList(b, state) {
       <span class="note">${s.count} ${s.count === 1 ? 'entry' : 'entries'} · ${rm(s.total)}</span></div>
     ${s.count === 0 ? '<p class="note">Nothing in this category this month.</p>' : `<ul class="list">
           ${s.rows.map((x) => `
-            <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}</span></span>
+            <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}${x.account ? ` · ${esc(x.account)}` : ''}</span></span>
             <span class="end">${rm(x.amount)} ${remove('deleteSpending', `data-id="${x.id}"`, `Remove ${x.what}`)}</span></li>`).join('')}
         </ul>`}
     ${s.hidden > 0 ? `<button type="button" class="link" data-action="toggleAllSpending">Show all ${s.count}</button>`
@@ -457,6 +702,24 @@ export function healthView(state) {
         <div class="big">${h.restingHr === null ? '—' : `${h.restingHr} bpm`}</div>
         <p class="note">${h.restingHrWeek === null ? 'Not logged this week' : `This week's average is ${h.restingHrWeek} bpm`}</p>
       </div>
+      <div class="card">
+        <div class="card-head"><div class="label">Water ${when}</div>${h.waterMl === null || !h.waterTarget ? '' : chip(h.waterLeft === 0 ? { text: 'Target reached', tone: 'good' } : { text: `${litres(h.waterLeft)} to go`, tone: '' })}</div>
+        <div class="big">${h.waterMl === null ? '—' : litres(h.waterMl)}</div>
+        ${h.waterMl !== null && h.waterTarget ? bar(h.waterMl / h.waterTarget * 100) : ''}
+        <div class="row">
+          <button type="button" class="btn quiet" data-action="addWater" data-ml="250">+ 250 ml</button>
+          <button type="button" class="btn quiet" data-action="addWater" data-ml="500">+ 500 ml</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Body weight</div>
+        <div class="big">${h.weight.latest === null ? '—' : `${plain(h.weight.latest.kg)} kg`}</div>
+        ${h.weight.bmi === null ? '' : `<p class="note">BMI ${plain(h.weight.bmi)} at ${h.weight.heightCm} cm</p>`}
+        <p class="note">${h.weight.latest === null ? 'Not logged yet'
+          : [h.weight.latest.date === h.date ? 'Weighed this day' : `Last weighed ${dayText(h.weight.latest.date)}`,
+             h.weight.change30 === null ? '' : `${signed(h.weight.change30)} in 30 days`,
+             h.weight.toGoal === null ? '' : h.weight.toGoal === 0 ? 'At your goal' : `${plain(Math.abs(h.weight.toGoal))} kg ${h.weight.toGoal > 0 ? 'above' : 'below'} your goal`].filter(Boolean).join(' · ')}</p>
+      </div>
     </section>
 
     <section class="card">
@@ -466,6 +729,8 @@ export function healthView(state) {
         ${field('Sleep: hours', 'sleepHours', `inputmode="numeric" value="${h.sleepMinutes === null ? '' : Math.floor(h.sleepMinutes / 60)}"`)}
         ${field('Sleep: minutes', 'sleepMinutes', `inputmode="numeric" value="${h.sleepMinutes === null ? '' : h.sleepMinutes % 60}"`)}
         ${field('Resting heart rate (bpm)', 'restingHr', `inputmode="numeric" value="${h.restingHr ?? ''}"`)}
+        ${field('Body weight (kg)', 'weightKg', `inputmode="decimal" value="${h.weightKg ?? ''}"`)}
+        ${field('Water (ml)', 'waterMl', `inputmode="numeric" value="${h.waterMl ?? ''}"`)}
         <button class="btn primary" type="submit">Save</button>
       </form>
     </section>
@@ -473,30 +738,57 @@ export function healthView(state) {
     <section class="grid wide">
       <div class="card">
         <h2>Steps this week</h2>
+        ${h.stepsAverage === null ? '' : `<p class="note">Average ${num(h.stepsAverage)} a day on the days logged</p>`}
         ${columns(h.week.map((d) => ({ name: d.name, value: d.steps, today: d.today })), stepsMax, h.stepTarget, num, 'steps')}
         <div class="legend"><span><i></i>Earlier days</span><span><i class="today"></i>Today</span>${h.stepTarget ? `<span><i class="dash"></i>Your target: ${num(h.stepTarget)}</span>` : ''}</div>
       </div>
       <div class="card">
         <h2>Sleep this week</h2>
+        ${h.sleepAverage === null ? '' : `<p class="note">Average ${hm(h.sleepAverage)} a night</p>`}
         ${columns(h.week.map((d) => ({ name: d.name, value: d.sleepMinutes, today: d.today })), sleepMax, h.sleepTargetMinutes, clock, 'hours')}
         <div class="legend"><span><i></i>Earlier nights</span><span><i class="today"></i>Last night</span>${h.sleepTargetMinutes ? `<span><i class="dash"></i>Your target: ${clock(h.sleepTargetMinutes)}</span>` : ''}</div>
       </div>
     </section>
+
+    ${h.weight.points.length >= 2 ? `<section class="card"><h2>Body weight</h2>${weightChart(h.weight.points, h.weight.goalKg)}</section>` : ''}
 
     <section class="card">
       <div class="card-head">
         <h2>Workouts: ${h.workouts.done}${h.workoutTarget ? ` of ${h.workoutTarget}` : ''} this week</h2>
         ${h.workoutTarget ? chip(h.workouts.done >= h.workoutTarget ? { text: 'Target reached', tone: 'good' } : { text: `${h.workoutTarget - h.workouts.done} to go`, tone: '' }) : ''}
       </div>
-      ${h.workouts.list.length === 0 ? '<p class="note">No workouts logged this week.</p>' : `<ul class="list">
-        ${h.workouts.list.map((w) => `<li><span>${esc(w.name)} <span class="dim">· ${esc(dayText(w.date))}</span></span>
-          <span class="end">${remove('deleteWorkout', `data-id="${w.id}"`, `Remove ${w.name}`)}</span></li>`).join('')}
-      </ul>`}
+      ${h.workouts.done ? `<p class="note">${hm(h.workouts.minutes)} in all${h.workouts.kinds.length ? ': ' + h.workouts.kinds.map((k) => `${k.count} ${KIND_NAME[k.kind].toLowerCase()}`).join(', ') : ''}</p>` : ''}
+      ${h.workouts.list.length === 0 ? '<p class="note">No workouts logged this week.</p>' : `<div class="workouts">
+        ${h.workouts.list.map((w) => `<article class="workout">
+          <div class="card-head"><h3>${esc(w.name)} <span class="dim">· ${esc(dayText(w.date))}${w.minutes ? ` · ${w.minutes} min` : ''}</span></h3>
+            <span class="end">${chip({ text: KIND_NAME[w.kind] ?? 'Other', tone: '' })} ${remove('deleteWorkout', `data-id="${w.id}" data-confirm="Remove ${esc(w.name)} and its exercises?"`, `Remove ${w.name}`)}</span></div>
+          ${w.exercises.length ? `<ul class="list">
+            ${w.exercises.map((x) => `<li><span>${esc(x.name)}</span>
+              <span class="end">${x.sets} × ${x.reps}${x.weightKg === null ? '' : ` at ${plain(x.weightKg)} kg`} ${remove('deleteExercise', `data-id="${x.id}"`, `Remove ${x.name}`)}</span></li>`).join('')}
+          </ul>` : ''}
+          ${fold(`exercise-${w.id}`, 'Add an exercise', `
+            <form class="form" data-action="addExercise" data-id="${w.id}">
+              ${field('Exercise', 'name', 'required maxlength="60" placeholder="Bench press"')}
+              ${field('Sets', 'sets', 'required inputmode="numeric"')}
+              ${field('Reps', 'reps', 'required inputmode="numeric"')}
+              ${field('Weight (kg)', 'weightKg', 'inputmode="decimal"', 'empty for body weight')}
+              <button class="btn primary" type="submit">Add exercise</button>
+            </form>`)}
+        </article>`).join('')}
+      </div>`}
       <form class="form" data-action="addWorkout">
         ${field('Workout', 'name', 'required maxlength="60" placeholder="Push day"')}
+        ${select('Kind', 'kind', WORKOUT_KINDS, 'gym')}
+        ${field('Length (minutes)', 'minutes', 'inputmode="numeric"')}
         <button class="btn primary" type="submit">Add ${isCurrent ? 'today' : `on ${dayText(h.date)}`}</button>
       </form>
     </section>
+
+    ${h.bests.length ? `<section class="card">
+      <h2>Best lifts</h2>
+      <p class="note">The heaviest weight for each exercise, up to ${isCurrent ? 'today' : dayText(h.date)}.</p>
+      <ul class="list">${h.bests.map((b) => `<li><span>${esc(b.name)} <span class="dim">· done ${b.times} ${b.times === 1 ? 'time' : 'times'}</span></span><span class="end">${plain(b.weightKg)} kg</span></li>`).join('')}</ul>
+    </section>` : ''}
 
     <section class="card">
       ${fold('health-targets', h.stepTarget || h.sleepTargetMinutes || h.workoutTarget ? 'Change your targets' : 'Set your targets', `
@@ -504,6 +796,9 @@ export function healthView(state) {
           ${field('Steps a day', 'steps', `inputmode="numeric" value="${h.stepTarget || ''}"`)}
           ${field('Sleep a night (hours)', 'sleepHours', `inputmode="decimal" value="${h.sleepTargetMinutes ? plain(h.sleepTargetMinutes / 60) : ''}"`)}
           ${field('Workouts a week', 'workouts', `inputmode="numeric" value="${h.workoutTarget || ''}"`)}
+          ${field('Water a day (litres)', 'waterLitres', `inputmode="decimal" value="${h.waterTarget ? plain(h.waterTarget / 1000) : ''}"`)}
+          ${field('Goal weight (kg)', 'weightGoal', `inputmode="decimal" value="${h.weight.goalKg ?? ''}"`, 'optional, your own choice')}
+          ${field('Height (cm)', 'heightCm', `inputmode="numeric" value="${h.weight.heightCm ?? ''}"`, 'for BMI')}
           <button class="btn primary" type="submit">Save targets</button>
         </form>`, !(h.stepTarget || h.sleepTargetMinutes || h.workoutTarget))}
     </section>`;

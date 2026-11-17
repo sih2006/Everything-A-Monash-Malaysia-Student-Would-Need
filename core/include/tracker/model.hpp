@@ -39,6 +39,7 @@ struct Unit {
     double credit = 6;
     bool has_target = false;
     double target = 0;    // the unit mark the student is aiming for, 0 to 100
+    bool pass_fail = false;   // graded pass or fail only: never counted in GPA, CGPA or WAM
     ds::LinkedList<Assessment> assessments;
 
     double total_weight() const;
@@ -75,6 +76,7 @@ public:
     Status add_unit(const std::string& code, const std::string& name, double credit, const std::string& term);
     Status remove_unit(const std::string& code);
     Status set_target(const std::string& code, double mark);
+    Status set_pass_fail(const std::string& code, bool pass_fail);
     Status clear_target(const std::string& code);
 
     Status add_assessment(const std::string& code, const std::string& id, const std::string& name, double weight);

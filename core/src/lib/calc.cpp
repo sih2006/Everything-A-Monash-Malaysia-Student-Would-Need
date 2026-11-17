@@ -48,6 +48,15 @@ Standing standing_for(const Unit& unit, double margin, Basis fallback) {
     }
     s.best_grade = s.hurdle_failed ? NH : grade_for_mark(s.earned + s.left_weight);
 
+    // A pass or fail unit has no mark that counts anywhere. The only question is: pass (50) or not.
+    if (unit.pass_fail) {
+        if (s.hurdle_failed) s.verdict = "A hurdle was not reached, so this unit is failed. It does not change your GPA, CGPA or WAM.";
+        else if (s.earned >= 50 - TINY) s.verdict = "Passed. Pass or fail only, so it does not change your GPA, CGPA or WAM.";
+        else if (s.has_average) s.verdict = std::string("Pass or fail only. On your average so far you are heading for a ") + (s.projected >= 50 - TINY ? "pass" : "fail") + ". It does not change your GPA, CGPA or WAM.";
+        else s.verdict = "Pass or fail only. It does not change your GPA, CGPA or WAM.";
+        return s;
+    }
+
     if (!unit.has_target) {
         if (s.hurdle_failed) s.verdict = "A hurdle was not reached, so the result is a hurdle fail (NH).";
         else if (s.has_average) s.verdict = std::string("No target set. On your average so far you are heading for ") + grade_name(s.projected_grade) + ".";

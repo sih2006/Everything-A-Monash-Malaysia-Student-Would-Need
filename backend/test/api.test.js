@@ -181,6 +181,40 @@ describe('academics', () => {
     await app.call('PATCH', '/api/units/FIT2004', { credit: 6 });
   });
 
+  test('predicted marks from the sliders give the semester totals; nothing is saved', async () => {
+    await app.call('POST', '/api/units', { code: 'FIT3170', name: 'Project', term: 'S2 2026' });
+    await app.call('POST', '/api/units/FIT3170/assessments', { name: 'Report', weight: 50, score: 80, max: 100 });
+    const plain = (await app.call('GET', '/api/academics')).body;
+    assert.equal(plain.predicted, null);
+    const low = await app.call('GET', '/api/academics/predict?u=FIT3170:20');
+    const high = await app.call('GET', '/api/academics/predict?u=fit3170:90');
+    assert.equal(low.status, 200);
+    assert.equal(low.body.whatIf[0].finalMark, 50);                       // 40 earned + 20% of the last 50
+    assert.ok(high.body.predicted.wam > low.body.predicted.wam);
+    assert.equal(high.body.whatIf[0].code, 'FIT3170');
+    assert.deepEqual((await app.call('GET', '/api/academics')).body.units.find((u) => u.code === 'FIT3170').assessments.length, 1);   // nothing saved
+    assert.equal((await app.call('GET', '/api/academics/predict')).status, 400);
+    assert.equal((await app.call('GET', '/api/academics/predict?u=FIT3170:150')).status, 400);
+    assert.equal((await app.call('GET', '/api/academics/predict?u=NOPE1000:50')).status, 404);
+    await app.call('DELETE', '/api/units/FIT3170');
+  });
+
+  test('a unit can be marked pass or fail only; then it never counts in GPA, CGPA or WAM', async () => {
+    const before = (await app.call('GET', '/api/academics')).body.current;
+    await app.call('POST', '/api/units', { code: 'FIT2107', name: 'Software quality', term: 'S2 2026' });
+    await app.call('POST', '/api/units/FIT2107/assessments', { name: 'Pass tasks', weight: 100, score: 40, max: 100 });
+    const counted = (await app.call('GET', '/api/academics')).body.current;
+    assert.notDeepEqual(counted, before);                                 // a 40 (N) counts while it is a normal unit
+    const { status, body } = await app.call('PATCH', '/api/units/FIT2107', { passFail: true });
+    assert.equal(status, 200);
+    const unit = body.units.find((u) => u.code === 'FIT2107');
+    assert.equal(unit.passFail, true);
+    assert.match(unit.standing.verdict, /does not change your GPA/);
+    assert.deepEqual(body.current, before);                               // back to what it was without FIT2107
+    assert.equal((await app.call('PATCH', '/api/units/FIT2107', { passFail: 'yes' })).status, 400);
+    await app.call('DELETE', '/api/units/FIT2107');
+  });
+
   test('deleting a unit removes its assessments too', async () => {
     await app.call('POST', '/api/units', { code: 'TMP1000' });
     await app.call('POST', '/api/units/TMP1000/assessments', { name: 'Quiz', weight: 10 });
@@ -252,6 +286,111 @@ describe('budget', () => {
   });
 });
 
+describe('money accounts', () => {
+  let app;
+  before(async () => { app = await start(); });
+  after(() => app.close());
+
+  test('accounts with a starting balance, a manual overwrite, income and a move between them', async () => {
+    await app.call('POST', '/api/accounts', { name: 'Maybank', kind: 'bank', balance: 2340.5 });
+    await app.call('POST', '/api/accounts', { name: "Touch 'n Go", kind: 'ewallet', balance: 20 });
+    let { body } = await app.call('POST', '/api/accounts', { name: 'Investing', kind: 'investment', balance: 1500 });
+    assert.equal(body.money.total, 3860.5);
+    const [maybank, tng] = body.money.accounts;
+
+    body = (await app.call('POST', '/api/accounts/transfer', { from: maybank.id, to: tng.id, amount: 50 })).body;
+    assert.deepEqual(body.money.accounts.map((a) => a.balance), [2290.5, 70, 1500]);
+    assert.equal(body.money.total, 3860.5);                           // moving money is not spending
+
+    body = (await app.call('POST', `/api/accounts/${maybank.id}/income`, { amount: 300, note: 'Part-time job' })).body;
+    assert.equal(body.money.accounts[0].balance, 2590.5);
+
+    body = (await app.call('PUT', `/api/accounts/${maybank.id}/balance`, { balance: 2500 })).body;
+    assert.equal(body.money.accounts[0].balance, 2500);               // the overwrite wins
+    assert.equal(body.money.spendable, 2570);
+  });
+
+  test('spending paid from an account takes it down, and deleting the spending puts it back', async () => {
+    await app.call('POST', '/api/budget/categories', { name: 'Food', limit: 600 });
+    const tng = (await app.call('GET', '/api/budget')).body.money.accounts[1];
+    let { body } = await app.call('POST', '/api/transactions', { what: 'Nasi lemak', amount: 8.5, category: 'Food', accountId: tng.id });
+    assert.equal(body.money.accounts[1].balance, 61.5);
+    assert.equal(body.recent[0].account, "Touch 'n Go");
+    body = (await app.call('DELETE', `/api/transactions/${body.recent[0].id}`)).body;
+    assert.equal(body.money.accounts[1].balance, 70);
+    // Spending with no account still works and changes no balance.
+    body = (await app.call('POST', '/api/transactions', { what: 'Cash snack', amount: 3, category: 'Food' })).body;
+    assert.equal(body.money.total, 4070);
+    assert.equal(body.recent[0].account, null);
+  });
+
+  test('a move from spending cannot be removed on its own; other moves can', async () => {
+    const tng = (await app.call('GET', '/api/budget')).body.money.accounts[1];
+    await app.call('POST', '/api/transactions', { what: 'Bus', amount: 2, category: 'Food', accountId: tng.id });
+    const moves = (await app.call('GET', '/api/budget')).body.money.accounts[1].recent;
+    assert.equal((await app.call('DELETE', `/api/account-moves/${moves[0].id}`)).status, 400);
+    assert.equal((await app.call('DELETE', `/api/account-moves/${moves[1].id}`)).status, 200);
+  });
+
+  test('the month shows money in and what is left; a move between your own accounts is not income', async () => {
+    const bank = (await app.call('POST', '/api/accounts', { name: 'Income bank', kind: 'bank', balance: 0 })).body.money.accounts.find((a) => a.name === 'Income bank');
+    const wallet = (await app.call('POST', '/api/accounts', { name: 'Income wallet', kind: 'ewallet', balance: 0 })).body.money.accounts.find((a) => a.name === 'Income wallet');
+    await app.call('POST', `/api/accounts/${bank.id}/income`, { amount: 500, note: 'Allowance', date: '2026-11-03' });
+    const after = await app.call('POST', '/api/accounts/transfer', { from: bank.id, to: wallet.id, amount: 100, date: '2026-11-04' });
+    assert.equal(after.status, 200);
+    const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
+    assert.ok(month.income.sources.some((s) => s.source === 'Allowance' && s.amount === 500));
+    assert.ok(!month.income.sources.some((s) => s.source.startsWith('From ')));     // the transfer is not income
+    assert.equal(month.income.net, Math.round((month.income.total - month.spent) * 100) / 100);
+    await app.call('DELETE', `/api/accounts/${bank.id}`);
+    await app.call('DELETE', `/api/accounts/${wallet.id}`);
+  });
+
+  test('a category can be marked essential; the month lists what could be cut and keeps saved advice', async () => {
+    await app.call('POST', '/api/budget/categories', { name: 'Housing', limit: 0, essential: true });
+    const after = await app.call('POST', '/api/budget/categories', { name: 'Treats', limit: 0 });
+    const treats = after.body.categories.find((c) => c.name === 'Treats');
+    assert.equal(after.body.categories.find((c) => c.name === 'Housing').essential, true);
+    await app.call('POST', '/api/transactions', { category: 'Housing', what: 'Rent', amount: 2850, date: '2026-11-02' });
+    await app.call('POST', '/api/transactions', { category: 'Treats', what: 'Bubble tea', amount: 12, date: '2026-11-03' });
+    const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
+    assert.ok(month.reducible.top.some((p) => p.what === 'Bubble tea'));
+    assert.ok(!month.reducible.top.some((p) => p.what === 'Rent'));                  // essential: never "could cut"
+    assert.equal((await app.call('PATCH', `/api/budget/categories/${treats.id}`, { essential: 'yes' })).status, 400);
+    const saved = (await app.call('PUT', '/api/budget/advice', { text: 'Line one.\nLine two.', by: 'Claude' })).body;
+    assert.deepEqual([saved.advice.text, saved.advice.by], ['Line one.\nLine two.', 'Claude']);
+    assert.equal((await app.call('PUT', '/api/budget/advice', { text: null })).body.advice, null);
+  });
+
+  test('a balance set for an earlier day keeps the moves after that day, even ones entered before it', async () => {
+    const made = (await app.call('POST', '/api/accounts', { name: 'Wallet', kind: 'ewallet' })).body;
+    const id = made.money.accounts.find((a) => a.name === 'Wallet').id;
+    await app.call('POST', `/api/accounts/${id}/income`, { amount: 100, date: '2026-03-01' });
+    await app.call('PUT', `/api/accounts/${id}/balance`, { balance: 15, date: '2026-01-01' });
+    await app.call('POST', `/api/accounts/${id}/income`, { amount: 5, date: '2025-12-01' });   // before the set: it no longer counts
+    const after = (await app.call('GET', '/api/budget')).body;
+    assert.equal(after.money.accounts.find((a) => a.id === id).balance, 115);
+    await app.call('DELETE', `/api/accounts/${id}`);
+  });
+
+  test('accounts are checked', async () => {
+    assert.equal((await app.call('POST', '/api/accounts', { name: 'maybank' })).status, 409);
+    assert.equal((await app.call('POST', '/api/accounts', { name: 'Crypto', kind: 'magic' })).status, 400);
+    assert.equal((await app.call('POST', '/api/accounts', { name: 'X', balance: 'lots' })).status, 400);
+    const id = (await app.call('GET', '/api/budget')).body.money.accounts[0].id;
+    assert.equal((await app.call('POST', '/api/accounts/transfer', { from: id, to: id, amount: 5 })).status, 400);
+    assert.equal((await app.call('POST', `/api/accounts/${id}/income`, { amount: 0 })).status, 400);
+    assert.equal((await app.call('PUT', '/api/accounts/999/balance', { balance: 5 })).status, 404);
+    assert.equal((await app.call('POST', '/api/transactions', { what: 'x', amount: 1, category: 'Food', accountId: 999 })).status, 404);
+  });
+
+  test('an account can be renamed and deleted', async () => {
+    const id = (await app.call('GET', '/api/budget')).body.money.accounts[2].id;
+    assert.equal((await app.call('PATCH', `/api/accounts/${id}`, { name: 'ASB' })).body.money.accounts[2].name, 'ASB');
+    assert.equal((await app.call('DELETE', `/api/accounts/${id}`)).body.money.accounts.length, 2);
+  });
+});
+
 describe('food and health', () => {
   let app;
   before(async () => { app = await start(); });
@@ -316,6 +455,49 @@ describe('food and health', () => {
     assert.equal((await app.call('GET', '/api/food?date=2026-11-21')).status, 400);
   });
 
+  test('health: body weight, water, a workout with exercises, and best lifts', async () => {
+    await app.call('PUT', '/api/health/settings', { stepTarget: 8000, waterTarget: 2500, weightGoalKg: 70 });
+    await app.call('PUT', '/api/health/days/2026-11-02', { weightKg: 73.5 });
+    const day = await app.call('PUT', '/api/health/days/2026-11-19', { weightKg: 72.8, waterMl: 2000 });
+    assert.equal(day.body.waterLeft, 500);
+    assert.deepEqual(day.body.weight.latest, { date: '2026-11-19', kg: 72.8 });
+    assert.equal(day.body.weight.change30, -0.7);
+    assert.equal(day.body.weight.toGoal, 2.8);
+
+    const made = await app.call('POST', '/api/workouts', {
+      name: 'Push day', date: '2026-11-19', kind: 'gym', minutes: 60,
+      exercises: [{ name: 'Bench press', sets: 4, reps: 6, weightKg: 60 }, { name: 'Push-ups', sets: 3, reps: 15 }]
+    });
+    assert.equal(made.status, 200);
+    const workout = made.body.workouts.list.find((w) => w.name === 'Push day');
+    assert.equal(workout.kind, 'gym');
+    assert.equal(workout.exercises.length, 2);
+    assert.equal(workout.exercises[1].weightKg, null);       // a body-weight exercise has no kg
+
+    const added = await app.call('POST', `/api/workouts/${workout.id}/exercises`, { name: 'bench press', sets: 2, reps: 3, weightKg: 65 });
+    assert.deepEqual(added.body.bests.map((b) => [b.name.toLowerCase(), b.weightKg, b.times]), [['bench press', 65, 2]]);
+    const third = added.body.workouts.list.find((w) => w.id === workout.id).exercises[2];
+    const removed = await app.call('DELETE', `/api/exercises/${third.id}`);
+    assert.equal(removed.body.bests[0].weightKg, 60);
+    assert.equal((await app.call('DELETE', `/api/exercises/${third.id}`)).status, 404);
+
+    // Deleting the workout takes its exercises with it.
+    await app.call('DELETE', `/api/workouts/${workout.id}`);
+    assert.deepEqual((await app.call('GET', '/api/health?date=2026-11-19')).body.bests, []);
+  });
+
+  test('health: bad workouts, exercises and weights are refused', async () => {
+    const bad = (body) => app.call('POST', '/api/workouts', { name: 'X', ...body });
+    assert.equal((await bad({ kind: 'dancing' })).status, 400);
+    assert.equal((await bad({ minutes: 0 })).status, 400);
+    assert.equal((await bad({ exercises: [{ name: 'Squat', sets: 0, reps: 5 }] })).status, 400);
+    assert.equal((await bad({ exercises: 'squats' })).status, 400);
+    assert.equal((await app.call('POST', '/api/workouts/9999/exercises', { name: 'Squat', sets: 3, reps: 5 })).status, 404);
+    assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { weightKg: 5 })).status, 400);
+    assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { waterMl: 250.5 })).status, 400);
+    assert.equal((await app.call('PUT', '/api/health/settings', { weightGoalKg: 1000 })).status, 400);
+  });
+
   test('health: impossible values and future days are refused', async () => {
     assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { steps: -1 })).status, 400);
     assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { steps: 12.5 })).status, 400);
@@ -331,7 +513,7 @@ describe('the whole app', () => {
 
   test('status says what is ready', async () => {
     const { body } = await app.call('GET', '/api/status');
-    assert.deepEqual(body, { ok: true, version: '0.1.0', today: TODAY, engine: true, ai: false, empty: true });
+    assert.deepEqual(body, { ok: true, version: '0.1.0', today: TODAY, engine: true, ai: false, empty: true, demo: false });
   });
 
   test('example data loads once, fills every part, and can be deleted again', async () => {
@@ -350,6 +532,23 @@ describe('the whole app', () => {
     assert.equal((await app.call('DELETE', '/api/data', {})).status, 400);  // needs the exact words
     assert.equal((await app.call('DELETE', '/api/data', { confirm: 'delete everything' })).status, 200);
     assert.equal((await app.call('GET', '/api/status')).body.empty, true);
+  });
+
+  test('the life tree holds every year, and the current semester shows how much time has gone', async () => {
+    await app.call('POST', '/api/demo');
+    await app.call('PUT', '/api/academics/settings', { termDates: { start: '2026-07-27', end: '2026-11-27' } });
+    const { status, body } = await app.call('GET', '/api/life');
+    assert.equal(status, 200);
+    assert.deepEqual(body.children.slice(0, 2).map((y) => y.title), ['2025', '2026']);
+    assert.ok(body.children.slice(2).length >= 1 && body.children.slice(2).every((y) => y.value === 'Ahead'));   // the years still to come
+    const year = body.children[1];
+    assert.deepEqual(year.children.map((a) => a.title), ['Studies', 'Money', 'Food', 'Health']);
+    const term = year.children[0].children.find((t) => t.now);
+    assert.equal(term.title, 'S2 2026');
+    assert.ok(term.time > 0.9 && term.time < 1);
+    assert.equal((await app.call('PUT', '/api/academics/settings', { termDates: { start: '2026-12-01', end: '2026-11-01' } })).status, 400);
+    assert.equal((await app.call('PUT', '/api/academics/settings', { termDates: { start: 'soon', end: '2026-11-01' } })).status, 400);
+    await app.call('DELETE', '/api/data', { confirm: 'delete everything' });
   });
 
   test('unknown addresses, wrong methods and broken requests get clear errors', async () => {

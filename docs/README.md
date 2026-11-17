@@ -32,7 +32,7 @@ Decisions Claude made alone are recorded as ADRs with the status "Proposed".
 | Plan | 12 | [03-plan/test-plan.md](03-plan/test-plan.md) | How we know it works, and which test proves which story | Traceability table | Draft |
 | Plan | 13 | [03-plan/implementation-plan.md](03-plan/implementation-plan.md) | Order of work, definition of done, risks, costs | Roadmap | Draft, written after the build |
 | All | | [engineering-principles.md](engineering-principles.md) | Which engineering principles the project follows, where and why | | In review; parts are out of date, see the note at its top |
-| All | | [adr/](adr/) | Why each big decision was made | | 0001 proposed with the owner; 0002 to 0006 proposed by Claude |
+| All | | [adr/](adr/) | Why each big decision was made | | 0001 proposed with the owner; 0002 to 0006 proposed by Claude; 0007 partly the owner's |
 
 ## Other places
 
@@ -51,6 +51,7 @@ Decisions Claude made alone are recorded as ADRs with the status "Proposed".
 | [0004](adr/0004-grade-scales-and-rules.md) | Two grade scales, GPA and Malaysia CGPA, kept apart | Proposed by Claude, from Monash's pages |
 | [0005](adr/0005-hosting.md) | Where the app is hosted | **No decision yet** |
 | [0006](adr/0006-testing-and-build-tools.md) | Testing and build tools | Proposed by Claude |
+| [0007](adr/0007-native-android-app.md) | A native Android app in Kotlin | Owner chose native and data on the phone; tool versions proposed by Claude |
 
 ## How planning connects to testing
 

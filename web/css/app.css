@@ -58,6 +58,99 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .period strong { font-family: var(--display); font-size: 1.25rem; min-width: 9em; text-align: center; font-synthesis: none; }
 .period .btn { padding: 0 var(--s4); }
 
+/* ---------- the life tree ---------- */
+/* Years down a line on the left; each area keeps its own colour as it branches to the right. */
+
+.mapview.life { height: min(78vh, 760px); }
+.lnode {
+  --area: var(--surface);
+  position: absolute; width: 236px; padding: 0; margin: 0;
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 0; cursor: pointer; color: var(--ink); text-align: left;
+  animation: pop 420ms var(--ease) backwards;
+}
+.lnode.area-studies { --area: var(--tint-grades); }
+.lnode.area-money { --area: var(--tint-budget); }
+.lnode.area-food { --area: var(--tint-food); }
+.lnode.area-health { --area: var(--tint-health); }
+.lnode.lv-year { --area: var(--tint-map); }
+
+.rings {
+  width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--surface);
+  box-shadow: 0 2px 6px rgb(20 49 42 / 0.12);
+  transition: box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.lnode:hover .rings { transform: scale(1.06); }
+.lnode.is-picked .rings { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--mango); }
+.ring-track { fill: none; stroke: var(--track); stroke-width: 6; }
+.ring-track.thin { stroke-width: 4; }
+.ring-done { fill: none; stroke: var(--mark); stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray var(--slow) var(--ease); }
+.ring-done.warn { stroke: var(--mark-warn); }
+.ring-time { fill: none; stroke: var(--mango); stroke-width: 4; stroke-linecap: round; }
+.rings text { font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; font-family: var(--body); }
+
+/* The label: a soft tile in the area's colour. */
+.ltext {
+  flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  padding: 8px 12px; border-radius: 16px 6px 16px 6px; line-height: 1.25;
+  background: var(--area); box-shadow: 0 2px 8px rgb(20 49 42 / 0.08);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.lnode:hover .ltext { transform: translateX(2px); box-shadow: 0 4px 14px rgb(20 49 42 / 0.14); }
+.ltext strong { font-family: var(--display); font-weight: 400; font-size: 1.1rem; font-synthesis: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltext span { font-size: 0.86rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltext small { font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.lchev {
+  position: absolute; right: -10px; top: 50%; translate: 0 -50%;
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); color: var(--accent); font-weight: 700; font-size: 1rem; line-height: 1;
+  box-shadow: 0 1px 4px rgb(20 49 42 / 0.18);
+}
+
+/* Years: the big markers on the line. */
+.lv-year .rings { background: var(--tint-map); }
+.lv-year .ltext strong { font-size: 1.5rem; }
+.lv-year.is-now .rings { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--mango); }
+.lv-year.is-now .ltext small { color: var(--ink); }
+.lnode.is-ahead .ltext { background: transparent; box-shadow: none; outline: 2px dashed var(--line); outline-offset: -2px; }
+.lnode.is-ahead .rings { background: var(--bg); box-shadow: none; }
+.lnode.is-empty .ltext { background: var(--surface); box-shadow: none; outline: 2px dashed var(--area); outline-offset: -2px; }
+.lnode.is-empty .ltext span { color: var(--muted); }
+.lnode.is-empty .rings { box-shadow: none; }
+
+.route path.branch { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+.route path.trunk { fill: none; stroke-width: 10; stroke-linecap: round; }
+.route path.trunk.walked { stroke: var(--jungle); }
+.route path.trunk.ahead { stroke: var(--line); stroke-dasharray: 2 18; }
+.life .route path.walked { stroke-dasharray: none; animation: none; }
+.life .route path.walked:not(.trunk) { stroke: var(--jungle); stroke-width: 3; fill: none; }
+
+/* The map can fill the whole page. Escape or the button leaves it. */
+.mapbox.full {
+  position: fixed; inset: 0; z-index: 40; margin: 0;
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3); background: var(--bg);
+}
+.mapbox.full .mapview { flex: 1 1 auto; height: auto; min-height: 0; }
+.mapbox.full .here { display: none; }   /* full page shows only the map */
+body.map-full { overflow: hidden; }
+
+/* ---------- example data ---------- */
+
+.banner.demo { position: sticky; top: 0; z-index: 30; margin-bottom: var(--s3); }
+
+/* ---------- workouts ---------- */
+
+.workouts { display: grid; gap: var(--s2); margin-block: var(--s2); }
+.workout { border: 2px solid var(--line); border-radius: 16px; padding: var(--s2) var(--s3); }
+.workout h3 { margin: 0; font-size: 1.05rem; }
+.linechart .dot.small { r: 4; }
+
+/* ---------- money accounts ---------- */
+
+.banner.money h2 { font-size: 1.6rem; }
+.card.account .big { font-size: clamp(1.8rem, 4vw, 2.3rem); }
+
 /* ---------- order and filter controls ---------- */
 
 .sorter { gap: var(--s3); }
@@ -77,3 +170,47 @@ h3.label { margin-top: var(--s2); }
 .legend i.goal-dash { border-color: var(--mark-warn); }
 .linechart text { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
 .linechart text.axis { stroke: none; }
+
+/* ----- Budget tabs ----- */
+.budget-tabs { margin: var(--s3) 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 36rem; }
+.budget-tabs button { padding-inline: var(--s2); }
+.account-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-bottom: var(--s3); }
+.account-rows li { padding: 0; }
+.account-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); width: 100%; padding: var(--s2) 0; text-align: left; text-decoration: none; color: inherit; }
+.account-row:hover .end, .account-row:focus-visible .end { text-decoration: underline; }
+.could-cut h3 { margin-top: var(--s4); }
+.ranked { counter-reset: place; }
+.ranked li { counter-increment: place; }
+.ranked li > span:first-child::before { content: counter(place) ". "; font-variant-numeric: tabular-nums; opacity: .6; }
+.advice .advice-tip { padding-left: var(--s3); border-left: 3px solid currentColor; margin: var(--s2) 0; }
+.advice textarea { width: 100%; font: inherit; }
+.essential[aria-pressed="true"] { font-weight: 600; }
+
+/* ----- Spending map (Expenses tab). Colours: the data-viz reference palette, checked for colour blindness
+   in light mode and against this app's dark surface. Text always uses the ink colour, never the block colour. ----- */
+.spend-map-card { --c0: #8a8f8c; --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #6250d6; }
+[data-theme="dark"] .spend-map-card { --c0: #7d8682; --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #0ca30c; --c7: #9085e9; }
+.spend-map-card .c0 { --c: var(--c0); } .spend-map-card .c1 { --c: var(--c1); } .spend-map-card .c2 { --c: var(--c2); } .spend-map-card .c3 { --c: var(--c3); }
+.spend-map-card .c4 { --c: var(--c4); } .spend-map-card .c5 { --c: var(--c5); } .spend-map-card .c6 { --c: var(--c6); } .spend-map-card .c7 { --c: var(--c7); }
+.sm-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); list-style: none; padding: 0; margin: var(--s3) 0; font-size: .95rem; }
+.sm-legend li { display: inline-flex; align-items: center; gap: var(--s2); }
+.sm-swatch { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
+.spend-map { position: relative; width: 100%; margin-top: var(--s3); }
+.spend-map.wide { display: none; }
+@media (min-width: 700px) { .spend-map.wide { display: block; } .spend-map.tall { display: none; } }
+.sm-cat, .sm-place { position: absolute; box-sizing: border-box; overflow: hidden; }
+.sm-cat { background: color-mix(in oklab, var(--c) 55%, var(--surface)); border: 2px solid var(--surface); border-top: 5px solid var(--c); border-radius: 8px; }
+.sm-head { display: flex; justify-content: space-between; gap: var(--s2); padding: 4px 8px; font-size: .85rem; color: var(--ink); white-space: nowrap; }
+.sm-head strong { overflow: hidden; text-overflow: ellipsis; }
+.sm-place { background: color-mix(in oklab, var(--c) 22%, var(--surface)); border: 1.5px solid var(--surface); border-radius: 6px;
+  display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 7px; color: var(--ink); font-size: .8rem; line-height: 1.2;
+  transition: background var(--fast) var(--ease); }
+.sm-place:hover { background: color-mix(in oklab, var(--c) 40%, var(--surface)); }
+.sm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sm-table { margin-top: var(--s3); }
+.sm-table summary { cursor: pointer; font-weight: 600; }
+.sm-table table { width: 100%; border-collapse: collapse; margin-top: var(--s2); font-size: .95rem; }
+.sm-table th, .sm-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sm-table td:nth-child(3), .sm-table td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+@media (forced-colors: active) { .sm-cat, .sm-place { border: 1px solid CanvasText; } }

@@ -6,9 +6,10 @@
 // turns clicks and submitted forms into ViewModel commands.
 
 import { createApi } from './api.js';
-import { clamp, esc, f1 } from './format.js';
+import { clamp, esc, f1, maskMoney } from './format.js';
 import { createAppViewModel } from './viewmodels/appViewModel.js';
-import { presentMap } from './viewmodels/present.js';
+import { layoutLife } from './viewmodels/lifeTree.js';
+import { presentGrades, presentMap } from './viewmodels/present.js';
 import { createMapCamera, mapView, placeStops, stopDetail } from './views/mapView.js';
 import { budgetView, foodView, gradesView, healthView, homeView } from './views/screens.js';
 
@@ -26,6 +27,7 @@ const status = $('#status');
 const camera = createMapCamera();
 let mapSelected = -1;
 let drawnTab = null;        // the screen now on the page
+let lifeDrawn = false;      // the life tree is on the page, so the view should not jump back to today
 
 const api = createApi({ getToken: () => storage.get('apiToken') ?? '' });
 const vm = createAppViewModel({ api, storage, onChange: draw });
@@ -61,11 +63,26 @@ function draw(state, info = {}) {
   const open = [...view.querySelectorAll('details[open][data-key]')].map((d) => d.dataset.key);
   const navigated = drawnTab !== state.tab;
 
-  view.innerHTML = (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state)) +
-    (state.overview.empty ? '' : '<p class="foot">Kept on this computer only.</p>');
+  // Example data must never be mistaken for the user's own: say so on every screen.
+  const demo = state.overview.demo
+    ? `<section class="banner warn demo" role="note"><h2>Example data, not yours</h2>
+        <p>This server was started with <code>--demo</code>. Everything here is made up and is lost when it stops. Your own data is in the app started without <code>--demo</code>.</p></section>`
+    : '';
+  const screen = (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state));
+  view.innerHTML = demo + (state.hideMoney ? maskMoney(screen) : screen) +
+    (state.overview.empty ? '' : `<p class="foot">${state.overview.demo ? 'Example data, kept in memory only.' : 'Kept on this computer only.'}</p>`);
   for (const key of open) view.querySelector(`details[data-key="${CSS.escape(key)}"]`)?.setAttribute('open', '');
 
-  if (state.tab === 'map') camera.mount(placeStops(presentMap(state.mapKind, state.overview, state.hidden).stops), navigated);
+  if (state.tab === 'map' && state.mapKind === 'life') {
+    if (state.life) {
+      camera.mount(layoutLife(state.life, state.lifeOpen, state.hidden).nodes, navigated || !lifeDrawn);
+      lifeDrawn = true;
+    }
+  } else if (state.tab === 'map') {
+    camera.mount(placeStops(presentMap(state.mapKind, state.overview, state.hidden).stops), navigated);
+  }
+  if (state.tab !== 'map' || state.mapKind !== 'life') lifeDrawn = false;
+  document.body.classList.toggle('map-full', state.tab === 'map' && state.mapFull);
   if (state.imported) $('#import-review')?.scrollIntoView({ block: 'start' });
 
   document.querySelectorAll('.nav a').forEach((a) => {
@@ -129,12 +146,20 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 const COMMANDS = {
   loadDemo: () => vm.loadDemo(),
   toggleAllSpending: () => vm.toggleAllSpending(),
+  setBudgetTab: (f, d) => vm.setBudgetTab(d.tab),
+  showAccount: (f, d) => vm.showAccount(d.group, Number(d.id)),
+  setEssential: (f, d) => vm.setEssential(Number(d.id), d.essential === 'true'),
+  saveAdvice: (f) => vm.saveAdvice(f.text),
+  clearAdvice: () => vm.clearAdvice(),
   exportData: async () => { const file = await vm.exportData(); if (file) download(file); },
   importData: async (f) => vm.importData(await readText(f.file)),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
   showPeriod: (f, d) => vm.showPeriod(d.slice, Number(d.step)),
   showCurrent: (f, d) => vm.showCurrent(d.slice),
-  setMapKind: (f, d) => { mapSelected = -1; camera.reset(); vm.setMapKind(d.kind); },
+  setMapKind: (f, d) => { mapSelected = -1; camera.reset(); lifeDrawn = false; vm.setMapKind(d.kind); },
+  lifeOpenToday: () => { vm.lifeOpenToday(); camera.goTo(camera.findMe(), true); },
+  lifeOpenAll: () => { vm.lifeOpenAll(); camera.showAll(true); },
+  lifeCloseAll: () => { vm.lifeCloseAll(); camera.showAll(true); },
 
   addUnit: (f) => vm.addUnit(f),
   deleteUnit: (f, d) => vm.deleteUnit(d.code),
@@ -146,8 +171,10 @@ const COMMANDS = {
   deleteAssessment: (f, d) => vm.deleteAssessment(d.id),
   addResult: (f) => vm.addResult(f),
   deleteResult: (f, d) => vm.deleteResult(d.id),
+  clearPredictions: () => vm.clearPredictions(),
   saveGoal: (f) => vm.saveGoal(f),
   clearGoal: () => vm.clearGoal(),
+  saveTermDates: (f) => vm.saveTermDates(f),
   askPlan: () => vm.askPlan(),
   readScreenshot: async (f, d) => vm.readScreenshot(d.code, await readPicture(f.picture)),
   cancelImport: () => vm.cancelImport(),
@@ -164,6 +191,13 @@ const COMMANDS = {
   deleteCategory: (f, d) => vm.deleteCategory(d.id),
   addSpending: (f) => vm.addSpending(f),
   deleteSpending: (f, d) => vm.deleteSpending(d.id),
+  addAccount: (f) => vm.addAccount(f),
+  deleteAccount: (f, d) => vm.deleteAccount(Number(d.id)),
+  setBalance: (f, d) => vm.setBalance(Number(d.id), f.balance),
+  addIncome: (f, d) => vm.addIncome(Number(d.id), f),
+  addMoneyIn: (f) => vm.addMoneyIn(f),
+  transfer: (f) => vm.transfer(f),
+  deleteAccountMove: (f, d) => vm.deleteAccountMove(Number(d.id)),
 
   saveFoodTargets: (f) => vm.saveFoodTargets(f),
   logFood: (f) => vm.logFood(f),
@@ -174,7 +208,10 @@ const COMMANDS = {
   saveHealthTargets: (f) => vm.saveHealthTargets(f),
   saveToday: (f) => vm.saveToday(f),
   addWorkout: (f) => vm.addWorkout(f),
-  deleteWorkout: (f, d) => vm.deleteWorkout(d.id)
+  deleteWorkout: (f, d) => vm.deleteWorkout(d.id),
+  addWater: (f, d) => vm.addWater(Number(d.ml)),
+  addExercise: (f, d) => vm.addExercise(Number(d.id), f),
+  deleteExercise: (f, d) => vm.deleteExercise(d.id)
 };
 
 async function runCommand(name, fields, element) {
@@ -211,9 +248,20 @@ view.addEventListener('click', (e) => {
     camera.goTo(mapSelected, true);
     return;
   }
+  const lifeNode = e.target.closest('[data-node]');
+  if (lifeNode) {                          // a node of the life tree: open or close it, keeping it still on screen
+    const id = lifeNode.dataset.node;
+    const before = camera.stopById(id);
+    const where = before && { x: before.x, y: before.y };
+    vm.toggleLifeNode(id);
+    camera.follow(where, camera.stopById(id));
+    $(`[data-node="${CSS.escape(id)}"]`, view)?.focus({ preventScroll: true });
+    return;
+  }
   const zoom = e.target.closest('[data-zoom]');
   if (zoom) {
     const how = zoom.dataset.zoom;
+    if (how === 'full') { vm.toggleMapFull(); camera.apply(false); return; }
     if (how === 'fit') camera.showAll(true);
     else if (how === 'here') $(`.mstop[data-stop="${camera.findMe()}"]`, view)?.click();
     else camera.zoomBy(how === 'in' ? 1.3 : 1 / 1.3);
@@ -225,6 +273,11 @@ view.addEventListener('click', (e) => {
 
 status.addEventListener('click', (e) => { if (e.target.closest('[data-dismiss]')) vm.dismiss(); });
 
+// Escape leaves the full-page map.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && vm.state.mapFull) { vm.toggleMapFull(); camera.apply(false); }
+});
+
 // The what-if slider asks the backend and shows the answer. Nothing is saved.
 let whatIfTimer = null;
 // A choice in a drop-down list that changes the view straight away, with no Save button.
@@ -233,6 +286,7 @@ view.addEventListener('change', (e) => {
   if (!choice) return;
   if (choice.dataset.choose === 'unitOrder') vm.setUnitOrder(choice.value);
   if (choice.dataset.choose === 'spendingCategory') vm.setSpendingCategory(choice.value);
+  if (choice.dataset.choose === 'resultOrder') vm.setResultOrder(choice.value);
 });
 
 view.addEventListener('input', (e) => {
@@ -242,8 +296,16 @@ view.addEventListener('input', (e) => {
   $('[data-whatif-value]', box).textContent = slider.value;
   clearTimeout(whatIfTimer);
   whatIfTimer = setTimeout(async () => {
-    const answer = await vm.whatIf(slider.dataset.whatif, slider.value);
+    const result = await vm.predict(slider.dataset.whatif, slider.value);
+    if (!result) return;
+    const answer = result.whatIf.find((w) => w.code === slider.dataset.whatif);
     if (!answer) return;
+    // The three numbers at the top follow the sliders. Only their text changes, so the slider keeps focus.
+    const report = vm.state.overview.academics;
+    const g = presentGrades(report, vm.state.hidden, vm.state.unitOrder, vm.state.resultOrder, vm.state.predicted, vm.state.predictions);
+    for (const s of g.stats) { const note = $(`[data-stat="${s.key}"]`, view); if (note) note.textContent = s.note; }
+    const bar = $('[data-predict-bar]', view);
+    if (bar) bar.hidden = false;
     $('[data-whatif-out]', box).textContent = answer.hurdleFail
       ? `Final mark ${f1(answer.finalMark)}, but that is below a hurdle, so the unit would be a hurdle fail.`
       : `Final mark ${f1(answer.finalMark)}, grade ${answer.grade}.${answer.reachesTarget === null ? '' : answer.reachesTarget ? ' Target reached.' : ' Below your target.'}`;
@@ -253,11 +315,14 @@ view.addEventListener('input', (e) => {
 // ---------- the controls in the side menu ----------
 
 const root = document.documentElement;
+const moneyButton = $('#toggleMoney');
 const gradesButton = $('#toggleGrades'), themeButton = $('#toggleTheme'), lookSelect = $('#lookSelect');
 
 function syncControls() {
   gradesButton.setAttribute('aria-pressed', String(vm.state.hidden));
   $('#toggleGradesLabel').textContent = vm.state.hidden ? 'Show grades' : 'Hide grades';
+  moneyButton.setAttribute('aria-pressed', String(vm.state.hideMoney));
+  $('#toggleMoneyLabel').textContent = vm.state.hideMoney ? 'Show money' : 'Hide money';
   const market = root.dataset.look === 'market';      // the night market look is always dark
   const dark = root.dataset.theme === 'dark';
   themeButton.disabled = market;
@@ -270,6 +335,7 @@ function applyLook(look) {
   syncControls();
 }
 gradesButton.addEventListener('click', () => { vm.toggleHidden(); syncControls(); });
+moneyButton.addEventListener('click', () => { vm.toggleHideMoney(); syncControls(); });
 themeButton.addEventListener('click', () => {
   storage.set('theme', root.dataset.theme === 'dark' ? 'light' : 'dark');
   applyLook(root.dataset.look);

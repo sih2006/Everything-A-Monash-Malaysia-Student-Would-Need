@@ -43,6 +43,7 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
 
   return {
     overview: () => get('/api/overview'),
+    life: () => get('/api/life'),
     loadDemo: () => post('/api/demo'),
     deleteEverything: () => remove('/api/data', { confirm: 'delete everything' }),
     exportData: () => get('/api/export'),
@@ -59,6 +60,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     deleteResult: (id) => remove(`/api/results/${id}`),
     saveAcademicsSettings: (settings) => put('/api/academics/settings', settings),
     whatIf: (code, score) => get(`/api/academics/whatif?unit=${part(code)}&score=${part(score)}`),
+    // scores: { ENG1005: 60, FIT2085: 75 }
+    predict: (scores) => get(`/api/academics/predict?${Object.entries(scores).map(([code, score]) => `u=${part(`${code}:${score}`)}`).join('&')}`),
     plan: () => post('/api/advisor/plan'),
     readScreenshot: (image, mimeType) => post('/api/import/screenshot', { image, mimeType }),
 
@@ -70,9 +73,19 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     // budget
     saveBudgetLimit: (limit) => put('/api/budget/settings', { limit }),
     addCategory: (category) => post('/api/budget/categories', category),
+    updateCategory: (id, fields) => patch(`/api/budget/categories/${id}`, fields),
+    saveAdvice: (text, by) => put('/api/budget/advice', { text, by }),
     deleteCategory: (id) => remove(`/api/budget/categories/${id}`),
     addSpending: (entry) => post('/api/transactions', entry),
     deleteSpending: (id) => remove(`/api/transactions/${id}`),
+
+    // money accounts
+    addAccount: (account) => post('/api/accounts', account),
+    deleteAccount: (id) => remove(`/api/accounts/${id}`),
+    setBalance: (id, balance) => put(`/api/accounts/${id}/balance`, { balance }),
+    addIncome: (id, income) => post(`/api/accounts/${id}/income`, income),
+    transfer: (move) => post('/api/accounts/transfer', move),
+    deleteAccountMove: (id) => remove(`/api/account-moves/${id}`),
 
     // food
     saveFoodTargets: (targets) => put('/api/food/settings', targets),
@@ -84,6 +97,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     saveHealthTargets: (targets) => put('/api/health/settings', targets),
     saveHealthDay: (day, values) => put(`/api/health/days/${part(day)}`, values),
     addWorkout: (workout) => post('/api/workouts', workout),
-    deleteWorkout: (id) => remove(`/api/workouts/${id}`)
+    deleteWorkout: (id) => remove(`/api/workouts/${id}`),
+    addExercise: (workoutId, x) => post(`/api/workouts/${workoutId}/exercises`, x),
+    deleteExercise: (id) => remove(`/api/exercises/${id}`)
   };
 }

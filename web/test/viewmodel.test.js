@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { ApiError } from '../js/api.js';
-import { typedNumber } from '../js/format.js';
+import { maskMoney, typedNumber } from '../js/format.js';
 import { createAppViewModel } from '../js/viewmodels/appViewModel.js';
-import { MASK, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
+import { MASK, orderResults, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
 
 // ---------- sample data, in the shape the backend sends ----------
 
@@ -55,6 +55,17 @@ const health = (over = {}) => ({
 const overview = (over = {}) => ({ today: '2026-11-21', academics: report([unit('FIT2004')]), academicsError: null, budget: budget(), food: food(), health: health(), ai: false, empty: false, ...over });
 
 // ---------- presenters ----------
+
+test('hide money: every RM amount is masked, nothing else changes, and the choice is remembered', () => {
+  assert.equal(maskMoney('<b>RM 1,234.56</b> left · RM12 · −RM 5.00 · 64.5 kg · ARMY'), '<b>RM •••</b> left · RM ••• · −RM ••• · 64.5 kg · ARMY');
+  assert.equal(maskMoney('data-tip="Food: RM 1,234.50"'), 'data-tip="Food: RM •••"');
+  const saved = {};
+  const vm = createAppViewModel({ api: {}, storage: { get: (k) => saved[k] ?? null, set: (k, v) => { saved[k] = v; } } });
+  assert.equal(vm.state.hideMoney, false);
+  vm.toggleHideMoney();
+  assert.equal(vm.state.hideMoney, true);
+  assert.equal(saved.hideMoney, '1');
+});
 
 test('a unit shows its numbers as finished text', () => {
   const u = presentUnit(unit('FIT2004'));
@@ -203,6 +214,61 @@ test('units can be ordered by code, by what needs attention, and by the mark nee
   assert.equal(codes(presentGrades(report(units), false, 'attention').units), 'FIT2099 MAT1830 FIT1008 FIT2004');
 });
 
+test('predicted marks: the cards use them, each slider keeps its value, and clearing goes back to "heading"', async () => {
+  const r = report([unit('FIT2004')]);
+  r.finished = { units: 2, credits: 12, gpa: 2.5, cgpa: 3, wam: 65 };
+  r.projected = { units: 3, credits: 18, gpa: 2.6, cgpa: 3.1, wam: 66 };
+  const heading = presentGrades(r);
+  assert.match(heading.stats[0].note, /heading/);
+  const predicted = { units: 3, credits: 18, gpa: 3, cgpa: 3.4, wam: 70.5 };
+  const g = presentGrades(r, false, 'code', 'term', predicted, { FIT2004: 77 });
+  assert.match(g.stats.find((s) => s.key === 'wam').note, /^70\.5 with your predicted marks$/);
+  assert.equal(g.units[0].whatIfStart, 77);                  // the slider stays where it was put
+  assert.equal(presentGrades(r, true, 'code', 'term', predicted, { FIT2004: 77 }).units[0].whatIfStart, 50);   // hidden: no hint
+
+  const asked = [];
+  const { vm } = setup({ predict: (scores) => { asked.push(scores); return Promise.resolve({ whatIf: [], predicted }); } });
+  await vm.load();
+  await vm.predict('FIT2004', '60');
+  await vm.predict('FIT2099', '80');
+  assert.deepEqual(asked.at(-1), { FIT2004: 60, FIT2099: 80 });   // every moved slider is sent each time
+  assert.equal(vm.state.predicted, predicted);
+  vm.clearPredictions();
+  assert.deepEqual([vm.state.predictions, vm.state.predicted], [{}, null]);
+});
+
+test('more unit orders: best average, most work left, and by name', () => {
+  const units = [
+    unit('FIT2004', { name: 'Zeta' }, { average: 71.75, leftWeight: 60 }),
+    unit('FIT2099', { name: 'Alpha' }, { average: 69.9, leftWeight: 30 }),
+    unit('MAT1830', { name: 'Mid' }, { average: null, leftWeight: 100 })
+  ];
+  const codes = (order) => orderUnits(units, order).map((u) => u.code).join(' ');
+  assert.equal(codes('average'), 'FIT2004 FIT2099 MAT1830');
+  assert.equal(codes('left'), 'MAT1830 FIT2004 FIT2099');
+  assert.equal(codes('name'), 'FIT2099 MAT1830 FIT2004');
+});
+
+test('finished units can be ordered by mark, grade, code and year level, across semesters', () => {
+  const terms = [
+    { term: 'S1 2025', units: [{ id: 1, code: 'ENG1005', name: 'Maths', mark: 45, grade: 'NH' }, { id: 2, code: 'FIT1045', name: 'Prog', mark: 82, grade: 'HD' }] },
+    { term: 'S1 2026', units: [{ id: 3, code: 'FIT2099', name: 'OO', mark: 61, grade: 'C' }, { id: 4, code: 'FIT3171', name: 'DB', mark: 66, grade: 'C' }] }
+  ];
+  const codes = (order) => orderResults(terms, order).map((u) => u.code).join(' ');
+  assert.equal(codes('mark-high'), 'FIT1045 FIT3171 FIT2099 ENG1005');
+  assert.equal(codes('mark-low'), 'ENG1005 FIT2099 FIT3171 FIT1045');
+  assert.equal(codes('grade'), 'FIT1045 FIT3171 FIT2099 ENG1005');    // HD, then the two Cs best mark first, then NH
+  assert.equal(codes('level'), 'ENG1005 FIT1045 FIT2099 FIT3171');
+  assert.equal(orderResults(terms, 'mark-high')[0].term, 'S1 2025');
+});
+
+test('while grades are hidden, finished units stay in semester order so the order does not give marks away', () => {
+  const g = presentGrades(report([unit('FIT2004')]), true, 'code', 'mark-high');
+  assert.equal(g.resultOrder, 'term');
+  assert.equal(g.flatResults, null);
+  assert.equal(presentGrades(report([unit('FIT2004')]), false, 'code', 'mark-high').flatResults.length, 1);
+});
+
 test('spending can be filtered by category, with a count and a total, and shows the newest 10', () => {
   const entries = Array.from({ length: 13 }, (_, i) => ({ id: i, what: `x${i}`, amount: 2.5, category: i % 3 === 0 ? 'Fun' : 'Food', date: '2026-11-10' }));
   const all = presentSpending(entries);
@@ -230,6 +296,8 @@ test('typed numbers: empty is null, text is NaN, and 0 stays 0', () => {
 });
 
 // ---------- commands, with a fake API ----------
+
+const overviewHealth = () => overview().health;
 
 function setup(apiOverrides = {}) {
   const calls = [];
@@ -331,11 +399,33 @@ test('today\'s health numbers: only filled boxes are sent, and sleep becomes min
   assert.equal(vm.state.error.message, 'Fill in at least one box.');
 });
 
-test('unit details: name, semester and credit points are sent; credit points must be a number', async () => {
+test('health: weight and water are saved with the day; a glass of water adds to what is there', async () => {
+  const { vm, calls } = setup();
+  await vm.load();
+  await vm.saveToday({ steps: '', sleepHours: '', sleepMinutes: '', restingHr: '', weightKg: '72.4', waterMl: '1500' });
+  assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-20', { weightKg: 72.4, waterMl: 1500 }]);
+  vm.state.overview.health.waterMl = 1500;
+  await vm.addWater(250);
+  assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-20', { waterMl: 1750 }]);
+});
+
+test('health: an exercise needs sets and reps; the weight may be left empty', async () => {
+  const sent = [];
+  const { vm } = setup({ addExercise: (id, x) => { sent.push([id, x]); return Promise.resolve(overviewHealth()); } });
+  await vm.load();
+  await vm.addExercise(7, { name: 'Push-ups', sets: '3', reps: '15', weightKg: '' });
+  assert.deepEqual(sent, [[7, { name: 'Push-ups', sets: 3, reps: 15, weightKg: null }]]);
+  assert.equal(await vm.addExercise(7, { name: 'Squat', sets: '', reps: '5', weightKg: '80' }), false);
+  assert.equal(vm.state.error.message, 'Sets cannot be empty.');
+});
+
+test('unit details: name, semester, credit points and pass or fail are sent; credit points must be a number', async () => {
   const { vm, calls } = setup();
   await vm.load();
   await vm.saveUnitDetails('FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: '12' });
-  assert.deepEqual(calls.at(-1), ['changeUnit', 'FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 }]);
+  assert.deepEqual(calls.at(-1), ['changeUnit', 'FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12, passFail: false }]);
+  await vm.saveUnitDetails('FIT2107', { name: 'Software quality', term: 'S2 2026', credit: '6', passFail: 'on' });
+  assert.equal(calls.at(-1)[2].passFail, true);              // the ticked box marks it pass or fail only
   assert.equal(await vm.saveUnitDetails('FIT2004', { name: 'x', term: '', credit: '' }), false);
   assert.equal(vm.state.error.message, 'Credit points cannot be empty.');
 });
@@ -453,6 +543,33 @@ test('export hands back the file; import refuses text that is not an export and 
   assert.equal(vm.state.notice, 'Your data was loaded from the file.');
 });
 
+test('accounts: the balance overwrite, money in, and moving money send clean numbers', async () => {
+  const sent = [];
+  const answer = (name) => (...args) => { sent.push([name, ...args]); return Promise.resolve(budget()); };
+  const { vm } = setup({ setBalance: answer('setBalance'), addIncome: answer('addIncome'), transfer: answer('transfer'), addAccount: answer('addAccount') });
+  await vm.load();
+  await vm.setBalance(1, ' 2340.50 ');
+  await vm.addIncome(1, { amount: '300', note: 'Job' });
+  await vm.transfer({ from: '1', to: '2', amount: '50' });
+  await vm.addAccount({ name: 'Maybank', kind: 'bank', balance: '' });
+  assert.deepEqual(sent, [
+    ['setBalance', 1, 2340.5], ['addIncome', 1, { amount: 300, note: 'Job' }],
+    ['transfer', { from: 1, to: 2, amount: 50 }], ['addAccount', { name: 'Maybank', kind: 'bank', balance: null }]
+  ]);
+  assert.equal(await vm.setBalance(1, 'a lot'), false);
+  assert.equal(await vm.transfer({ from: '1', to: '', amount: '5' }), false);
+  assert.equal(vm.state.error.message, 'Pick both accounts.');
+});
+
+test('spending can say which account paid', async () => {
+  const { vm, calls } = setup();
+  await vm.load();
+  await vm.addSpending({ what: 'Lunch', category: 'Food', amount: '12', date: '2026-11-21', accountId: '2' });
+  assert.deepEqual(calls.at(-1), ['addSpending', { what: 'Lunch', category: 'Food', amount: 12, date: '2026-11-21', accountId: 2 }]);
+  await vm.addSpending({ what: 'Cash', category: 'Food', amount: '3', date: '2026-11-21', accountId: '' });
+  assert.equal('accountId' in calls.at(-1)[1], false);
+});
+
 test('deleting everything needs the word delete', async () => {
   const { vm, calls } = setup();
   await vm.load();
@@ -471,4 +588,22 @@ test('a screenshot import saves only the rows the user kept, with the user\'s co
   await vm.confirmImport([{ name: 'Assignment 1', weight: '20', score: '17', max: '20' }, { name: 'Exam', weight: '60', score: '', max: '' }]);
   assert.deepEqual(calls.filter(([name]) => name === 'addAssessment').map((c) => c[2]), [{ name: 'Assignment 1', weight: 20, score: 17, max: 20 }, { name: 'Exam', weight: 60 }]);
   assert.equal(vm.state.imported, null);
+});
+
+test('budget tabs: the open tab and the account picked on each tab are kept for next time', () => {
+  const saved = {};
+  const storage = { get: (k) => saved[k] ?? null, set: (k, v) => { saved[k] = v; } };
+  const vm = createAppViewModel({ api: {}, storage, onChange: () => {} });
+  assert.equal(vm.state.budgetTab, 'all');
+  vm.setBudgetTab('expenses');
+  vm.showAccount('investing', 7);
+  assert.equal(vm.state.budgetTab, 'investing');               // picking an account opens its tab
+  vm.setBudgetTab('nonsense');
+  assert.equal(vm.state.budgetTab, 'all');
+  vm.showAccount('banking', 3);
+  const again = createAppViewModel({ api: {}, storage, onChange: () => {} });
+  assert.equal(again.state.budgetTab, 'banking');
+  assert.deepEqual(again.state.budgetAccount, { banking: 3, investing: 7 });
+  saved.budgetAccount = 'not json';
+  assert.deepEqual(createAppViewModel({ api: {}, storage, onChange: () => {} }).state.budgetAccount, { banking: null, investing: null });
 });

@@ -154,6 +154,59 @@ TEST(engine_report_has_the_worked_out_numbers) {
     CHECK(contains(json, "\"measure\":\"cgpa\""));
 }
 
+TEST(a_pass_or_fail_unit_is_saved_and_never_counted) {
+    Tracker t;
+    const std::string text =
+        "unit\tFIT2004\tAlgorithms\t6\t-\tS2 2026\n"
+        "assess\tFIT2004\ta1\tAssignment 1\t50\t80\t100\t-\n"
+        "unit\tFIT2107\tSoftware quality\t6\t-\tS2 2026\tpassfail\n"
+        "assess\tFIT2107\tp1\tPass tasks\t100\t40\t100\t-\n";
+    LoadReport load = load_text(text, t);
+    CHECK(load.errors.empty());
+    CHECK(t.find_unit("FIT2107")->pass_fail);
+    CHECK(!t.find_unit("FIT2004")->pass_fail);
+    CHECK(contains(save_text(t), "\tS2 2026\tpassfail\n"));
+    Tracker again;
+    CHECK(load_text(save_text(t), again).errors.empty());
+    CHECK(again.find_unit("FIT2107")->pass_fail);
+
+    // Only FIT2004 counts: heading for 80, an HD. FIT2107's 40 would be an N and pull everything down.
+    Overview o = overview_of(t);
+    CHECK(o.current.units == 1);
+    std::string json = engine_report(t, load);
+    CHECK(contains(json, "\"passFail\":true"));
+    CHECK(contains(json, "heading for a fail. It does not change your GPA, CGPA or WAM."));
+}
+
+TEST(what_if_marks_give_the_totals_for_the_semester) {
+    Tracker t;
+    // FIT2004: 50% done at 80. FIT2099: nothing marked. FIT2107 is pass or fail only.
+    const std::string units =
+        "unit\tFIT2004\tAlgorithms\t6\t-\tS2 2026\n"
+        "assess\tFIT2004\ta1\tAssignment\t50\t80\t100\t-\n"
+        "assess\tFIT2004\texam\tExam\t50\t-\t100\t-\n"
+        "unit\tFIT2099\tOO design\t6\t-\tS2 2026\n"
+        "assess\tFIT2099\tall\tPortfolio\t100\t-\t100\t-\n"
+        "unit\tFIT2107\tQuality\t6\t-\tS2 2026\tpassfail\n"
+        "assess\tFIT2107\tp\tPass tasks\t100\t-\t100\t-\n";
+    LoadReport none = load_text(units, t);
+    CHECK(contains(engine_report(t, none), "\"predicted\":null"));    // no what-if: nothing predicted
+
+    Tracker t2;
+    // FIT2004 at 60 on the exam: 40 + 30 = 70, a D. FIT2099 at 85: an HD. FIT2107 is asked about but never counts.
+    LoadReport asked = load_text(units + "whatif\tFIT2004\t60\nwhatif\tFIT2099\t85\nwhatif\tFIT2107\t10\n", t2);
+    std::string json = engine_report(t2, asked);
+    // GPA (3 + 4) / 2 = 3.5. CGPA (3.67 + 4) / 2 = 3.835. WAM (70 + 85) / 2 = 77.5 (both second year).
+    CHECK(contains(json, "\"predicted\":{\"units\":2,\"credits\":12,\"gpa\":3.5,\"cgpa\":3.835,\"wam\":77.5}"));
+}
+
+TEST(a_unit_line_with_a_wrong_6th_field_is_refused) {
+    Tracker t;
+    LoadReport load = load_text("unit\tFIT2107\tQuality\t6\t-\tS2 2026\tmaybe\n", t);
+    CHECK(load.errors.size() == 1);
+    CHECK(t.unit_count() == 0);
+}
+
 TEST(engine_report_lists_units_that_need_attention) {
     Tracker t;
     LoadReport load = load_text(

@@ -35,7 +35,7 @@ export function presentUnit(unit, hidden = false) {
   }
 
   return {
-    code: unit.code, name: unit.name, credit: unit.credit, term: unit.term,
+    code: unit.code, name: unit.name, credit: unit.credit, term: unit.term, passFail: unit.passFail === true,
     hasTarget: Boolean(unit.target),
     // While grades are hidden nothing can be edited, so no raw mark is handed to the screen at all.
     canEdit: !hidden,
@@ -53,6 +53,7 @@ export function presentUnit(unit, hidden = false) {
     doneCount: s.doneCount, totalCount: s.totalCount,
     weightMissing: unit.totalWeight < 100 ? plain(100 - unit.totalWeight) : null,
     whatIfStart: hidden ? 50 : clamp(Math.round(s.needMax ?? s.average ?? 50), 0, 100),
+    predictedScore: null,
     canWhatIf: !hidden && s.leftWeight > 0,
     assessments: unit.assessments.map((a) => ({
       id: a.id, name: a.name, weight: plain(a.weight), done: a.done,
@@ -92,7 +93,15 @@ function goalBanner(goal, hidden) {
 
 // ---------- ordering and filtering ----------
 
-export const UNIT_ORDERS = [['code', 'By unit code'], ['attention', 'Needs attention first'], ['need', 'Highest mark needed first']];
+export const UNIT_ORDERS = [
+  ['code', 'By unit code'], ['name', 'By name'], ['attention', 'Needs attention first'],
+  ['need', 'Highest mark needed first'], ['average', 'Best average first'], ['left', 'Most work left first']
+];
+export const RESULT_ORDERS = [
+  ['term', 'By semester'], ['mark-high', 'Highest mark first'], ['mark-low', 'Lowest mark first'],
+  ['grade', 'By grade'], ['code', 'By unit code'], ['level', 'By year level']
+];
+const GRADE_RANK = { HD: 0, D: 1, C: 2, P: 3, NP: 4, N: 5, NH: 6, WN: 7 };
 
 // Worst first: a failed hurdle, then out of reach, not realistic, no target, and on course last.
 const URGENCY = { failed: 0, 'out-of-reach': 1, 'not-realistic': 2, 'no-target': 3, 'on-course': 4 };
@@ -108,6 +117,13 @@ export function orderUnits(units, order) {
     // Units with no mark needed (no target, or nothing left) go last.
     const need = (u) => (u.target && u.standing.needMax !== null && !u.standing.secured ? u.standing.needMax : -1);
     sorted.sort((a, b) => need(b) - need(a) || byCode(a, b));
+  } else if (order === 'average') {
+    const avg = (u) => u.standing.average ?? -1;        // no marks yet: last
+    sorted.sort((a, b) => avg(b) - avg(a) || byCode(a, b));
+  } else if (order === 'left') {
+    sorted.sort((a, b) => b.standing.leftWeight - a.standing.leftWeight || byCode(a, b));
+  } else if (order === 'name') {
+    sorted.sort((a, b) => (a.name || a.code).localeCompare(b.name || b.code) || byCode(a, b));
   } else {
     sorted.sort(byCode);
   }
@@ -127,16 +143,43 @@ export function presentSpending(entries, category = 'all', showAll = false) {
   };
 }
 
-export function presentGrades(report, hidden = false, order = 'code') {
+// Finished units across every semester, in one list, in the chosen order.
+// "By semester" keeps the semester groups instead, so it is not handled here.
+export function orderResults(terms, order) {
+  const all = terms.flatMap((t) => t.units.map((u) => ({ ...u, term: t.term })));
+  const byCode = (a, b) => a.code.localeCompare(b.code);
+  const level = (u) => Number((/\d/.exec(u.code) ?? ['9'])[0]);
+  const sorts = {
+    'mark-high': (a, b) => b.mark - a.mark || byCode(a, b),
+    'mark-low': (a, b) => a.mark - b.mark || byCode(a, b),
+    grade: (a, b) => GRADE_RANK[a.grade] - GRADE_RANK[b.grade] || b.mark - a.mark || byCode(a, b),
+    level: (a, b) => level(a) - level(b) || byCode(a, b),
+    code: byCode
+  };
+  return all.sort(sorts[order] ?? byCode);
+}
+
+export function presentGrades(report, hidden = false, order = 'code', resultOrder = 'term', predicted = null, predictions = {}) {
   const m = (text) => mask(hidden, text);
   const finished = report.finished, projected = report.projected;
   const has = finished.units > 0;
   const stat = (label, key, format) => ({
     label,
     value: has ? m(format(finished[key])) : '—',
-    note: !has ? 'No finished units yet' : projected ? `${m(format(projected[key]))} if this semester ends where it is heading` : 'All finished units'
+    note: statNote(key, format),
+    key
   });
-  const units = orderUnits(report.units, order).map((u) => presentUnit(u, hidden));
+  // With predictions from the sliders, the line under each number uses them instead of "heading".
+  function statNote(key, format) {
+    if (!has) return 'No finished units yet';
+    if (predicted) return `${m(format(predicted[key]))} with your predicted marks`;
+    return projected ? `${m(format(projected[key]))} if this semester ends where it is heading` : 'All finished units';
+  }
+  const units = orderUnits(report.units, order).map((u) => {
+    const shown = presentUnit(u, hidden);
+    const chosen = predictions[u.code];
+    return chosen === undefined || hidden ? shown : { ...shown, whatIfStart: chosen, predictedScore: chosen };
+  });
   const withTarget = units.filter((u) => u.hasTarget);
 
   return {
@@ -146,6 +189,7 @@ export function presentGrades(report, hidden = false, order = 'code') {
     stats: [stat('CGPA, Malaysia scale', 'cgpa', f2), stat('GPA, standard scale', 'gpa', f2), stat('WAM', 'wam', f1)],
     goal: report.goal ? goalBanner(report.goal, hidden) : null,
     goalValues: hidden ? null : report.settings.goal,
+    termDates: report.settings.termDates ?? null,
     canEdit: !hidden,
     // CGPA for each finished semester, then where this semester is heading.
     trend: hidden ? [] : [
@@ -161,6 +205,10 @@ export function presentGrades(report, hidden = false, order = 'code') {
       summary: `CGPA ${m(f2(t.cgpa))} · GPA ${m(f2(t.gpa))} · WAM ${m(f1(t.wam))}`,
       units: t.units.map((u) => ({ id: u.id, code: u.code, name: u.name, result: m(`${plain(u.mark)} ${u.grade}`) }))
     })),
+    // While grades are hidden, ordering by mark or grade would give the marks away, so the list stays by semester.
+    resultOrder: hidden ? 'term' : resultOrder,
+    flatResults: hidden || resultOrder === 'term' ? null
+      : orderResults(report.terms, resultOrder).map((u) => ({ id: u.id, code: u.code, name: u.name, term: u.term || 'No semester', result: `${plain(u.mark)} ${u.grade}` })),
     mood: withTarget.length === 0 ? 'waiting' : units.some((u) => u.state === 'failed') ? 'distressed'
       : withTarget.every((u) => u.state === 'on-course') ? 'happy'
       : withTarget.filter((u) => u.state === 'on-course').length >= withTarget.length / 2 ? 'worried' : 'distressed'
@@ -332,7 +380,7 @@ function healthMap(h) {
   };
 }
 
-export const MAP_KINDS = [['studies', 'Studies'], ['budget', 'Budget'], ['food', 'Food'], ['health', 'Health']];
+export const MAP_KINDS = [['life', 'Life'], ['studies', 'Studies path'], ['budget', 'Budget'], ['food', 'Food'], ['health', 'Health']];
 
 export function presentMap(kind, overview, hidden = false) {
   if (kind === 'studies') {

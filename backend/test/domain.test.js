@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, incomeSummary, reducibleSpending, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -95,6 +95,33 @@ test('budget: a past month is complete and a future month has not started', () =
   assert.equal(budget({ today: '2026-10-31' }).day, 0);
 });
 
+// ---------- money accounts ----------
+
+test('accounts: a set balance replaces what came before; in adds and out takes away, in the order entered', () => {
+  const accounts = [{ id: 1, name: 'Maybank', kind: 'bank' }, { id: 2, name: 'TNG', kind: 'ewallet' }, { id: 3, name: 'Invest', kind: 'investment' }];
+  const moves = [
+    { id: 1, accountId: 1, kind: 'in', amount: 100, date: '2026-11-01', note: '', transactionId: null },
+    { id: 2, accountId: 1, kind: 'set', amount: 2000, date: '2026-11-02', note: '', transactionId: null },   // replaces the 100
+    { id: 3, accountId: 1, kind: 'out', amount: 50, date: '2026-11-03', note: 'To TNG', transactionId: null },
+    { id: 4, accountId: 2, kind: 'in', amount: 50, date: '2026-11-03', note: 'From Maybank', transactionId: null },
+    { id: 5, accountId: 2, kind: 'out', amount: 12.5, date: '2026-11-04', note: 'Lunch', transactionId: 9 },
+    { id: 6, accountId: 3, kind: 'set', amount: 1500, date: '2026-11-01', note: '', transactionId: null }
+  ];
+  const s = accountSummary(accounts, moves);
+  assert.deepEqual(s.accounts.map((a) => a.balance), [1950, 37.5, 1500]);
+  assert.equal(s.total, 3487.5);
+  assert.equal(s.spendable, 1987.5);
+  assert.equal(s.invested, 1500);
+  assert.equal(s.accounts[0].lastSet, '2026-11-02');
+  assert.equal(s.accounts[1].recent[0].fromSpending, true);     // newest first
+});
+
+test('accounts: an account with no moves is at 0, and a balance can be below 0', () => {
+  const s = accountSummary([{ id: 1, name: 'Card', kind: 'bank' }], [{ id: 1, accountId: 1, kind: 'set', amount: -120, date: '2026-11-01', note: '' }]);
+  assert.equal(s.accounts[0].balance, -120);
+  assert.equal(accountSummary([{ id: 2, name: 'New', kind: 'cash' }], []).accounts[0].balance, 0);
+});
+
 // ---------- food ----------
 
 const eat = (kcal, protein, meal = 'Lunch', food = 'x') => ({ id: 1, meal, food, kcal, protein });
@@ -167,6 +194,84 @@ test('health: sleep shortfall, average heart rate and days on target', () => {
   assert.equal(s.restingHrWeek, 62);
   assert.equal(s.daysOnTarget, 2);
   assert.equal(s.daysLogged, 3);
+});
+
+test('health: water against its target, and weekly averages that skip empty days', () => {
+  const s = healthSummary({
+    date: '2026-11-20', targets: { ...targets, waterMl: 2500 }, workouts: [],
+    days: [{ day: '2026-11-16', steps: 9000, sleepMinutes: 480 }, { day: '2026-11-18', steps: 6001 }, { day: '2026-11-20', waterMl: 1800, sleepMinutes: 400 }]
+  });
+  assert.equal(s.waterMl, 1800);
+  assert.equal(s.waterLeft, 700);
+  assert.equal(s.stepsAverage, 7501);                      // (9000 + 6001) / 2, rounded
+  assert.equal(s.sleepAverage, 440);
+  assert.equal(health([]).waterLeft, null);                // no target: nothing to judge
+});
+
+test('health: minutes and kinds of the workouts this week', () => {
+  const s = health([], [
+    { id: 1, date: '2026-11-16', name: 'Push', kind: 'gym', minutes: 60 },
+    { id: 2, date: '2026-11-17', name: 'Run', kind: 'run', minutes: 30 },
+    { id: 3, date: '2026-11-18', name: 'Legs', kind: 'gym', minutes: null }
+  ]);
+  assert.equal(s.workouts.minutes, 90);
+  assert.deepEqual(s.workouts.kinds, [{ kind: 'gym', count: 2, minutes: 60 }, { kind: 'run', count: 1, minutes: 30 }]);
+});
+
+test('could cut: essential categories are left out; places are ranked by total with count, average and per month', () => {
+  const categories = [{ id: 1, name: 'Rent', essential: true }, { id: 2, name: 'Eating out' }, { id: 3, name: 'Shopping' }];
+  const t = (categoryId, what, amount) => ({ categoryId, what, amount, date: '2026-10-01' });
+  const r = reducibleSpending({ categories, months: 3, transactions: [
+    t(1, 'Rent', 2850), t(2, 'Grab', 30), t(2, 'Grab', 33), t(2, 'Burger King', 9.9), t(3, 'Shopee', 120)
+  ] });
+  assert.equal(r.total, 192.9);
+  assert.equal(r.perMonth, 64.3);
+  assert.deepEqual(r.byCategory.map((c) => c.category), ['Shopping', 'Eating out']);
+  assert.deepEqual(r.top[1], { what: 'Grab', category: 'Eating out', total: 63, count: 2, average: 31.5, perMonth: 21 });
+  assert.deepEqual(r.essential, ['Rent']);
+  // Each category lists its places, biggest first.
+  assert.deepEqual(r.byCategory[1].places, [
+    { what: 'Grab', total: 63, count: 2, perMonth: 21 }, { what: 'Burger King', total: 9.9, count: 1, perMonth: 3.3 }]);
+});
+
+test('could cut: after six places in a category, the rest are added up as one', () => {
+  const transactions = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ categoryId: 1, what: `Shop ${n}`, amount: 100 - n, date: '2026-10-01' }));
+  const places = reducibleSpending({ categories: [{ id: 1, name: 'Food' }], transactions, months: 1 }).byCategory[0].places;
+  assert.equal(places.length, 7);
+  assert.deepEqual(places[6], { what: '2 other places', total: 185, count: 2, perMonth: 185, rest: true });
+});
+
+test('income: money in during the month by source, without moves between your own accounts', () => {
+  const moves = [
+    { kind: 'in', amount: 6050, date: '2026-10-24', note: 'Money from home' },
+    { kind: 'in', amount: 13.5, date: '2026-10-08', note: 'Paid back by a friend' },
+    { kind: 'in', amount: 10, date: '2026-10-09', note: 'Paid back by a friend' },
+    { kind: 'in', amount: 200, date: '2026-10-17', note: 'From Maybank', transfer: true },   // own money moved: not income
+    { kind: 'in', amount: 999, date: '2026-09-30', note: 'Money from home' },                // another month
+    { kind: 'out', amount: 50, date: '2026-10-10', note: 'Lunch' }
+  ];
+  const s = incomeSummary(moves, '2026-10', 3333.2);
+  assert.equal(s.total, 6073.5);
+  assert.equal(s.net, 2740.3);
+  assert.deepEqual(s.sources, [{ source: 'Money from home', amount: 6050 }, { source: 'Paid back by a friend', amount: 23.5 }]);
+  assert.deepEqual(incomeSummary([], '2026-10', 0), { total: 0, net: 0, sources: [] });
+});
+
+test('weight: BMI is weight divided by height in metres squared, once a height is set', () => {
+  assert.equal(weightTrend([{ day: '2026-11-18', weightKg: 72.5 }], null, 175).bmi, 23.7);
+  assert.equal(weightTrend([{ day: '2026-11-18', weightKg: 72.5 }]).bmi, null);
+});
+
+test('weight: latest, change over 30 days and distance to the goal the user set', () => {
+  const w = (day, weightKg) => ({ day, weightKg });
+  const t = weightTrend([w('2026-09-01', 75), w('2026-10-22', 73.4), w('2026-11-05', 72.9), w('2026-11-20', 72.1)], 70);
+  assert.deepEqual(t.latest, { date: '2026-11-20', kg: 72.1 });
+  assert.equal(t.change30, -1.3);                          // from 22 Oct, the first weight in the last 30 days
+  assert.equal(t.toGoal, 2.1);
+  assert.equal(t.points.length, 4);
+  assert.equal(weightTrend([w('2026-11-20', 72.1)]).change30, null);   // one weight: no change yet
+  assert.equal(weightTrend([]).latest, null);
+  assert.equal(weightTrend([w('2026-11-20', 68)], 70).toGoal, -2);    // below the goal
 });
 
 test('health: only this week\'s workouts are counted', () => {

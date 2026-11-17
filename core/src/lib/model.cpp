@@ -63,6 +63,13 @@ Status Tracker::set_target(const std::string& code, double mark) {
     return "";
 }
 
+Status Tracker::set_pass_fail(const std::string& code, bool pass_fail) {
+    Unit* unit = units_.find(code);
+    if (unit == nullptr) return "There is no unit with the code " + code + ".";
+    unit->pass_fail = pass_fail;
+    return "";
+}
+
 Status Tracker::clear_target(const std::string& code) {
     Unit* unit = units_.find(code);
     if (unit == nullptr) return "There is no unit with the code " + code + ".";

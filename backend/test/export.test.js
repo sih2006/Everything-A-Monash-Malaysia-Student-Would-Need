@@ -56,6 +56,8 @@ describe('export and import', () => {
     assert.ok(exported.transactions.length > 0);
     assert.equal(exported.settings['academics.goal'].measure, 'cgpa');
     assert.ok(!('id' in exported.units[0]));               // database ids are not part of the file
+    assert.equal(exported.accounts.length, 3);
+    assert.ok(exported.accountMoves.some((m) => m.transaction !== null));   // spending paid from an account
   });
 
   test('a file cannot be loaded over existing data', async () => {
@@ -73,7 +75,17 @@ describe('export and import', () => {
     assert.equal(status, 200);
     const again = (await app.call('GET', '/api/export')).body;
     // Same file again, apart from the category ids, which are given new values.
-    const withoutIds = (file) => ({ ...file, categories: file.categories.map(({ name, limit }) => ({ name, limit })), transactions: file.transactions.map(({ categoryId, ...rest }) => rest) });
+    // Categories and accounts get new ids, so compare them by name instead.
+    const withoutIds = (file) => {
+      const accountName = new Map(file.accounts.map((a) => [a.id, a.name]));
+      return {
+        ...file,
+        categories: file.categories.map(({ name, limit }) => ({ name, limit })),
+        transactions: file.transactions.map(({ categoryId, ...rest }) => rest),
+        accounts: file.accounts.map(({ name, kind }) => ({ name, kind })),
+        accountMoves: file.accountMoves.map(({ accountId, ...rest }) => ({ ...rest, account: accountName.get(accountId) }))
+      };
+    };
     assert.deepEqual(withoutIds(again), withoutIds(exported));
 
     const afterReport = (await app.call('GET', '/api/overview')).body;
@@ -111,7 +123,10 @@ describe('a damaged or edited file', () => {
     ['a date that does not exist', (f) => { f.foodLog[0].date = '2026-02-30'; }],
     ['a meal that does not exist', (f) => { f.foodLog[0].meal = 'Brunch'; }],
     ['text with a line break in a name', (f) => { f.units[0].name = 'two\nlines'; }],
-    ['steps that are not whole', (f) => { f.healthDays[0].steps = 12.5; }]
+    ['steps that are not whole', (f) => { f.healthDays[0].steps = 12.5; }],
+    ['an account entry with no account', (f) => { f.accountMoves[0].accountId = 999; }],
+    ['an account of an unknown kind', (f) => { f.accounts[0].kind = 'magic'; }],
+    ['two account entries for the same spending', (f) => { const m = f.accountMoves.find((x) => x.transaction !== null); f.accountMoves.push({ ...m }); }]
   ];
   for (const [name, change] of cases) {
     test(`is refused: ${name}`, async () => {
