@@ -38,7 +38,7 @@ export function homeView(state) {
 
     <section class="petals" aria-label="Today at a glance">
       ${home.cards.map((c) => `
-        <a class="petal ${tints[c.tab]}" href="#${c.tab}">
+        <a class="petal ${tints[c.tab]}" href="#${c.tab}" aria-label="${esc(`${c.title}: ${c.big}, ${c.line}. ${c.chip.text}.`)}">
           <div class="card-head">${artSpace(c.name)}${chip(c.chip)}</div>
           <h2>${esc(c.title)}</h2>
           <div class="big">${esc(c.big)}</div>

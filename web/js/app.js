@@ -77,7 +77,9 @@ function draw(state, info = {}) {
     void view.offsetWidth;          // restart the entrance animation
     view.classList.add('enter');
     window.scrollTo(0, 0);
-    view.focus({ preventScroll: true });
+    // Move focus to the new screen only when the user changed screens, not when the app first opens.
+    // On first load, focus stays at the top so Tab reaches "Skip to content" and the menu first.
+    if (drawnTab !== null) view.focus({ preventScroll: true });
   }
   drawnTab = state.tab;
 }

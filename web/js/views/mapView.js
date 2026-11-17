@@ -10,6 +10,8 @@ import { ICON, bar, chip, pageHead } from './parts.js';
 
 const STEP = 250, PAD = 150, HEIGHT = 400, MIDDLE = 180;
 const PIN_HALF = { done: 38, ahead: 38, now: 54, goal: 84 };
+// What a screen reader says after a stop's name.
+const SPOKEN = { done: 'finished', now: 'you are here', ahead: 'still ahead', goal: 'your goal' };
 
 // The outline of the goal: a circle with soft petals around the edge.
 const FLOWER = (() => {
@@ -111,7 +113,7 @@ export function mapView(state, selected) {
             ${arrows}
           </svg>
           ${stops.map((stop, i) => `
-            <button type="button" class="mstop" data-stop="${i}" aria-pressed="${i === chosen}"
+            <button type="button" class="mstop" data-stop="${i}" aria-pressed="${i === chosen}" aria-label="${esc(`${stop.title}, ${SPOKEN[stop.kind]}`)}"
                     style="left:${stop.x}px; top:${stop.y - PIN_HALF[stop.kind]}px; --i:${i}">
               ${pin(stop)}
               <span class="mlabel"><strong>${esc(stop.title)}</strong></span>
