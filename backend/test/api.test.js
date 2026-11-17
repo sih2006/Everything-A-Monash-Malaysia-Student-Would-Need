@@ -171,7 +171,7 @@ describe('academics', () => {
     assert.equal((await app.call('PUT', '/api/academics/settings', { goal: null })).body.goal, null);
   });
 
-  test('a unit's name, semester and credit points can be changed; its marks stay', async () => {
+  test('the name, semester and credit points of a unit can be changed; its marks stay', async () => {
     const { status, body } = await app.call('PATCH', '/api/units/FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 });
     assert.equal(status, 200);
     const unit = body.units.find((u) => u.code === 'FIT2004');
