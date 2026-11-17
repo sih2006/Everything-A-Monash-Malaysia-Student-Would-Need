@@ -234,6 +234,22 @@ function healthFor(year, input, id) {
   return node({ id, level: 'area', area: 'health', title: 'Health', value: count(sessions.length, 'workout'), note: `${count(all.length, 'day')} logged`, children: months, now: months.some((m) => m.now) });
 }
 
+// ---------- the years ahead ----------
+
+// A full-time year at Monash is 48 credit points (24 a semester).
+export const CREDITS_A_YEAR = 48;
+
+// The last year of the course, worked out from the total credit points the user typed in with their goal.
+// The current semester's units count as done, so what is left starts next year.
+// With no total known, the line goes one year ahead.
+export function lastYear(report, goal, thisYear) {
+  const total = goal?.totalCredits;
+  if (!report || !total) return thisYear + 1;
+  const done = (report.finished?.credits ?? 0) + (report.units ?? []).reduce((sum, u) => sum + (u.credit ?? 0), 0);
+  const left = Math.max(0, total - done);
+  return thisYear + Math.max(1, Math.ceil(left / CREDITS_A_YEAR));
+}
+
 // ---------- the whole tree ----------
 
 export function lifeTree(input) {
@@ -245,6 +261,9 @@ export function lifeTree(input) {
   for (const e of input.foodLog) years.add(Number(e.date.slice(0, 4)));
   for (const d of input.healthDays) years.add(Number(d.day.slice(0, 4)));
   for (const w of input.workouts) years.add(Number(w.date.slice(0, 4)));
+  const thisYear = Number(today.slice(0, 4));
+  const end = lastYear(report, input.goal, thisYear);
+  for (let year = thisYear + 1; year <= end; year++) years.add(year);
 
   const yearNodes = [...years].sort((a, b) => a - b).map((year) => {
     const id = `life/${year}`;
@@ -257,8 +276,8 @@ export function lifeTree(input) {
     const isNow = String(year) === today.slice(0, 4);
     return node({
       id, level: 'year', title: String(year), now: isNow,
-      value: isNow ? 'This year' : year < Number(today.slice(0, 4)) ? 'Finished' : 'Ahead',
-      note: areas.length ? areas.map((a) => a.title).join(', ') : 'Nothing recorded',
+      value: isNow ? 'This year' : year < thisYear ? 'Finished' : 'Ahead',
+      note: areas.length ? areas.map((a) => a.title).join(', ') : year > thisYear ? (year === end && input.goal?.totalCredits ? 'The last year of your course' : 'Still to come') : 'Nothing recorded',
       time: passed(`${year}-01-01`, `${year}-12-31`, today), children: areas
     });
   });

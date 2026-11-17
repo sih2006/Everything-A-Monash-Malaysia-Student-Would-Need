@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { lifeTree } from '../src/life.js';
+import { lastYear, lifeTree } from '../src/life.js';
 
 const TODAY = '2026-11-17';
 const empty = { today: TODAY, report: null, termDates: null, transactions: [], limit: null, foodLog: [], foodTargets: null, healthDays: [], workouts: [], healthTargets: null };
@@ -37,15 +37,29 @@ const find = (tree, id) => {
 test('with no data the tree still has you and this year', () => {
   const tree = lifeTree(empty);
   assert.equal(tree.title, 'You');
-  assert.deepEqual(tree.children.map((y) => y.title), ['2026']);
+  assert.deepEqual(tree.children.map((y) => y.title), ['2026', '2027']);   // the line always goes one year ahead
+  assert.equal(tree.children[1].value, 'Ahead');
+  assert.equal(tree.children[1].note, 'Still to come');
   assert.equal(tree.children[0].now, true);
   assert.equal(tree.children[0].note, 'Nothing recorded');
   assert.ok(Math.abs(tree.children[0].time - 321 / 365) < 0.001);    // 17 November is day 321
 });
 
+test('the line runs to the last year of the course, worked out from the total credit points', () => {
+  // 72 finished + 24 this semester = 96 of 192: 96 left is two more full-time years.
+  const r = { finished: { credits: 72 }, units: [6, 6, 6, 6].map((credit) => ({ credit })) };
+  assert.equal(lastYear(r, { totalCredits: 192 }, 2026), 2028);
+  assert.equal(lastYear(r, { totalCredits: 100 }, 2026), 2027);     // 4 left still needs a year
+  assert.equal(lastYear(r, { totalCredits: 96 }, 2026), 2027);      // nothing left: still one year ahead
+  assert.equal(lastYear(r, null, 2026), 2027);
+  const tree = lifeTree({ ...empty, report: { ...report, finished: { credits: 72 }, units: report.units.map((u) => ({ ...u, credit: 24 })) }, goal: { totalCredits: 192 } });
+  assert.deepEqual(tree.children.map((y) => y.title), ['2025', '2026', '2027', '2028']);
+  assert.equal(tree.children[3].note, 'The last year of your course');
+});
+
 test('each year with data appears, in order, with its areas', () => {
   const tree = lifeTree({ ...empty, report, transactions: [{ id: 1, what: 'Lunch', amount: 10, date: '2024-03-02', category: 'Food', account: null }] });
-  assert.deepEqual(tree.children.map((y) => y.title), ['2024', '2025', '2026']);
+  assert.deepEqual(tree.children.map((y) => y.title), ['2024', '2025', '2026', '2027']);
   assert.deepEqual(tree.children[0].children.map((a) => a.title), ['Money']);
   assert.equal(tree.children[0].value, 'Finished');
   assert.deepEqual(tree.children[2].children.map((a) => a.title), ['Studies']);

@@ -464,7 +464,8 @@ describe('the whole app', () => {
     await app.call('PUT', '/api/academics/settings', { termDates: { start: '2026-07-27', end: '2026-11-27' } });
     const { status, body } = await app.call('GET', '/api/life');
     assert.equal(status, 200);
-    assert.deepEqual(body.children.map((y) => y.title), ['2025', '2026']);
+    assert.deepEqual(body.children.slice(0, 2).map((y) => y.title), ['2025', '2026']);
+    assert.ok(body.children.slice(2).length >= 1 && body.children.slice(2).every((y) => y.value === 'Ahead'));   // the years still to come
     const year = body.children[1];
     assert.deepEqual(year.children.map((a) => a.title), ['Studies', 'Money', 'Food', 'Health']);
     const term = year.children[0].children.find((t) => t.now);

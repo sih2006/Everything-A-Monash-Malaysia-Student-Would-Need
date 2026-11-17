@@ -10,8 +10,8 @@ const n = (id, fields = {}, children = []) => ({ id, level: 'item', area: null, 
 
 // You → 2025, 2026 (now) → 2026 has Studies (now, with two units) and Money.
 const tree = n('life', { level: 'root', now: true }, [
-  n('life/2025', { level: 'year' }, [n('life/2025/money', { level: 'area' })]),
-  n('life/2026', { level: 'year', now: true }, [
+  n('life/2025', { level: 'year', title: '2025' }, [n('life/2025/money', { level: 'area' })]),
+  n('life/2026', { level: 'year', title: '2026', now: true }, [
     n('life/2026/studies', { level: 'area', now: true }, [
       n('life/2026/studies/S2', { level: 'term', now: true }, [
         n('life/2026/studies/S2/FIT2085', { level: 'unit', now: true, grade: true, value: '72.0% so far', note: 'On course.', done: 0.4 }),
@@ -26,14 +26,33 @@ test('it starts with you and this year open', () => {
   assert.deepEqual([...startOpen(tree)], ['life', 'life/2026']);
 });
 
-test('closed nodes hide their children; open ones show them one column to the right', () => {
+test('the years sit on one line and "You" is not drawn', () => {
+  const { nodes, edges } = layoutLife(tree, startOpen(tree));
+  const years = nodes.filter((x) => x.level === 'year');
+  assert.equal(nodes.some((x) => x.level === 'root'), false);
+  assert.equal(new Set(years.map((x) => x.y)).size, 1);                   // all on the same line
+  assert.ok(years[0].x < years[1].x);                                    // oldest on the left
+  const trunk = edges.filter((e) => e.kind === 'trunk');
+  assert.equal(trunk.length, 1);
+  assert.equal(trunk[0].now, true);                                      // 2025 to 2026 is behind you
+});
+
+test('a year ahead is marked, and the line to it is not walked yet', () => {
+  const withNext = { ...tree, children: [...tree.children, n('life/2027', { level: 'year', title: '2027' })] };
+  const { nodes, edges } = layoutLife(withNext, startOpen(withNext));
+  assert.equal(nodes.find((x) => x.id === 'life/2027').ahead, true);
+  assert.equal(nodes.find((x) => x.id === 'life/2026').ahead, false);
+  assert.deepEqual(edges.filter((e) => e.kind === 'trunk').map((e) => e.now), [true, false]);
+});
+
+test('closed nodes hide their children; open ones show them one row below', () => {
   const { nodes } = layoutLife(tree, startOpen(tree));
-  assert.deepEqual(nodes.map((x) => x.id).sort(), ['life', 'life/2025', 'life/2026', 'life/2026/money', 'life/2026/studies'].sort());
+  assert.deepEqual(nodes.map((x) => x.id).sort(), ['life/2025', 'life/2026', 'life/2026/money', 'life/2026/studies'].sort());
   const at = (id) => nodes.find((x) => x.id === id);
-  assert.equal(at('life/2026/studies').x - at('life/2026').x, COLUMN);
-  assert.equal(at('life/2026/money').y - at('life/2026/studies').y, ROW);
+  assert.equal(at('life/2026/studies').y - at('life/2026').y, ROW);
+  assert.equal(at('life/2026/money').x - at('life/2026/studies').x, COLUMN);
   // A parent sits halfway between its first and last child.
-  assert.equal(at('life/2026').y, (at('life/2026/studies').y + at('life/2026/money').y) / 2);
+  assert.equal(at('life/2026').x, (at('life/2026/studies').x + at('life/2026/money').x) / 2);
   assert.equal(at('life/2025').open, false);
   assert.equal(at('life/2025').count, 1);
 });
@@ -43,7 +62,7 @@ test('open to today follows the path to the deepest node that is now, and marks 
   assert.ok(open.has('life/2026/studies/S2'));
   const { nodes } = layoutLife(tree, open);
   assert.equal(nodes.filter((x) => x.kind === 'now').length, 1);
-  assert.equal(nodes.find((x) => x.kind === 'now').x, 4 * COLUMN + nodes.find((x) => x.id === 'life').x);
+  assert.equal(nodes.find((x) => x.kind === 'now').y, 3 * ROW + nodes.find((x) => x.id === 'life/2026').y);   // year, area, semester, unit
 });
 
 test('open all opens down to months, never deeper', () => {
@@ -55,7 +74,7 @@ test('open all opens down to months, never deeper', () => {
 test('every edge joins a parent to a child that is drawn', () => {
   const { nodes, edges } = layoutLife(tree, openToToday(tree, startOpen(tree)));
   for (const e of edges) assert.ok(nodes.some((x) => x.x === e.to.x && x.y === e.to.y));
-  assert.equal(edges.length, nodes.length - 1);                // a tree: one edge for every node except the root
+  assert.equal(edges.length, nodes.length - 1);                // the year line plus one branch for every node below a year
 });
 
 test('hidden grades: figures marked as grades become dots and their ring is removed', () => {

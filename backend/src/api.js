@@ -519,6 +519,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       today: today(),
       report,
       termDates: store.getSetting('academics.termDates', null),
+      goal: store.getSetting('academics.goal', null),
       transactions: store.listTransactions('0000-01-01', '9999-12-31').reverse(),
       limit: store.getSetting('budget.limit', null) ?? (store.listCategories().reduce((sum, c) => sum + c.limit, 0) || null),
       foodLog: store.listFoodLogAll(),

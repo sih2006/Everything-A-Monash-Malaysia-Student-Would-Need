@@ -42,15 +42,19 @@ export function lifeView(state, kinds) {
   }
   const layout = layoutLife(state.life, state.lifeOpen, state.hidden);
   const selected = layout.nodes.find((n) => n.id === state.lifeSelected) ?? layout.nodes.find((n) => n.kind === 'now') ?? layout.nodes[0];
-  const curve = (e) => `M${e.from.x + 32} ${e.from.y} C${e.from.x + 130} ${e.from.y}, ${e.to.x - 100} ${e.to.y}, ${e.to.x - 32} ${e.to.y}`;
+  // The year line is straight; a branch drops from the bottom of a circle to the top of its child.
+  const path = (e) => (e.kind === 'trunk'
+    ? `M${e.from.x + 32} ${e.from.y} L${e.to.x - 32} ${e.to.y}`
+    : `M${e.from.x} ${e.from.y + 32} C${e.from.x} ${e.from.y + 80}, ${e.to.x} ${e.to.y - 80}, ${e.to.x} ${e.to.y - 32}`);
+  const edgeClass = (e) => (e.kind === 'trunk' ? `trunk ${e.now ? 'walked' : 'ahead'}` : e.now ? 'walked' : 'branch');
 
   return `
-    ${pageHead('Map', 'Your life so far, year by year. Open any part to go deeper.')}
+    ${pageHead('Map', 'Your years on one line. Open a year to see its studies, money, food and health, then go deeper.')}
     <div class="seg" role="group" aria-label="Choose a map">${tabs}</div>
 
     <section class="mapbox ${state.mapFull ? 'full' : ''}" aria-label="Your life tree">
       <div class="mapbar">
-        <p class="note" id="mapHelp">Click a circle to open or close it. Drag to move, pinch or Ctrl and scroll to zoom. Outer ring: done. Inner ring: time gone.</p>
+        <p class="note" id="mapHelp">Click a year or any circle to open or close it. Drag to move, pinch or Ctrl and scroll to zoom. Outer ring: done. Inner ring: time gone.</p>
         <div class="zoom" role="group" aria-label="Tree controls">
           <button type="button" data-action="lifeOpenToday">Open to today</button>
           <button type="button" data-action="lifeOpenAll">Open all</button>
@@ -64,10 +68,10 @@ export function lifeView(state, kinds) {
       <div class="mapview life" id="mapview" tabindex="0" aria-label="Life tree. Arrow keys move it. Plus and minus zoom." aria-describedby="mapHelp">
         <div class="world" id="world" style="width:${layout.width}px; height:${layout.height}px">
           <svg class="route" width="${layout.width}" height="${layout.height}" aria-hidden="true">
-            ${layout.edges.map((e) => `<path class="${e.now ? 'walked' : 'branch'}" d="${curve(e)}"/>`).join('')}
+            ${layout.edges.map((e) => `<path class="${edgeClass(e)}" d="${path(e)}"/>`).join('')}
           </svg>
           ${layout.nodes.map((n) => `
-            <button type="button" class="lnode lv-${n.level} ${n.now ? 'is-now' : ''} ${n.id === selected.id ? 'is-picked' : ''}" data-node="${esc(n.id)}"
+            <button type="button" class="lnode lv-${n.level} ${n.now ? 'is-now' : ''} ${n.ahead ? 'is-ahead' : ''} ${n.id === selected.id ? 'is-picked' : ''}" data-node="${esc(n.id)}"
                     style="left:${n.x - 32}px; top:${n.y - 32}px" aria-label="${esc(spoken(n))}" aria-expanded="${n.count ? n.open : 'false'}">
               ${rings(n)}
               <span class="ltext"><strong>${esc(n.title)}</strong><span>${esc(n.value)}</span>${n.count ? `<small>${n.open ? 'Close' : `Open · ${n.count}`}</small>` : ''}</span>

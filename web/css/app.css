@@ -82,6 +82,11 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .ltext small { font-size: 0.75rem; font-weight: 700; color: var(--accent); }
 .lv-root .rings, .lv-year .rings { background: var(--tint-map); }
 .route path.branch { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+.route path.trunk { fill: none; stroke-width: 8; stroke-linecap: round; }
+.route path.trunk.walked { stroke: var(--mark); }
+.route path.trunk.ahead { stroke: var(--line); stroke-dasharray: 2 16; }
+.lnode.is-ahead { opacity: 0.7; }
+.lnode.is-ahead .rings { background: var(--bg); }
 .life .route path.walked { stroke-dasharray: none; animation: none; }
 
 /* The map can fill the whole page. Escape or the button leaves it. */
@@ -91,7 +96,7 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
   padding: var(--s3); background: var(--bg);
 }
 .mapbox.full .mapview { flex: 1 1 auto; height: auto; min-height: 0; }
-.mapbox.full .here { max-height: 28vh; overflow: auto; flex: none; }
+.mapbox.full .here { display: none; }   /* full page shows only the map */
 body.map-full { overflow: hidden; }
 
 /* ---------- workouts ---------- */
