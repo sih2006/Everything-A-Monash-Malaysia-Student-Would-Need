@@ -7,7 +7,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, accountSummary, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { loadDemo } from './seed.js';
@@ -189,13 +189,30 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
 
   function budgetFor(month) {
     const { from, to } = monthRange(month);
-    return budgetSummary({
-      month, today: today(),
-      limit: store.getSetting('budget.limit', null),
-      categories: store.listCategories(),
-      transactions: store.listTransactions(from, to)
-    });
+    return {
+      ...budgetSummary({
+        month, today: today(),
+        limit: store.getSetting('budget.limit', null),
+        categories: store.listCategories(),
+        transactions: store.listTransactions(from, to)
+      }),
+      // Balances are always as they are now, whichever month is being looked at.
+      money: accountSummary(store.listAccounts(), store.listAccountMoves())
+    };
   }
+  const budgetNow = () => budgetFor(today().slice(0, 7));
+  const accountKind = (value) => {
+    const kind = check.text(value ?? 'bank', 'kind', { max: 12 });
+    if (!ACCOUNT_KINDS.includes(kind)) throw new HttpError(400, 'invalid', 'An account is a bank, an e-wallet, an investment or cash.', 'kind');
+    return kind;
+  };
+  const mustFindAccount = (id) => {
+    const account = store.getAccount(id);
+    if (!account) throw new HttpError(404, 'not_found', 'That account does not exist.');
+    return account;
+  };
+  const balanceValue = (value, field = 'balance') => Math.round(check.number(value, field, { min: -1e8, max: 1e9 }) * 100) / 100;
+  const moveAmount = (value, field = 'amount') => Math.round(check.number(value, field, { min: 0.01, max: 1e8 }) * 100) / 100;
   const monthOf = (query) => {
     const month = query.get('month') ?? today().slice(0, 7);
     if (!isMonth(month)) throw new HttpError(400, 'invalid', 'A month looks like 2026-11.', 'month');
@@ -242,11 +259,17 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const category = store.getCategoryByName(check.text(body.category, 'category', { max: 30 }));
     if (!category) throw new HttpError(400, 'invalid', 'Pick one of your categories, or add a new one first.', 'category');
     const date = dayOf(body.date);
-    store.insertTransaction({
+    const account = body.accountId === undefined || body.accountId === null || body.accountId === '' ? null : mustFindAccount(check.id(body.accountId));
+    const entry = {
       categoryId: category.id,
       what: check.text(body.what, 'what', { max: 60 }),
       amount: Math.round(check.number(body.amount, 'amount', { min: 0.01, max: 1e6 }) * 100) / 100,
       date
+    };
+    inTransaction(db, () => {
+      const id = store.insertTransaction(entry);
+      // Paid from an account: that account goes down by the same amount.
+      if (account) store.insertAccountMove({ accountId: account.id, kind: 'out', amount: entry.amount, date, note: entry.what, transactionId: id });
     });
     return budgetFor(date.slice(0, 7));
   });
@@ -254,6 +277,70 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   route('DELETE', '/api/transactions/:id', ({ params }) => {
     if (!store.deleteTransaction(check.id(params.id))) throw new HttpError(404, 'not_found', 'That spending entry does not exist.');
     return budgetFor(today().slice(0, 7));
+  });
+
+  // ================= money accounts =================
+
+  route('POST', '/api/accounts', ({ body }) => {
+    const name = check.text(body.name, 'name', { max: 30 });
+    if (store.getAccountByName(name)) throw new HttpError(409, 'exists', `There is already an account called ${name}.`, 'name');
+    const kind = accountKind(body.kind);
+    const balance = body.balance === undefined || body.balance === null || body.balance === '' ? null : balanceValue(body.balance);
+    inTransaction(db, () => {
+      const id = store.insertAccount({ name, kind });
+      if (balance !== null) store.insertAccountMove({ accountId: id, kind: 'set', amount: balance, date: today(), note: 'Starting balance' });
+    });
+    return budgetNow();
+  });
+
+  route('PATCH', '/api/accounts/:id', ({ params, body }) => {
+    const account = mustFindAccount(check.id(params.id));
+    const name = body.name === undefined ? account.name : check.text(body.name, 'name', { max: 30 });
+    const other = store.getAccountByName(name);
+    if (other && other.id !== account.id) throw new HttpError(409, 'exists', `There is already an account called ${name}.`, 'name');
+    store.renameAccount(account.id, name, body.kind === undefined ? account.kind : accountKind(body.kind));
+    return budgetNow();
+  });
+
+  route('DELETE', '/api/accounts/:id', ({ params }) => {
+    if (!store.deleteAccount(check.id(params.id))) throw new HttpError(404, 'not_found', 'That account does not exist.');
+    return budgetNow();
+  });
+
+  // The manual overwrite: "this account holds exactly this much now". Earlier moves stop counting.
+  route('PUT', '/api/accounts/:id/balance', ({ params, body }) => {
+    const account = mustFindAccount(check.id(params.id));
+    store.insertAccountMove({ accountId: account.id, kind: 'set', amount: balanceValue(body.balance), date: today(), note: check.text(body.note, 'note', { max: 60, required: false }) || 'Balance set by hand' });
+    return budgetNow();
+  });
+
+  route('POST', '/api/accounts/:id/income', ({ params, body }) => {
+    const account = mustFindAccount(check.id(params.id));
+    store.insertAccountMove({ accountId: account.id, kind: 'in', amount: moveAmount(body.amount), date: dayOf(body.date), note: check.text(body.note, 'note', { max: 60, required: false }) || 'Money in' });
+    return budgetNow();
+  });
+
+  // Moving money between two of your own accounts, for example topping up Touch 'n Go from a bank.
+  // It is not spending, so it does not count against the budget.
+  route('POST', '/api/accounts/transfer', ({ body }) => {
+    const from = mustFindAccount(check.id(body.from));
+    const to = mustFindAccount(check.id(body.to));
+    if (from.id === to.id) throw new HttpError(400, 'invalid', 'Pick two different accounts.', 'to');
+    const amount = moveAmount(body.amount);
+    const date = dayOf(body.date);
+    inTransaction(db, () => {
+      store.insertAccountMove({ accountId: from.id, kind: 'out', amount, date, note: `To ${to.name}` });
+      store.insertAccountMove({ accountId: to.id, kind: 'in', amount, date, note: `From ${from.name}` });
+    });
+    return budgetNow();
+  });
+
+  route('DELETE', '/api/account-moves/:id', ({ params }) => {
+    const move = store.getAccountMove(check.id(params.id));
+    if (!move) throw new HttpError(404, 'not_found', 'That entry does not exist.');
+    if (move.transactionId !== null) throw new HttpError(400, 'invalid', 'This came from a spending entry. Remove the spending instead.');
+    store.deleteAccountMove(move.id);
+    return budgetNow();
   });
 
   // ================= food =================
@@ -494,7 +581,31 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       notes: check.text(w.notes, 'notes', { max: 300, required: false })
     }));
 
-    return { settings, units, assessments, results, categories, transactions, foods, foodLog, healthDays, workouts };
+    const accounts = list('accounts', 100).map((a) => ({
+      id: check.number(a.id, 'id', { min: 1, max: 1e9, whole: true }),
+      name: check.text(a.name, 'name', { max: 30 }),
+      kind: accountKind(a.kind)
+    }));
+    const accountIds = new Set(accounts.map((a) => a.id));
+    if (accountIds.size !== accounts.length || new Set(accounts.map((a) => a.name.toLowerCase())).size !== accounts.length) {
+      throw new HttpError(400, 'invalid', 'The file has the same account twice.');
+    }
+    const usedSpending = new Set();
+    const accountMoves = list('accountMoves', 100000).map((m) => {
+      if (!accountIds.has(m.accountId)) throw new HttpError(400, 'invalid', 'An account entry in the file has no account.');
+      if (!['set', 'in', 'out'].includes(m.kind)) throw new HttpError(400, 'invalid', 'An account entry in the file is damaged.');
+      const transaction = m.transaction === null || m.transaction === undefined ? null : check.number(m.transaction, 'transaction', { min: 0, max: transactions.length - 1, whole: true });
+      if (transaction !== null && (m.kind !== 'out' || usedSpending.has(transaction))) throw new HttpError(400, 'invalid', 'An account entry in the file is damaged.');
+      if (transaction !== null) usedSpending.add(transaction);
+      return {
+        accountId: m.accountId, kind: m.kind,
+        amount: m.kind === 'set' ? balanceValue(m.amount, 'amount') : moveAmount(m.amount),
+        date: day(m.date, 'date'),
+        note: check.text(m.note, 'note', { max: 60, required: false }),
+        transaction
+      };
+    });
+    return { settings, units, assessments, results, categories, transactions, foods, foodLog, healthDays, workouts, accounts, accountMoves };
   }
 
   // Loads an exported file into an empty app. Everything is checked first, and the grade

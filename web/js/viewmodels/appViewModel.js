@@ -225,7 +225,22 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     saveBudgetLimit: (text) => act('budget', () => api.saveBudgetLimit(number(text, 'The limit', { required: false })), 'Limit saved.'),
     addCategory: (f) => act('budget', () => api.addCategory({ name: f.name, limit: number(f.limit, 'The category limit', { required: false }) ?? 0 }), 'Category added.'),
     deleteCategory: (id) => act('budget', () => api.deleteCategory(id), 'Category removed.'),
-    addSpending: (f) => act('budget', () => api.addSpending({ what: f.what, category: f.category, amount: number(f.amount, 'The amount'), ...(f.date ? { date: f.date } : {}) }), 'Spending added.'),
+    addSpending: (f) => act('budget', () => api.addSpending({
+      what: f.what, category: f.category, amount: number(f.amount, 'The amount'),
+      ...(f.date ? { date: f.date } : {}), ...(f.accountId ? { accountId: Number(f.accountId) } : {})
+    }), 'Spending added.'),
+
+    // ----- money accounts -----
+    addAccount: (f) => act('budget', () => api.addAccount({ name: f.name, kind: f.kind, balance: number(f.balance, 'The balance', { required: false }) }), 'Account added.'),
+    deleteAccount: (id) => act('budget', () => api.deleteAccount(id), 'Account removed.'),
+    // The manual overwrite: the user types what the account really holds now.
+    setBalance: (id, text) => act('budget', () => api.setBalance(id, number(text, 'The balance')), 'Balance updated.'),
+    addIncome: (id, f) => act('budget', () => api.addIncome(id, { amount: number(f.amount, 'The amount'), note: f.note ?? '' }), 'Money added.'),
+    transfer: (f) => act('budget', () => {
+      if (!f.from || !f.to) throw new ApiError(400, 'invalid', 'Pick both accounts.');
+      return api.transfer({ from: Number(f.from), to: Number(f.to), amount: number(f.amount, 'The amount') });
+    }, 'Money moved.'),
+    deleteAccountMove: (id) => act('budget', () => api.deleteAccountMove(id), 'Entry removed.'),
     deleteSpending: (id) => act('budget', () => api.deleteSpending(id), 'Spending removed.'),
 
     // ----- food -----

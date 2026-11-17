@@ -74,6 +74,14 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     addSpending: (entry) => post('/api/transactions', entry),
     deleteSpending: (id) => remove(`/api/transactions/${id}`),
 
+    // money accounts
+    addAccount: (account) => post('/api/accounts', account),
+    deleteAccount: (id) => remove(`/api/accounts/${id}`),
+    setBalance: (id, balance) => put(`/api/accounts/${id}/balance`, { balance }),
+    addIncome: (id, income) => post(`/api/accounts/${id}/income`, income),
+    transfer: (move) => post('/api/accounts/transfer', move),
+    deleteAccountMove: (id) => remove(`/api/account-moves/${id}`),
+
     // food
     saveFoodTargets: (targets) => put('/api/food/settings', targets),
     logFood: (entry) => post('/api/food/log', entry),

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -93,6 +93,33 @@ test('budget: a past month is complete and a future month has not started', () =
   assert.equal(budget({ today: '2026-12-03' }).day, 30);
   assert.equal(budget({ today: '2026-12-03' }).daysLeft, 0);
   assert.equal(budget({ today: '2026-10-31' }).day, 0);
+});
+
+// ---------- money accounts ----------
+
+test('accounts: a set balance replaces what came before; in adds and out takes away, in the order entered', () => {
+  const accounts = [{ id: 1, name: 'Maybank', kind: 'bank' }, { id: 2, name: 'TNG', kind: 'ewallet' }, { id: 3, name: 'Invest', kind: 'investment' }];
+  const moves = [
+    { id: 1, accountId: 1, kind: 'in', amount: 100, date: '2026-11-01', note: '', transactionId: null },
+    { id: 2, accountId: 1, kind: 'set', amount: 2000, date: '2026-11-02', note: '', transactionId: null },   // replaces the 100
+    { id: 3, accountId: 1, kind: 'out', amount: 50, date: '2026-11-03', note: 'To TNG', transactionId: null },
+    { id: 4, accountId: 2, kind: 'in', amount: 50, date: '2026-11-03', note: 'From Maybank', transactionId: null },
+    { id: 5, accountId: 2, kind: 'out', amount: 12.5, date: '2026-11-04', note: 'Lunch', transactionId: 9 },
+    { id: 6, accountId: 3, kind: 'set', amount: 1500, date: '2026-11-01', note: '', transactionId: null }
+  ];
+  const s = accountSummary(accounts, moves);
+  assert.deepEqual(s.accounts.map((a) => a.balance), [1950, 37.5, 1500]);
+  assert.equal(s.total, 3487.5);
+  assert.equal(s.spendable, 1987.5);
+  assert.equal(s.invested, 1500);
+  assert.equal(s.accounts[0].lastSet, '2026-11-02');
+  assert.equal(s.accounts[1].recent[0].fromSpending, true);     // newest first
+});
+
+test('accounts: an account with no moves is at 0, and a balance can be below 0', () => {
+  const s = accountSummary([{ id: 1, name: 'Card', kind: 'bank' }], [{ id: 1, accountId: 1, kind: 'set', amount: -120, date: '2026-11-01', note: '' }]);
+  assert.equal(s.accounts[0].balance, -120);
+  assert.equal(accountSummary([{ id: 2, name: 'New', kind: 'cash' }], []).accounts[0].balance, 0);
 });
 
 // ---------- food ----------

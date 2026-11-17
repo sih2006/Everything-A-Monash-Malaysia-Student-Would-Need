@@ -266,6 +266,68 @@ export function gradesView(state) {
     </section>`;
 }
 
+// ================= money accounts =================
+
+const KIND_NAMES = { bank: 'Bank', ewallet: 'E-wallet', investment: 'Investment', cash: 'Cash' };
+const MOVE_WORDS = { set: 'Set to', in: 'In', out: 'Out' };
+
+function accountCard(a) {
+  return `
+    <article class="card account">
+      <div class="card-head"><h2>${esc(a.name)}</h2>${chip({ text: KIND_NAMES[a.kind] ?? a.kind, tone: '' })}</div>
+      <div class="big">${rm(a.balance)}</div>
+      <p class="note">${a.lastSet ? `Last set by hand on ${esc(dayText(a.lastSet))}` : 'Never set by hand'}</p>
+      ${a.recent.length ? `<ul class="list">
+        ${a.recent.map((m) => `<li><span>${esc(m.note || MOVE_WORDS[m.kind])} <span class="dim">· ${esc(dayText(m.date))}</span></span>
+          <span class="end">${m.kind === 'set' ? `= ${rm(m.amount)}` : `${m.kind === 'in' ? '+' : '−'} ${rm(m.amount)}`}
+          ${m.fromSpending ? '' : `<button type="button" class="link danger" data-action="deleteAccountMove" data-id="${m.id}" aria-label="Remove this entry">Remove</button>`}</span></li>`).join('')}
+      </ul>` : ''}
+      ${fold(`acc-set-${a.id}`, 'Set the balance by hand', `
+        <form class="form" data-action="setBalance" data-id="${a.id}">
+          ${field('What it holds now (RM)', 'balance', `required inputmode="decimal" value="${a.balance}"`)}
+          <button class="btn primary" type="submit">Save balance</button>
+        </form>
+        <p class="note">Use this when the app and your real account do not match. It replaces the worked-out balance from now on.</p>`)}
+      ${fold(`acc-in-${a.id}`, 'Add money in', `
+        <form class="form" data-action="addIncome" data-id="${a.id}">
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          ${field('From', 'note', 'maxlength="60" placeholder="Allowance, part-time job"', 'optional')}
+          <button class="btn primary" type="submit">Add</button>
+        </form>`)}
+      <button type="button" class="link danger" data-action="deleteAccount" data-id="${a.id}" data-confirm="Remove ${esc(a.name)} and its history? Spending paid from it stays.">Remove account</button>
+    </article>`;
+}
+
+// The money in all your accounts. Always as it is now, whichever month the budget below shows.
+function moneySection(money) {
+  const accounts = money.accounts;
+  const options = accounts.map((a) => [String(a.id), a.name]);
+  return `
+    <section class="banner money ${money.total < 0 ? 'warn' : 'good'}">
+      <h2>Your money: ${rm(money.total)}</h2>
+      <p>${accounts.length === 0 ? 'Add your accounts, such as a bank, an e-wallet and an investing account, to see your total here.'
+        : `${rm(money.spendable)} to spend${money.invested ? ` and ${rm(money.invested)} invested` : ''}, across ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}.`}</p>
+    </section>
+    ${accounts.length ? `<section class="grid" aria-label="Accounts">${accounts.map((a) => accountCard(a)).join('')}</section>` : ''}
+    <section class="card">
+      ${fold('add-account', 'Add an account', `
+        <form class="form" data-action="addAccount">
+          ${field('Name', 'name', 'required maxlength="30" placeholder="Maybank"')}
+          ${select('Kind', 'kind', Object.entries(KIND_NAMES))}
+          ${field('What it holds now (RM)', 'balance', 'inputmode="decimal"', 'optional')}
+          <button class="btn primary" type="submit">Add</button>
+        </form>`, accounts.length === 0)}
+      ${accounts.length > 1 ? fold('transfer', 'Move money between accounts', `
+        <form class="form" data-action="transfer">
+          ${select('From', 'from', options, options[0][0])}
+          ${select('To', 'to', options, options[1][0])}
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          <button class="btn primary" type="submit">Move</button>
+        </form>
+        <p class="note">For example topping up Touch 'n Go from your bank. It is not spending, so the budget does not change.</p>`) : ''}
+    </section>`;
+}
+
 // ================= budget =================
 
 export function budgetView(state) {
@@ -277,6 +339,7 @@ export function budgetView(state) {
   const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
   return `
     ${head}
+    ${moneySection(b.money)}
     ${periodNav('budget', b.monthName, isCurrent, 'month')}
     ${b.hasLimit ? `
     <section class="grid stats" aria-label="Month so far">
@@ -324,6 +387,7 @@ export function budgetView(state) {
           ${field('What was it?', 'what', 'required maxlength="60"')}
           ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
           ${select('Category', 'category', b.categories.map((c) => [c.name, c.name]))}
+          ${b.money.accounts.length ? select('Paid from', 'accountId', [['', 'Not from an account'], ...b.money.accounts.map((a) => [String(a.id), a.name])]) : ''}
           ${field('Day', 'date', `type="date" required value="${spendDay}" min="${b.month}-01" max="${spendDay}"`)}
           <button class="btn primary" type="submit">Add</button>
         </form>`}
@@ -347,7 +411,7 @@ function spendingList(b, state) {
       <span class="note">${s.count} ${s.count === 1 ? 'entry' : 'entries'} · ${rm(s.total)}</span></div>
     ${s.count === 0 ? '<p class="note">Nothing in this category this month.</p>' : `<ul class="list">
           ${s.rows.map((x) => `
-            <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}</span></span>
+            <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}${x.account ? ` · ${esc(x.account)}` : ''}</span></span>
             <span class="end">${rm(x.amount)} ${remove('deleteSpending', `data-id="${x.id}"`, `Remove ${x.what}`)}</span></li>`).join('')}
         </ul>`}
     ${s.hidden > 0 ? `<button type="button" class="link" data-action="toggleAllSpending">Show all ${s.count}</button>`

@@ -64,12 +64,29 @@ export function createStore(db) {
 
     // Transactions from `from` to `to` (both days included), newest first.
     listTransactions: (from, to) => db.prepare(`
-      SELECT t.id, t.what, t.amount, t.spent_on AS date, c.id AS categoryId, c.name AS category
+      SELECT t.id, t.what, t.amount, t.spent_on AS date, c.id AS categoryId, c.name AS category, a.name AS account
       FROM transactions t JOIN budget_categories c ON c.id = t.category_id
+      LEFT JOIN account_moves m ON m.transaction_id = t.id
+      LEFT JOIN accounts a ON a.id = m.account_id
       WHERE t.spent_on BETWEEN ? AND ? ORDER BY t.spent_on DESC, t.id DESC`).all(from, to),
     insertTransaction: (t) => Number(db.prepare('INSERT INTO transactions (category_id, what, amount, spent_on) VALUES (?, ?, ?, ?)')
       .run(t.categoryId, t.what, t.amount, t.date).lastInsertRowid),
     deleteTransaction: (id) => db.prepare('DELETE FROM transactions WHERE id = ?').run(id).changes,
+
+    // ----- money accounts -----
+    listAccounts: () => db.prepare('SELECT id, name, kind FROM accounts ORDER BY id').all(),
+    getAccount: (id) => db.prepare('SELECT id, name, kind FROM accounts WHERE id = ?').get(id),
+    getAccountByName: (name) => db.prepare('SELECT id, name, kind FROM accounts WHERE name = ? COLLATE NOCASE').get(name),
+    insertAccount: (a) => Number(db.prepare('INSERT INTO accounts (name, kind) VALUES (?, ?)').run(a.name, a.kind).lastInsertRowid),
+    renameAccount: (id, name, kind) => db.prepare('UPDATE accounts SET name = ?, kind = ? WHERE id = ?').run(name, kind, id).changes,
+    deleteAccount: (id) => db.prepare('DELETE FROM accounts WHERE id = ?').run(id).changes,
+    // Every move of every account, in the order they were entered. The order is what decides a balance.
+    listAccountMoves: () => db.prepare(`SELECT id, account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId
+      FROM account_moves ORDER BY id`).all(),
+    insertAccountMove: (m) => Number(db.prepare('INSERT INTO account_moves (account_id, kind, amount, moved_on, note, transaction_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(m.accountId, m.kind, m.amount, m.date, m.note ?? '', m.transactionId ?? null).lastInsertRowid),
+    getAccountMove: (id) => db.prepare('SELECT id, transaction_id AS transactionId FROM account_moves WHERE id = ?').get(id),
+    deleteAccountMove: (id) => db.prepare('DELETE FROM account_moves WHERE id = ?').run(id).changes,
 
     // ----- food -----
     listFoods: () => db.prepare('SELECT id, name, kcal, protein FROM foods ORDER BY name').all(),
@@ -100,18 +117,28 @@ export function createStore(db) {
     // Database ids are left out, except where one row points at another (spending at its category).
     exportAll() {
       const all = (sql) => db.prepare(sql).all();
-      return {
+      const data = {
         settings: Object.fromEntries(all('SELECT key, value FROM settings ORDER BY key').map((r) => [r.key, JSON.parse(r.value)])),
         units: all('SELECT code, name, term, credit, target FROM units ORDER BY code'),
         assessments: all('SELECT unit_code AS unitCode, name, weight, score, max, hurdle FROM assessments ORDER BY unit_code, id'),
         results: all('SELECT code, name, credit, mark, grade, term FROM results ORDER BY id'),
         categories: all('SELECT id, name, monthly_limit AS "limit" FROM budget_categories ORDER BY id'),
-        transactions: all('SELECT category_id AS categoryId, what, amount, spent_on AS date FROM transactions ORDER BY spent_on, id'),
+        transactions: all('SELECT id, category_id AS categoryId, what, amount, spent_on AS date FROM transactions ORDER BY spent_on, id'),
         foods: all('SELECT name, kcal, protein FROM foods ORDER BY name'),
         foodLog: all('SELECT eaten_on AS date, meal, food, kcal, protein FROM food_log ORDER BY eaten_on, id'),
         healthDays: all('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr FROM health_days ORDER BY day'),
-        workouts: all('SELECT done_on AS date, name, notes FROM workouts ORDER BY done_on, id')
+        workouts: all('SELECT done_on AS date, name, notes FROM workouts ORDER BY done_on, id'),
+        accounts: all('SELECT id, name, kind FROM accounts ORDER BY id'),
+        accountMoves: all('SELECT account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId FROM account_moves ORDER BY id')
       };
+      // A move made by spending points at that spending by its place in the list, not by a database id.
+      const place = new Map(data.transactions.map((t, i) => [t.id, i]));
+      for (const t of data.transactions) delete t.id;
+      for (const m of data.accountMoves) {
+        m.transaction = m.transactionId === null ? null : place.get(m.transactionId);
+        delete m.transactionId;
+      }
+      return data;
     },
 
     // Puts back what exportAll gave. The data must already be checked. Categories get new ids,
@@ -126,19 +153,24 @@ export function createStore(db) {
       for (const r of data.results) this.insertResult(r);
       const newId = new Map();
       for (const c of data.categories) newId.set(c.id, this.insertCategory(c));
-      for (const t of data.transactions) this.insertTransaction({ ...t, categoryId: newId.get(t.categoryId) });
+      const transactionIds = data.transactions.map((t) => this.insertTransaction({ ...t, categoryId: newId.get(t.categoryId) }));
       for (const f of data.foods) this.insertFood(f);
       for (const e of data.foodLog) this.insertFoodLog(e);
       for (const d of data.healthDays) this.saveHealthDay(d.day, d);
       for (const w of data.workouts) this.insertWorkout(w);
+      const accountId = new Map();
+      for (const a of data.accounts) accountId.set(a.id, this.insertAccount(a));
+      for (const m of data.accountMoves) {
+        this.insertAccountMove({ ...m, accountId: accountId.get(m.accountId), transactionId: m.transaction === null ? null : transactionIds[m.transaction] });
+      }
     },
     isEmpty() {
-      const tables = ['units', 'results', 'transactions', 'food_log', 'health_days', 'workouts'];
+      const tables = ['units', 'results', 'transactions', 'food_log', 'health_days', 'workouts', 'account_moves'];
       return tables.every((table) => db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n === 0);
     },
     // Deletes every row the user has entered. The user asked for this; there is no undo.
     wipe() {
-      for (const table of ['assessments', 'units', 'results', 'transactions', 'budget_categories', 'food_log', 'foods', 'health_days', 'workouts', 'settings']) {
+      for (const table of ['account_moves', 'accounts', 'assessments', 'units', 'results', 'transactions', 'budget_categories', 'food_log', 'foods', 'health_days', 'workouts', 'settings']) {
         db.exec(`DELETE FROM ${table}`);
       }
     }

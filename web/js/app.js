@@ -164,6 +164,12 @@ const COMMANDS = {
   deleteCategory: (f, d) => vm.deleteCategory(d.id),
   addSpending: (f) => vm.addSpending(f),
   deleteSpending: (f, d) => vm.deleteSpending(d.id),
+  addAccount: (f) => vm.addAccount(f),
+  deleteAccount: (f, d) => vm.deleteAccount(Number(d.id)),
+  setBalance: (f, d) => vm.setBalance(Number(d.id), f.balance),
+  addIncome: (f, d) => vm.addIncome(Number(d.id), f),
+  transfer: (f) => vm.transfer(f),
+  deleteAccountMove: (f, d) => vm.deleteAccountMove(Number(d.id)),
 
   saveFoodTargets: (f) => vm.saveFoodTargets(f),
   logFood: (f) => vm.logFood(f),

@@ -252,6 +252,70 @@ describe('budget', () => {
   });
 });
 
+describe('money accounts', () => {
+  let app;
+  before(async () => { app = await start(); });
+  after(() => app.close());
+
+  test('accounts with a starting balance, a manual overwrite, income and a move between them', async () => {
+    await app.call('POST', '/api/accounts', { name: 'Maybank', kind: 'bank', balance: 2340.5 });
+    await app.call('POST', '/api/accounts', { name: "Touch 'n Go", kind: 'ewallet', balance: 20 });
+    let { body } = await app.call('POST', '/api/accounts', { name: 'Investing', kind: 'investment', balance: 1500 });
+    assert.equal(body.money.total, 3860.5);
+    const [maybank, tng] = body.money.accounts;
+
+    body = (await app.call('POST', '/api/accounts/transfer', { from: maybank.id, to: tng.id, amount: 50 })).body;
+    assert.deepEqual(body.money.accounts.map((a) => a.balance), [2290.5, 70, 1500]);
+    assert.equal(body.money.total, 3860.5);                           // moving money is not spending
+
+    body = (await app.call('POST', `/api/accounts/${maybank.id}/income`, { amount: 300, note: 'Part-time job' })).body;
+    assert.equal(body.money.accounts[0].balance, 2590.5);
+
+    body = (await app.call('PUT', `/api/accounts/${maybank.id}/balance`, { balance: 2500 })).body;
+    assert.equal(body.money.accounts[0].balance, 2500);               // the overwrite wins
+    assert.equal(body.money.spendable, 2570);
+  });
+
+  test('spending paid from an account takes it down, and deleting the spending puts it back', async () => {
+    await app.call('POST', '/api/budget/categories', { name: 'Food', limit: 600 });
+    const tng = (await app.call('GET', '/api/budget')).body.money.accounts[1];
+    let { body } = await app.call('POST', '/api/transactions', { what: 'Nasi lemak', amount: 8.5, category: 'Food', accountId: tng.id });
+    assert.equal(body.money.accounts[1].balance, 61.5);
+    assert.equal(body.recent[0].account, "Touch 'n Go");
+    body = (await app.call('DELETE', `/api/transactions/${body.recent[0].id}`)).body;
+    assert.equal(body.money.accounts[1].balance, 70);
+    // Spending with no account still works and changes no balance.
+    body = (await app.call('POST', '/api/transactions', { what: 'Cash snack', amount: 3, category: 'Food' })).body;
+    assert.equal(body.money.total, 4070);
+    assert.equal(body.recent[0].account, null);
+  });
+
+  test('a move from spending cannot be removed on its own; other moves can', async () => {
+    const tng = (await app.call('GET', '/api/budget')).body.money.accounts[1];
+    await app.call('POST', '/api/transactions', { what: 'Bus', amount: 2, category: 'Food', accountId: tng.id });
+    const moves = (await app.call('GET', '/api/budget')).body.money.accounts[1].recent;
+    assert.equal((await app.call('DELETE', `/api/account-moves/${moves[0].id}`)).status, 400);
+    assert.equal((await app.call('DELETE', `/api/account-moves/${moves[1].id}`)).status, 200);
+  });
+
+  test('accounts are checked', async () => {
+    assert.equal((await app.call('POST', '/api/accounts', { name: 'maybank' })).status, 409);
+    assert.equal((await app.call('POST', '/api/accounts', { name: 'Crypto', kind: 'magic' })).status, 400);
+    assert.equal((await app.call('POST', '/api/accounts', { name: 'X', balance: 'lots' })).status, 400);
+    const id = (await app.call('GET', '/api/budget')).body.money.accounts[0].id;
+    assert.equal((await app.call('POST', '/api/accounts/transfer', { from: id, to: id, amount: 5 })).status, 400);
+    assert.equal((await app.call('POST', `/api/accounts/${id}/income`, { amount: 0 })).status, 400);
+    assert.equal((await app.call('PUT', '/api/accounts/999/balance', { balance: 5 })).status, 404);
+    assert.equal((await app.call('POST', '/api/transactions', { what: 'x', amount: 1, category: 'Food', accountId: 999 })).status, 404);
+  });
+
+  test('an account can be renamed and deleted', async () => {
+    const id = (await app.call('GET', '/api/budget')).body.money.accounts[2].id;
+    assert.equal((await app.call('PATCH', `/api/accounts/${id}`, { name: 'ASB' })).body.money.accounts[2].name, 'ASB');
+    assert.equal((await app.call('DELETE', `/api/accounts/${id}`)).body.money.accounts.length, 2);
+  });
+});
+
 describe('food and health', () => {
   let app;
   before(async () => { app = await start(); });

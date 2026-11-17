@@ -98,6 +98,37 @@ export function budgetSummary({ month, today, limit, categories, transactions })
   };
 }
 
+// ---------- money accounts ----------
+
+export const ACCOUNT_KINDS = ['bank', 'ewallet', 'investment', 'cash'];
+
+// Works out each account's balance from its moves, which must be in the order they were entered.
+// A 'set' move is the user typing the real balance: it replaces whatever was worked out before it.
+// Then each 'in' adds and each 'out' takes away.
+export function accountSummary(accounts, moves) {
+  const byAccount = new Map(accounts.map((a) => [a.id, { ...a, balance: 0, lastSet: null, recent: [] }]));
+  for (const m of moves) {
+    const a = byAccount.get(m.accountId);
+    if (!a) continue;
+    if (m.kind === 'set') {
+      a.balance = m.amount;
+      a.lastSet = m.date;
+    } else {
+      a.balance += m.kind === 'in' ? m.amount : -m.amount;
+    }
+    a.recent.unshift({ id: m.id, kind: m.kind, amount: m.amount, date: m.date, note: m.note, fromSpending: m.transactionId !== null && m.transactionId !== undefined });
+  }
+  const list = [...byAccount.values()].map((a) => ({ ...a, balance: round2(a.balance), recent: a.recent.slice(0, 6) }));
+  const sum = (items) => round2(items.reduce((total, a) => total + a.balance, 0));
+  return {
+    accounts: list,
+    total: sum(list),
+    // Money you can spend today, apart from what is invested.
+    spendable: sum(list.filter((a) => a.kind !== 'investment')),
+    invested: sum(list.filter((a) => a.kind === 'investment'))
+  };
+}
+
 // ---------- food ----------
 
 // `log` entries have {id, meal, food, kcal, protein}. `targets` has {kcal, protein}; either may be 0 for "not set".

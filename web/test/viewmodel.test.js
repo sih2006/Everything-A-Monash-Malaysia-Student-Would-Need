@@ -453,6 +453,33 @@ test('export hands back the file; import refuses text that is not an export and 
   assert.equal(vm.state.notice, 'Your data was loaded from the file.');
 });
 
+test('accounts: the balance overwrite, money in, and moving money send clean numbers', async () => {
+  const sent = [];
+  const answer = (name) => (...args) => { sent.push([name, ...args]); return Promise.resolve(budget()); };
+  const { vm } = setup({ setBalance: answer('setBalance'), addIncome: answer('addIncome'), transfer: answer('transfer'), addAccount: answer('addAccount') });
+  await vm.load();
+  await vm.setBalance(1, ' 2340.50 ');
+  await vm.addIncome(1, { amount: '300', note: 'Job' });
+  await vm.transfer({ from: '1', to: '2', amount: '50' });
+  await vm.addAccount({ name: 'Maybank', kind: 'bank', balance: '' });
+  assert.deepEqual(sent, [
+    ['setBalance', 1, 2340.5], ['addIncome', 1, { amount: 300, note: 'Job' }],
+    ['transfer', { from: 1, to: 2, amount: 50 }], ['addAccount', { name: 'Maybank', kind: 'bank', balance: null }]
+  ]);
+  assert.equal(await vm.setBalance(1, 'a lot'), false);
+  assert.equal(await vm.transfer({ from: '1', to: '', amount: '5' }), false);
+  assert.equal(vm.state.error.message, 'Pick both accounts.');
+});
+
+test('spending can say which account paid', async () => {
+  const { vm, calls } = setup();
+  await vm.load();
+  await vm.addSpending({ what: 'Lunch', category: 'Food', amount: '12', date: '2026-11-21', accountId: '2' });
+  assert.deepEqual(calls.at(-1), ['addSpending', { what: 'Lunch', category: 'Food', amount: 12, date: '2026-11-21', accountId: 2 }]);
+  await vm.addSpending({ what: 'Cash', category: 'Food', amount: '3', date: '2026-11-21', accountId: '' });
+  assert.equal('accountId' in calls.at(-1)[1], false);
+});
+
 test('deleting everything needs the word delete', async () => {
   const { vm, calls } = setup();
   await vm.load();

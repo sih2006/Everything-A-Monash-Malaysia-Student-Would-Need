@@ -56,9 +56,23 @@ export function loadDemo(store, today) {
     [12, 'Food court', 'Food', 11.2], [13, 'Weekly groceries', 'Groceries', 41.6], [14, 'Stationery', 'Study', 12.4], [15, 'Dinner out', 'Food', 32], [16, 'Streaming, shared', 'Fun', 15]
   ];
   const monthStart = today.slice(0, 8) + '01';
+  // ----- money accounts: made-up balances -----
+  const maybank = store.insertAccount({ name: 'Maybank', kind: 'bank' });
+  const tng = store.insertAccount({ name: "Touch 'n Go", kind: 'ewallet' });
+  const invest = store.insertAccount({ name: 'Investing', kind: 'investment' });
+  store.insertAccountMove({ accountId: maybank, kind: 'set', amount: 2340.5, date: monthStart, note: 'Starting balance' });
+  store.insertAccountMove({ accountId: tng, kind: 'set', amount: 35.2, date: monthStart, note: 'Starting balance' });
+  store.insertAccountMove({ accountId: invest, kind: 'set', amount: 1500, date: monthStart, note: 'Starting balance' });
+  store.insertAccountMove({ accountId: maybank, kind: 'out', amount: 100, date: monthStart, note: "To Touch 'n Go" });
+  store.insertAccountMove({ accountId: tng, kind: 'in', amount: 100, date: monthStart, note: 'From Maybank' });
+  store.insertAccountMove({ accountId: maybank, kind: 'in', amount: 450, date: monthStart, note: 'Allowance' });
+
   for (const [daysAgo, what, category, amount] of spending) {
     const date = addDays(today, -daysAgo);
-    if (date >= monthStart) store.insertTransaction({ categoryId: categoryId[category], what, amount, date });
+    if (date < monthStart) continue;
+    const id = store.insertTransaction({ categoryId: categoryId[category], what, amount, date });
+    // Small spending is paid with Touch 'n Go, bigger spending from the bank.
+    store.insertAccountMove({ accountId: amount < 20 ? tng : maybank, kind: 'out', amount, date, note: what, transactionId: id });
   }
 
   // ----- food -----

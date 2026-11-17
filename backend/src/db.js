@@ -94,6 +94,31 @@ const MIGRATIONS = [
     notes   TEXT NOT NULL DEFAULT ''
   );
   CREATE INDEX workouts_by_day ON workouts(done_on);
+  `,
+  // Step 2: money accounts (bank, e-wallet, investing). An account's balance is not stored:
+  // it is worked out from its moves, in the order they were entered.
+  `
+  CREATE TABLE accounts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,
+    kind       TEXT NOT NULL DEFAULT 'bank',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- kind: 'set' = the user typed the real balance (a manual overwrite),
+  --       'in'  = money came in, 'out' = money went out.
+  -- A move made by a spending entry points at it, and goes when the spending is deleted.
+  CREATE TABLE account_moves (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id     INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    kind           TEXT NOT NULL,
+    amount         REAL NOT NULL,
+    moved_on       TEXT NOT NULL,
+    note           TEXT NOT NULL DEFAULT '',
+    transaction_id INTEGER REFERENCES transactions(id) ON DELETE CASCADE
+  );
+  CREATE INDEX account_moves_by_account ON account_moves(account_id, id);
+  CREATE INDEX account_moves_by_transaction ON account_moves(transaction_id);
   `
 ];
 
