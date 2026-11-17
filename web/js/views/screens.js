@@ -5,6 +5,7 @@
 
 import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
 import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
+import { presentSpendingMap } from '../viewmodels/spendingMap.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -416,6 +417,44 @@ function incomeSection(b, day) {
     </section>`;
 }
 
+// The spending map: one block per category, sized by what it costs a month, with its places inside.
+// Two layouts are drawn, a wide one for a laptop and a tall one for a phone; CSS shows the one that fits.
+function mapLayout(map, kind) {
+  const pc = (n, of) => `${((n / of) * 100).toFixed(3)}%`;
+  const box = (r) => `left:${pc(r.x, map.width)};top:${pc(r.y, map.height)};width:${pc(r.w, map.width)};height:${pc(r.h, map.height)}`;
+  return `<div class="spend-map ${kind}" style="aspect-ratio:${map.width} / ${map.height}" role="img" aria-label="Spending map. The same numbers are in the table below.">
+    ${map.blocks.map((b) => `
+      <div class="sm-cat c${b.colour}" style="${box(b)}" data-tip="${esc(b.category)}: ${rm(b.perMonth)} a month">
+        ${b.labelled ? `<div class="sm-head"><strong>${esc(b.category)}</strong> <span>${rm(b.perMonth)}</span></div>` : ''}
+      </div>
+      ${b.places.map((p) => `<div class="sm-place c${b.colour}" style="${box(p)}" data-tip="${esc(p.what)} · ${esc(b.category)}: ${rm(p.perMonth)} a month, ${p.count}×">
+        ${p.labelled ? `<span class="sm-name">${esc(p.what)}</span><span class="sm-value">${rm(p.perMonth)}</span>` : ''}</div>`).join('')}`).join('')}
+  </div>`;
+}
+
+function spendingMapCard(reducible) {
+  const wide = presentSpendingMap(reducible, 1000, 520);
+  if (!wide) return '';
+  const tall = presentSpendingMap(reducible, 400, 640);
+  return `
+    <section class="card spend-map-card">
+      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: `${rm(wide.perMonth)} a month`, tone: '' })}</div>
+      <p class="note">Without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}. The average month over the last ${wide.months} months. Bigger block, more money. Point at a block for its numbers.</p>
+      <ul class="sm-legend" aria-label="Categories">
+        ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.perMonth)}</span></li>`).join('')}
+      </ul>
+      ${mapLayout(wide, 'wide')}${mapLayout(tall, 'tall')}
+      <details class="sm-table">
+        <summary>Show as a table</summary>
+        <table>
+          <thead><tr><th scope="col">Category</th><th scope="col">Place</th><th scope="col">Times</th><th scope="col">A month</th></tr></thead>
+          <tbody>${wide.blocks.map((b) => b.places.map((p, i) => `<tr>${i === 0 ? `<th scope="rowgroup" rowspan="${b.places.length}">${esc(b.category)}<br><span class="dim">${rm(b.perMonth)}</span></th>` : ''}
+            <td>${esc(p.what)}</td><td>${p.count}</td><td>${rm(p.perMonth)}</td></tr>`).join('')).join('')}</tbody>
+        </table>
+      </details>
+    </section>`;
+}
+
 // What could be cut: spending outside the essential categories, over the last three months.
 function couldCut(r) {
   if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in the last 3 months.</p></section>`;
@@ -470,6 +509,8 @@ function expensesTab(b, state, isCurrent, spendDay) {
       ${bar(b.spentPercent, b.tone, b.monthPercent)}
       <p>The triangle points at today.</p>
     </section>` : ''}
+
+    ${spendingMapCard(b.reducible)}
 
     <section class="grid wide">
       ${couldCut(b.reducible)}

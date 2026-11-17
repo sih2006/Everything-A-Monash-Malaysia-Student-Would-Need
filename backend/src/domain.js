@@ -114,10 +114,17 @@ export const ACCOUNT_KINDS = ['bank', 'ewallet', 'investment', 'cash'];
 // Then each 'in' adds and each 'out' takes away.
 // Spending that could be cut: everything outside the essential categories, over the given months.
 // Each place is listed with its total, how often you went, the average, and what it comes to a month.
+const PLACES_SHOWN = 6;
 export function reducibleSpending({ categories, transactions, months }) {
   const essential = new Set(categories.filter((c) => c.essential).map((c) => c.id));
   const name = new Map(categories.map((c) => [c.id, c.name]));
   const cuttable = transactions.filter((t) => !essential.has(t.categoryId));
+  const placesIn = (category) => {
+    const places = [...byPlace.values()].filter((p) => p.category === category).sort((a, b) => b.total - a.total);
+    const shown = places.slice(0, PLACES_SHOWN), rest = places.slice(PLACES_SHOWN);
+    if (rest.length) shown.push({ what: `${rest.length} other ${rest.length === 1 ? 'place' : 'places'}`, total: round2(rest.reduce((s, p) => s + p.total, 0)), count: rest.reduce((s, p) => s + p.count, 0), rest: true });
+    return shown.map((p) => ({ what: p.what, total: p.total, count: p.count, perMonth: round2(p.total / months), ...(p.rest ? { rest: true } : {}) }));
+  };
   const total = round2(cuttable.reduce((sum, t) => sum + t.amount, 0));
   const byCategory = new Map(), byPlace = new Map();
   for (const t of cuttable) {
@@ -131,7 +138,9 @@ export function reducibleSpending({ categories, transactions, months }) {
   }
   return {
     months, total, perMonth: months ? round2(total / months) : total,
-    byCategory: [...byCategory].map(([category, amount]) => ({ category, amount, perMonth: round2(amount / months) })).sort((a, b) => b.amount - a.amount),
+    // Each category also lists its places, biggest first. After the first `PLACES_SHOWN`, the rest are added up as one.
+    byCategory: [...byCategory].map(([category, amount]) => ({ category, amount, perMonth: round2(amount / months), places: placesIn(category) }))
+      .sort((a, b) => b.amount - a.amount),
     top: [...byPlace.values()].sort((a, b) => b.total - a.total).slice(0, 8)
       .map((p) => ({ ...p, average: round2(p.total / p.count), perMonth: round2(p.total / months) })),
     essential: categories.filter((c) => c.essential).map((c) => c.name)

@@ -56,6 +56,7 @@ python tools/check.py                build and run every test
 | Hide money | One switch hides every RM amount on every screen | ViewModel test |
 | Budget tabs | **Overview** (all accounts, this month), **Banking** and **Investing** (one account at a time, picked with pills), **Expenses** (spending, limit, categories, Could cut, Advice) | ViewModel test, browser check at laptop and phone width |
 | Essential categories and Could cut | Categories such as rent can be marked essential. Could cut lists everything else over the last 3 months, by category and by the places you pay most | Rule and API tests |
+| Spending map | A treemap on the Expenses tab: categories outside the essential ones, sized by the average month over 3 months, with their places inside. Legend, hover tips and a table view. Colours checked for colour blindness in light and dark | Rule and layout tests, browser check |
 | Advice | Text shown on the Expenses tab, saved with `PUT /api/budget/advice`. For now a placeholder written by Claude; later the AI helper | API test |
 | Fix: balances by date | A balance set for an earlier day no longer wipes out moves after it that were entered first | API test |
 

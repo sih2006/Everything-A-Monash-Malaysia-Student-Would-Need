@@ -185,3 +185,32 @@ h3.label { margin-top: var(--s2); }
 .advice .advice-tip { padding-left: var(--s3); border-left: 3px solid currentColor; margin: var(--s2) 0; }
 .advice textarea { width: 100%; font: inherit; }
 .essential[aria-pressed="true"] { font-weight: 600; }
+
+/* ----- Spending map (Expenses tab). Colours: the data-viz reference palette, checked for colour blindness
+   in light mode and against this app's dark surface. Text always uses the ink colour, never the block colour. ----- */
+.spend-map-card { --c0: #8a8f8c; --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #6250d6; }
+[data-theme="dark"] .spend-map-card { --c0: #7d8682; --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #0ca30c; --c7: #9085e9; }
+.spend-map-card .c0 { --c: var(--c0); } .spend-map-card .c1 { --c: var(--c1); } .spend-map-card .c2 { --c: var(--c2); } .spend-map-card .c3 { --c: var(--c3); }
+.spend-map-card .c4 { --c: var(--c4); } .spend-map-card .c5 { --c: var(--c5); } .spend-map-card .c6 { --c: var(--c6); } .spend-map-card .c7 { --c: var(--c7); }
+.sm-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); list-style: none; padding: 0; margin: var(--s3) 0; font-size: .95rem; }
+.sm-legend li { display: inline-flex; align-items: center; gap: var(--s2); }
+.sm-swatch { width: 14px; height: 14px; border-radius: 4px; background: var(--c); }
+.spend-map { position: relative; width: 100%; margin-top: var(--s3); }
+.spend-map.wide { display: none; }
+@media (min-width: 700px) { .spend-map.wide { display: block; } .spend-map.tall { display: none; } }
+.sm-cat, .sm-place { position: absolute; box-sizing: border-box; overflow: hidden; }
+.sm-cat { background: color-mix(in oklab, var(--c) 55%, var(--surface)); border: 2px solid var(--surface); border-top: 5px solid var(--c); border-radius: 8px; }
+.sm-head { display: flex; justify-content: space-between; gap: var(--s2); padding: 4px 8px; font-size: .85rem; color: var(--ink); white-space: nowrap; }
+.sm-head strong { overflow: hidden; text-overflow: ellipsis; }
+.sm-place { background: color-mix(in oklab, var(--c) 22%, var(--surface)); border: 1.5px solid var(--surface); border-radius: 6px;
+  display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 7px; color: var(--ink); font-size: .8rem; line-height: 1.2;
+  transition: background var(--fast) var(--ease); }
+.sm-place:hover { background: color-mix(in oklab, var(--c) 40%, var(--surface)); }
+.sm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sm-table { margin-top: var(--s3); }
+.sm-table summary { cursor: pointer; font-weight: 600; }
+.sm-table table { width: 100%; border-collapse: collapse; margin-top: var(--s2); font-size: .95rem; }
+.sm-table th, .sm-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sm-table td:nth-child(3), .sm-table td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+@media (forced-colors: active) { .sm-cat, .sm-place { border: 1px solid CanvasText; } }

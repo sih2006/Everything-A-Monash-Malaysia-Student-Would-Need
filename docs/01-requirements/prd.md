@@ -51,6 +51,7 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | BUD-16 | "Could cut" shows spending outside essential categories over the last 3 months: per month, by category, and the places paid most, with how often and the usual amount. | Should | Built, tested. **3 months is Claude's number.** |
 | BUD-17 | The Expenses tab shows advice. For now it is text written by hand; later the AI helper writes it from the numbers. | Could | Built, tested. The AI part is task D7 |
 | BUD-18 | A bank or e-wallet statement can be imported from a file. | Should | **Not built.** Task C16 |
+| BUD-19 | A spending map on the Expenses tab: one block per category outside the essential ones, sized by the average month, with the places inside it. A legend, a hover tip on every block and a table view. | Should | Built, tested. Checked in light, dark and at phone width |
 
 ## Food
 

@@ -229,6 +229,16 @@ test('could cut: essential categories are left out; places are ranked by total w
   assert.deepEqual(r.byCategory.map((c) => c.category), ['Shopping', 'Eating out']);
   assert.deepEqual(r.top[1], { what: 'Grab', category: 'Eating out', total: 63, count: 2, average: 31.5, perMonth: 21 });
   assert.deepEqual(r.essential, ['Rent']);
+  // Each category lists its places, biggest first.
+  assert.deepEqual(r.byCategory[1].places, [
+    { what: 'Grab', total: 63, count: 2, perMonth: 21 }, { what: 'Burger King', total: 9.9, count: 1, perMonth: 3.3 }]);
+});
+
+test('could cut: after six places in a category, the rest are added up as one', () => {
+  const transactions = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ categoryId: 1, what: `Shop ${n}`, amount: 100 - n, date: '2026-10-01' }));
+  const places = reducibleSpending({ categories: [{ id: 1, name: 'Food' }], transactions, months: 1 }).byCategory[0].places;
+  assert.equal(places.length, 7);
+  assert.deepEqual(places[6], { what: '2 other places', total: 185, count: 2, perMonth: 185, rest: true });
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {
