@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Decided by Claude during the one-day build sprint on 16 November 2026, when the owner asked for everything to be built without questions. The owner has not reviewed it yet.
+Proposed. Taken during the one-day build sprint on 16 November 2026, when the owner asked for everything to be built without questions. Waiting for the owner's review.
 
 ## Date
 

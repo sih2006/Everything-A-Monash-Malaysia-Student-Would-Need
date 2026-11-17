@@ -1,6 +1,6 @@
 # UI and UX brief
 
-**Status:** Draft. Written by Claude on 16 November 2026. It records what the owner asked for across the design sessions and what was built from it. The exact values are in [DESIGN.md](../../DESIGN.md).
+**Status:** Draft, 16 November 2026, updated 18 November. It records what the owner asked for across the design sessions and what was built from it. The exact values are in [DESIGN.md](../../DESIGN.md).
 
 This document answers: how should the app look, feel and sound, and why?
 
@@ -24,6 +24,10 @@ In the owner's words, gathered from the sessions of 15 and 16 November 2026:
 | "add some animations to the movement" | Screens fade and rise in, bars and charts grow, the path draws itself |
 | "I want the app to decide what good is ... that's what the penguin is for" | The app gives the verdict; the mascot's mood shows it |
 | Chose "Tropical print" from three options, then asked to see the others | Four looks can be switched; none is final yet |
+| "I liked it when it was vertical years and expanding on the right" (17 November) | The life tree: years down the left, each area branching right |
+| "make hide money an option too" (18 November) | A Hide money switch next to Hide grades |
+| "I want the other accounts to be hidden or in a tab form whenever I'm looking at one" (18 November) | Budget tabs: Overview, Banking, Investing, Expenses; one account at a time |
+| "graph out my expenses in a sort of map ... without the rent and utilities" (18 November) | The spending map on the Expenses tab, with essential categories left out |
 
 ## The feel
 
@@ -67,14 +71,12 @@ Built in:
 - Reduced motion is respected.
 - The app's language is set to English (Malaysia).
 
+Checked on 17 November 2026 on 42 pages, in all four looks and both modes: contrast, names, target sizes and a keyboard-only run ([accessibility.md](../proofs/accessibility.md)). The spending map's colours were also checked for colour blindness in light and dark.
+
 Not yet checked:
 
-- A full run with a screen reader.
-- A keyboard-only run through every form.
-- Contrast measured for every colour pair in all four looks and both modes. The default look was designed to pass; the others were not measured.
+- A full run with a real screen reader.
 - Text at the largest system font size.
-
-These are task C8.
 
 ## What was tried and changed
 
@@ -87,6 +89,7 @@ These are task C8.
 | A diamond on warning tags | The owner asked for a triangle with a meaning | A warning triangle, and the same shape for "today" and for direction |
 | A calorie ring | It was the only ring among bars | A bar, like the rest |
 | A map that ran top to bottom | The owner wanted it to go to the right and to zoom | A path that runs left to right in a frame that drags and zooms |
+| A life tree with the years in one horizontal line | The owner preferred years going down with branches to the right, and wanted past years to show all four areas | Years down the left, every year with its four areas |
 
 ## Open decisions for the owner
 
@@ -94,4 +97,4 @@ These are task C8.
 2. **The app's name.**
 3. **A mascot for health**, or none.
 4. **Is six items in the phone menu fine**, or should Map move into Home?
-5. **The pale sea-green background.** The option the owner chose said "warm sand". Claude changed it after the design check. Say if sand should come back.
+5. **The pale sea-green background.** The option the owner chose said "warm sand". It was changed after the design check. Say if sand should come back.

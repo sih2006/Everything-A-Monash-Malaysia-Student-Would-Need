@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted in part. On 17 November 2026 the owner chose a fully native Android app (option 4 of the four offered) and chose to keep the data on the phone. The tool versions and the way the C++ core is joined to Kotlin were chosen by Claude and are still **Proposed** until the owner reviews them.
+Accepted in part. On 17 November 2026 the owner chose a fully native Android app (option 4 of the four offered) and chose to keep the data on the phone. The tool versions and the way the C++ core is joined to Kotlin were chosen without the owner and are still **Proposed** until the owner reviews them.
 
 ## Date
 
@@ -25,7 +25,7 @@ Where the data lives: **on the phone** (owner's choice) instead of on the laptop
 
 ## Decision
 
-- Option 4, on the branch `feat/android`, in the folder `android/`. The web app stays as it is.
+- Option 4, in the folder `android/` (started on its own branch and merged into `main` on 18 November 2026). The web app stays as it is.
 - Kotlin 2.3, Jetpack Compose, Android Gradle Plugin 9.1 (the newest the installed Android Studio supports), Gradle 9.4, minimum Android 9 (API 28), target API 36.
 - The C++ core is built with CMake and the NDK into `libtracker.so` for `arm64-v8a` (the phone) and `x86_64` (the emulator). One JNI function passes the engine's text input in and its JSON report out, the same contract the backend uses.
 - Screens follow MVVM, as in the web app ([mvvm-guide.md](../handoff/mvvm-guide.md)).

@@ -1,6 +1,6 @@
 # UML diagrams
 
-**Status:** Draft. The diagrams show the code as built on 16 November 2026.
+**Status:** Draft, 16 November 2026, updated 18 November. The diagrams show the code as built at version 0.3.
 
 Each diagram answers one question. The architecture-level pictures (context, containers, components) are in the [technical design](trd.md).
 
@@ -14,6 +14,7 @@ classDiagram
     +goal: Goal
     +add_unit(code, name, credit, term) Status
     +set_target(code, mark) Status
+    +set_pass_fail(code, pass_fail) Status
     +add_assessment(code, id, name, weight) Status
     +set_mark(code, id, score, max) Status
     +set_hurdle(code, id, percent) Status
@@ -31,6 +32,7 @@ classDiagram
     +credit: double
     +has_target: bool
     +target: double
+    +pass_fail: bool
     +assessments: LinkedList~Assessment~
     +total_weight() double
   }
@@ -106,6 +108,7 @@ How to read it:
 - A dotted arrow means "uses": `Standing` is a result worked out from a `Unit`. It is not stored.
 - Every method on `Tracker` that changes something returns a `Status`: empty when it worked, or a sentence saying what was wrong. This is **encapsulation**: no other code can put the tracker into an invalid state, because the fields that matter are private.
 - `Scheme` is the **Strategy** idea in its simplest form: the same sum works for either scale, because the scale is passed in as data.
+- A unit with `pass_fail` set is left out of `Totals` entirely, so it can never change GPA, CGPA or WAM.
 
 ## 2. State diagram: what states can a unit's target be in?
 
@@ -133,7 +136,7 @@ stateDiagram-v2
   HurdleFailed --> OnCourse: the mark is corrected
 ```
 
-These are the same states the presenter names: `no-target`, `on-course`, `not-realistic`, `out-of-reach` and `failed`. "Secured" is shown as a chip on an on-course unit.
+These are the same states the presenter names: `no-target`, `on-course`, `not-realistic`, `out-of-reach` and `failed`. "Secured" is shown as a chip on an on-course unit. A unit marked pass or fail only has none of these states: its verdict is just pass or fail on the average so far.
 
 The app never stores the state. It is worked out from the marks every time, so it cannot be stale.
 
@@ -216,7 +219,7 @@ flowchart TB
       backend[Backend]
     end
     engine[tracker.exe<br/>started per request]
-    file[(backend/data/app.db)]
+    file[(backend/data/app.db<br/>the owner's real data)]
     envf[.env]
     web <-->|HTTP| backend
     backend <--> file
@@ -224,11 +227,40 @@ flowchart TB
     envf -.-> backend
   end
   backend -.->|HTTPS, optional| g[Google Gemini]
+  subgraph github [GitHub: code only, no personal data]
+    repo[Repository]
+    ci[Actions: CI<br/>builds and tests on Linux]
+    sync[Actions: backlog sync<br/>PRD and backlog to issues]
+    board[Project board<br/>and releases]
+    repo --> ci
+    repo --> sync --> board
+  end
+  laptop -->|git push, pull requests| repo
 ```
 
-The planned cloud layout is drawn in [aws-setup.md](../handoff/aws-setup.md).
+Only code and documents go to GitHub. The database, the `.env` file and anything read from the owner's statements stay on the laptop; git ignores them. The planned cloud layout is drawn in [aws-setup.md](../handoff/aws-setup.md).
 
-## 7. Patterns used, and where
+## 7. Activity diagram: how an account balance is worked out
+
+```mermaid
+flowchart TD
+  start([Work out an account]) --> sort[Take its moves in order:<br/>by day, then in the order typed]
+  sort --> next{Another move?}
+  next -- no --> done([The balance])
+  next -- yes --> kind{What kind?}
+  kind -- set --> set[Balance = the amount typed.<br/>Everything before it stops counting]
+  kind -- in --> add[Balance + amount]
+  kind -- out --> sub[Balance - amount]
+  set --> next
+  add --> next
+  sub --> next
+```
+
+The balance is never stored; it is worked out from the moves every time. Spending paid from an account adds an `out` move, and a move between two of your own accounts adds an `out` and an `in`, both marked as a transfer so they never count as spending or income.
+
+This rule once took the moves in the order they were typed instead of by day. A balance set for 1 January, typed after the January top-ups, then wiped those top-ups out. It was found by loading real bank statements, and a test now covers it.
+
+## 8. Patterns used, and where
 
 | Pattern | Problem it solves here | Where |
 |---|---|---|

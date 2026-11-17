@@ -1,12 +1,12 @@
 # Build status
 
-This file says what is built, what is tested and what is still to do. **Read it first.** Update it at the end of every piece of work.
+What is built, what is tested, and what is known to be wrong. **Read it first**, and update it at the end of every piece of work.
 
-**Last updated:** 18 November 2026, after the session that split Budget into tabs, added pass/fail units, what-if totals, money in, Hide money, and loaded the owner's real bank and e-wallet records into the local app.
+**Last updated:** 18 November 2026, at version 0.3.
 
 ## In one paragraph
 
-The app works on a laptop and is in daily use with the owner's real grades and money records (kept only in the local, git-ignored database). Grades, budget, food, health and the map all work, with 279 automated tests passing (103 core, 112 backend, 64 web). A native Android app has been started. Everything is merged into `main` through pull requests #1 to #7, and CI passes on Linux with the memory checkers on. Nothing is online, and nothing has run on a real phone. Six decisions were made by Claude alone and wait for the owner's review.
+The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 282 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
 
 ## How to run and check it
 
@@ -14,91 +14,61 @@ The app works on a laptop and is in daily use with the owner's real grades and m
 cmake -S core -B core/build          build the C++ core (once, and after changing it)
 cmake --build core/build
 node backend/src/server.js           start the app, then open http://127.0.0.1:8080
-node backend/src/server.js --demo    the same, with example data kept in memory only
+node backend/src/server.js --demo    the same, with made-up data kept in memory only
 python tools/check.py                build and run every test
 ```
 
-## Done and tested
+## What is built, by version
 
-| Part | Where | Automated tests |
+### v0.1: terminal grade tracker
+
+| Part | Where | Tests |
 |---|---|---|
-| Hand-built data structures: growable array, linked list with merge sort, hash map | `core/include/ds/` | 24, with a leak check on each |
-| Grade rules: bands, the GPA and CGPA scales, WAM, standing, possible, realistic, hurdles, what-if, final goal | `core/src/lib/` | 35 |
-| Save files, the text format, the JSON report | `core/src/lib/codec.cpp`, `report.cpp` | 13 |
+| Hand-built data structures: growable array, linked list with merge sort, hash map | `core/include/ds/` | 24 white-box, each with a leak check |
+| Grade rules: bands, the GPA and CGPA scales, WAM, standing, possible, realistic, hurdles, what-if, final goal, pass/fail units | `core/src/lib/` | 35 white-box |
+| Save files, the text format, the JSON report | `core/src/lib/codec.cpp`, `report.cpp` | 16 white-box |
 | The terminal program | `core/src/cli.cpp` | 31 black-box |
-| Budget, food and health rules | `backend/src/domain.js` | 22 |
-| Database, API, engine bridge, AI helper, access token with a guess limit, static files | `backend/src/` | 40, against the real engine |
-| Export to one file and import into an empty app | `backend/src/api.js`, `store.js` | 17, including a full round trip and 13 kinds of damaged file |
-| Web app: presenters and commands (MVVM) | `web/js/viewmodels/` | 39 |
-| Web app: screens, map, looks, hide grades, dark mode | `web/js/views/`, `web/css/` | Checked by hand in a browser, see the [test plan](../03-plan/test-plan.md#5-checked-by-hand-in-a-browser) |
-| One command for all tests | `tools/check.py` | It is the proof: [test-run.txt](../proofs/test-run.txt) |
 | Benchmarks of the data structures | `core/bench/` | Results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) |
-| Accessibility: contrast, names, sizes, keyboard | `tools/a11y-check.js` | 42 pages checked: [accessibility.md](../proofs/accessibility.md) |
 
-## Added on 17 November (branch `feat/more-features`)
+### v0.2: study app
+
+| Part | Where | Tests |
+|---|---|---|
+| Backend: database, API, engine bridge, AI helper, access token with a guess limit, static files | `backend/src/` | 53 API tests, against the real engine |
+| Export to one file, and import into an empty app | `backend/src/api.js`, `store.js` | 20, including a full round trip and damaged files |
+| Budget, food and health rules | `backend/src/domain.js` | part of the 31 rule tests |
+| Web app in MVVM: Grades, Budget, Food, Health, Home, the path maps; other days and months; sorting; demo mode | `web/` | 49 view-model tests, and checks by hand ([test plan](../03-plan/test-plan.md#5-checked-by-hand-in-a-browser)) |
+| Accessibility: contrast, names, sizes, keyboard | `tools/a11y-check.js` | 42 pages checked ([accessibility.md](../proofs/accessibility.md)) |
+| One command for all tests, and CI on every pull request | `tools/check.py`, `.github/workflows/ci.yml` | Green on Linux, with the memory checkers on |
+
+### v0.3: money
 
 | Part | What it does | Tests |
 |---|---|---|
-| Money accounts | Bank, e-wallet, investing and cash accounts, a total, balances set by hand, money in, moves between accounts, spending paid from an account | API and rule tests, export round trip |
-| Life tree (Map → Life) | Your life by year, then studies, money, food and health, then semesters, units and assessments, months, weeks and days. Rings show how much is done and how much time has gone. Opens to full page. | `backend/test/life.test.js`, `web/test/lifeTree.test.js` |
-| Semester dates | The current semester's first and last day, for the "time gone" rings | API test |
-| More grade sorting | Units by code, name, attention, mark needed, best average or work left; finished units by semester, mark, grade, code or year level | ViewModel tests |
-| More health | Body weight with a 30-day change and a chart, water with quick buttons, workout kind and length, exercises with sets, reps and kg, best lifts, weekly averages, a goal weight the owner sets | Rule, API and ViewModel tests |
+| Money accounts | Bank, e-wallet, investing and cash accounts; a total; money in; moves between your own accounts; spending paid from an account. A balance set for a day keeps every move after that day. | Rule and API tests |
+| Budget tabs | **Overview**, **Banking** and **Investing** (one account at a time), **Expenses** | View-model test, browser check |
+| Could cut and essential categories | Spending outside essential categories (such as rent) over the last 3 months, by category and by the places paid most | Rule and API tests |
+| Spending map | A treemap of that spending, with a legend, hover tips and a table view | 5 layout tests, browser check |
+| Advice | Text on the Expenses tab, saved with `PUT /api/budget/advice`. A placeholder for now; the AI helper writes it in v0.6. | API test |
+| Hide money | One switch hides every amount on every screen | View-model test |
+| Life tree | The Map's Life view: years down the left; studies, money, food and health branching right, down to single days | 8 rule tests, 10 view-model tests |
+| Also in this version | Pass/fail units; GPA, CGPA and WAM that follow the what-if sliders; more grade sorting; body weight with BMI, water, workouts with exercises and best lifts | Core, rule, API and view-model tests |
 
-## Added on 18 November (same branch)
+The owner's real data (the transcript, bank statements, the e-wallet record, height, weight, the advice) is only in `backend/data/app.db`. None of it is in the repository, and the scripts that read the statements stay outside it too. Tests use made-up numbers.
 
-| Part | What it does | Tests |
+### Started for v0.8: the Android app
+
+A Kotlin and Jetpack Compose app with the C++ core built in through the NDK ([ADR-0007](../adr/0007-native-android-app.md)). It runs the engine and shows its report. It builds into an APK, but it has **not run** on a phone or the emulator yet. To try it: open `android/` in Android Studio, start the emulator, and tap "Allow" when it asks about debugging.
+
+## Not tested yet
+
+| Thing | Why | When |
 |---|---|---|
-| Pass/fail units | A unit marked pass or fail only (such as FIT2107) gets a pass/fail verdict and never counts in GPA, CGPA or WAM | Core and API tests |
-| What-if totals | Moving a unit's what-if slider changes the semester's GPA, CGPA and WAM cards (`GET /api/academics/predict`) | Core, API and ViewModel tests |
-| Money in | Income per month by source, and what is left after spending. Moves between your own accounts never count | Rule and API tests |
-| Height and BMI | Height in the health settings; BMI next to the weight trend | Rule test |
-| Hide money | One switch hides every RM amount on every screen | ViewModel test |
-| Budget tabs | **Overview** (all accounts, this month), **Banking** and **Investing** (one account at a time, picked with pills), **Expenses** (spending, limit, categories, Could cut, Advice) | ViewModel test, browser check at laptop and phone width |
-| Essential categories and Could cut | Categories such as rent can be marked essential. Could cut lists everything else over the last 3 months, by category and by the places you pay most | Rule and API tests |
-| Spending map | A treemap on the Expenses tab: categories outside the essential ones, sized by the average month over 3 months, with their places inside. Legend, hover tips and a table view. Colours checked for colour blindness in light and dark | Rule and layout tests, browser check |
-| Advice | Text shown on the Expenses tab, saved with `PUT /api/budget/advice`. For now a placeholder written by Claude; later the AI helper | API test |
-| Fix: balances by date | A balance set for an earlier day no longer wipes out moves after it that were entered first | API test |
-
-The owner's real data is only in `backend/data/app.db`, which git ignores: the transcript, bank statements, the e-wallet record, height, weight and the advice. None of it is in the repository. The scripts that read the statements stay outside the repository too.
-
-## Android app (branch `feat/android`)
-
-A Kotlin and Jetpack Compose app with the C++ core built in through the NDK. See [ADR-0007](../adr/0007-native-android-app.md). So far it only runs the engine and shows its report. It builds into an APK for the phone and the emulator, but it has **not run** on either yet. To try it: open `android/` in Android Studio, start the emulator, and tap "Allow" when the emulator asks about debugging.
-
-## Written but never run
-
-Be honest about these. Each could fail the first time.
-
-| Thing | Why it has not run | First run happens when |
-|---|---|---|
-| Everything on macOS | Built on Windows, and on Linux in CI (green since 18 November) | Someone runs it on a Mac |
-| The two AI features against the real Gemini | No API key | The owner adds a key ([gemini-setup.md](gemini-setup.md)) |
-| The backlog-to-issues script, beyond its dry run | Needs a GitHub login | The owner follows [github-setup.md](github-setup.md) |
-| Reaching the app from a second device over Wi-Fi | Only this laptop was used. The token screen itself was checked in a browser on 17 November: a wrong token is refused, the right one opens the app. | The owner tries the phone on Wi-Fi ([android-setup.md](android-setup.md)) |
-| Touch, pinch and "Add to Home screen" on a real phone | No phone was used | The owner tries it |
-
-Checked by hand on 17 November and working: with the server stopped, the app's own screens still open from the offline copy and show a clear "could not reach its server" message. API answers are never kept in that copy.
-
-## Not built
-
-| Thing | Notes |
-|---|---|
-| Mascot art, the app icon, the app's name | Wait for the artist and the owner. Empty labelled spaces are in place. |
-| Login and hosting | No decision yet: [ADR-0005](../adr/0005-hosting.md) |
-| Cloud sync and working offline with data | Needs hosting first |
-| Reading steps, sleep and heart rate from the phone | Needs a native Android app |
-| Automated browser tests | Task C1. Needs the `@playwright/test` package, which needs the owner's approval |
-| Handbook lookup, future goals, unit reviews, YouTube suggestions, a Malaysian food database | Later epics; each starts with an interview |
-
-## Waiting for the owner
-
-1. **Review ADRs 0002 to 0007** in [docs/adr/](../adr/). Claude made these choices alone, except the parts of ADR-0007 that were yours.
-2. **Check the CGPA** against Monash's CGPA calculator. GPA and WAM already match your transcript exactly.
-3. **The project board is up:** [github.com/users/sih2006/projects/1](https://github.com/users/sih2006/projects/1), public, with one milestone per version (see the [roadmap](../03-plan/roadmap.md)). It holds every grades story from the backlog and every requirement from the PRD: 97 issues, 84 closed with their proof and 13 open, each under its version (v0.4 to v1.0). One step is left for you: on the board, open **Workflows → Auto-add to project**, pick this repository, filter `is:issue`, and turn it on. GitHub does not let a script do this.
-4. **Answer two questions about your spending:** two shops that charge you often are in "ask" categories in your local app. Say what they are.
-5. **Decide:** the name, the look, hosting. See section B of [next-tasks.md](next-tasks.md).
-6. **Read the drafts.** Every document marked "Draft" in the [planning hub](../README.md) was written by Claude and is not yours until you have changed what is wrong in it.
+| The AI features against the real Gemini | No API key yet; tested with a fake service | v0.6 ([gemini-setup.md](gemini-setup.md)) |
+| CGPA against Monash's own calculator | GPA and WAM match the owner's transcript exactly; CGPA has not been compared | v0.9 |
+| Touch, pinch and "Add to Home screen" on a real phone | No phone was used | v0.8 and v0.9 |
+| Reaching the app from a second device over Wi-Fi | Only the laptop was used. The token screen works in a browser. | When the owner tries it ([android-setup.md](android-setup.md)) |
+| macOS, and browsers other than Chromium | Not available | v0.9 |
 
 ## Known problems
 
@@ -106,26 +76,14 @@ Checked by hand on 17 November and working: with the server stopped, the app's o
 |---|---|---|
 | Fonts load from Google Fonts | Google learns the page was opened; with no internet the app falls back to a system font | Save the fonts into `web/` |
 | Backups are by hand | One lost file is all your data | Press **Download all my data** on Home now and then, and keep the file somewhere safe |
-| Four looks are loaded | Four font families downloaded; only one is used at a time | Decide the look, remove the rest |
+| Four looks are loaded | Four font families are downloaded; only one is used at a time | Decide the look (decision B2), remove the rest |
 | The phone menu has six items | One more than the usual limit; tight at 390 px | Decide whether Map moves into Home |
-| Node prints an "ExperimentalWarning" for SQLite when the server starts | Harmless noise | Goes away when Node marks it stable |
-| Git on this laptop sometimes has unrelated `.claude/` files staged (line-ending changes only) | A plain `git commit` would include them | Commit with paths named: `git commit -m "..." -- path` |
-
-## Branches
-
-All were merged into `main` on 18 November 2026 through pull requests #1 to #7, each with a merge commit and a green CI run. The branches are kept, so each stage can still be looked at.
-
-| Branch | Holds |
-|---|---|
-| `docs/engineering-principles` | Principles, ADR-0001, capability map, first backlog |
-| `feat/prototype` | The design prototype |
-| `chore/backlog-board` | Updated backlog, the board script |
-| `feat/app` | The build sprint: core, backend, web app, CI, documents |
-| `feat/next-tasks` | Tasks C2 to C10, and the updated engineering principles |
-| `feat/more-features` | Money accounts, life tree, more health, pass/fail, what-if totals, budget tabs, spending map |
-| `feat/android` | The native Android app (ADR-0007). Built on `feat/next-tasks`, beside `feat/more-features` |
+| Node prints an "ExperimentalWarning" for SQLite at start-up | Harmless noise | Goes away when Node marks it stable |
+| Git on this laptop sometimes has unrelated `.claude/` files staged (line endings only) | A plain `git commit` would include them | Commit with the paths named: `git commit -m "..." -- path` |
 
 ## Where to go next
 
-- For the next thing to do: [next-tasks.md](next-tasks.md)
+- What to do next, and what waits for the owner: [next-tasks.md](next-tasks.md)
+- What each version is about: [roadmap.md](../03-plan/roadmap.md)
+- Every requirement and its state: the [project board](https://github.com/users/sih2006/projects/1)
 - If you are an AI agent: [/AGENTS.md](../../AGENTS.md)

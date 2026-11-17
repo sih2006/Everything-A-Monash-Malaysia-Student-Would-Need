@@ -1,104 +1,80 @@
-# GitHub: pushing the work, CI and the project board
+# GitHub: how the repository, CI, the board and releases work
 
-Everything in this guide needs your GitHub login, so an AI agent cannot do it for you. It takes about 20 minutes the first time.
+Everything is on GitHub at [sih2006/Everything-A-Monash-Malaysia-Student-Would-Need](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need). The repository is **public**, so only code and documents go there: never data, keys or statements.
 
-## Where the work is now
-
-All the work is committed on your laptop. **None of it is on GitHub yet.** There are five branches, each built on top of the one before:
-
-| Order | Branch | What it holds |
-|---|---|---|
-| 1 | `docs/engineering-principles` | Engineering principles, ADR-0001, the capability map updates, the first backlog |
-| 2 | `feat/prototype` | The clickable design prototype |
-| 3 | `chore/backlog-board` | The updated backlog and the script that copies it to GitHub issues |
-| 4 | `feat/app` | The real app: C++ core, backend, web app, CI, documents |
-| 5 | `feat/next-tasks` | Editing units, other days and months, export and import, sorting, benchmarks, accessibility fixes, demo mode |
-
-## Part 1: check which account git uses
-
-In the project folder:
-
-```
-git config user.name
-git config user.email
+```mermaid
+flowchart LR
+  branch[A branch on the laptop] -->|git push| pr[Pull request into main]
+  pr --> ci{CI: every test<br/>on Linux}
+  ci -- red --> fix[Fix on the same branch] --> pr
+  ci -- green --> merge[Merge with a merge commit]
+  merge --> main[main]
+  main -->|PRD or backlog changed| sync[Backlog sync:<br/>issues on the board]
+  main -->|a version is finished| release[Tag and release]
 ```
 
-They should show `sih2006` and the email of your `sih2006` GitHub account. If the email is not saved in that account (GitHub, Settings, Emails), your commits will not link to your profile.
+## 1. Making a change
 
-Some older commits on these branches carry the Monash email. If you want every commit to show your account, ask an agent: "rewrite the author on the unpushed commits to my current git name and email". Do this **before** pushing; after pushing it is much harder.
+1. Start from an up-to-date `main` and make a branch named for the work, such as `feat/currency` or `docs/full-refresh`.
+2. Commit in small steps with conventional messages (`feat(budget): ...`, `fix(...)`, `docs(...)`). Name the paths: `git commit -m "..." -- path1 path2`, because this laptop sometimes has unrelated `.claude/` files staged.
+3. Push the branch and open a pull request:
+   ```
+   git push -u origin BRANCH-NAME
+   gh pr create --base main --head BRANCH-NAME
+   ```
+4. Wait for CI. Merge only when it is green, with **Create a merge commit**, so every stage stays visible in the history.
+5. Update the laptop: `git switch main` and `git pull`.
 
-## Part 2: install the GitHub tool and log in
+## 2. CI
+
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) runs on every pull request and every push to `main`:
+
+- a check that no Google key and no `.env` file is in the repository;
+- the core's tests under the address and undefined-behaviour checkers;
+- `python tools/check.py`: every suite (core, backend, web).
+
+Results are in the **Actions** tab. If a run is red, open it, copy the red part of the log, and fix it on the same branch.
+
+**One step for the owner (task A7):** protect `main`, so a red pull request cannot be merged by accident. Repository **Settings**, **Branches**, add a rule (or ruleset) for `main`, turn on **Require status checks to pass**, and pick the check named `test`.
+
+## 3. The project board
+
+The board is [project 1](https://github.com/users/sih2006/projects/1). It is public and linked to the repository.
+
+- Every story in the [product backlog](../01-requirements/product-backlog.md) and every requirement in the [PRD](../01-requirements/prd.md) is one issue, filed under the milestone of its version (`v0.4 Health` and so on).
+- [`tools/backlog_sync.py`](../../tools/backlog_sync.py) makes and updates the issues. The workflow [`backlog-sync.yml`](../../.github/workflows/backlog-sync.yml) runs it whenever either file changes on `main`. It never closes or deletes an issue, and it only sets a milestone when an issue is made, so moving an issue to another version on the board sticks.
+- To add work: add a requirement (with its version) to the PRD, merge it, and the issue appears.
+- When work is done, close its issue with a comment that names the proof: a test, a pull request, or a check by hand.
+
+To see what the sync would do without changing anything: `python tools/backlog_sync.py --dry-run`.
+
+**One step for the owner (task A6):** on the board, open **Workflows**, choose **Auto-add to project**, pick this repository, set the filter to `is:issue`, and turn it on. GitHub does not let a script do this.
+
+## 4. Releases
+
+When a version of the [roadmap](../03-plan/roadmap.md) is finished:
+
+1. Check that its milestone has no open issues.
+2. Tag the merge commit that finishes it, and push the tag:
+   ```
+   git tag -a v0.4.0 COMMIT -m "v0.4: health"
+   git push origin v0.4.0
+   ```
+3. Publish the release with plain notes on what is in it:
+   ```
+   gh release create v0.4.0 --prerelease --title "v0.4: Health" --notes-file notes.md
+   ```
+   Every release before 1.0 is marked as a pre-release.
+4. Close the version's milestone.
+
+A fix after a release gets the next last number: `v0.4.1`.
+
+## 5. Logging in on a new laptop
 
 ```
 winget install --id GitHub.cli
+gh auth login                      GitHub.com, HTTPS, log in with a web browser
+gh auth refresh -s project         also allow the project board
 ```
 
-Close and reopen the terminal, then:
-
-```
-gh auth login
-```
-
-Choose GitHub.com, HTTPS, "Login with a web browser", and log in as `sih2006`.
-
-## Part 3: push and merge, one branch at a time
-
-Do this in order. For each of the five branches in the table:
-
-1. Push it:
-   ```
-   git push -u origin BRANCH-NAME
-   ```
-2. Open a pull request into `main`:
-   ```
-   gh pr create --base main --head BRANCH-NAME --fill
-   ```
-3. Open the link it prints, read the changes, and press **Merge pull request**. Choose **Create a merge commit**. Do not choose "Squash" for these: the later branches are built on these exact commits, and squashing would make the next pull request show changes that are already merged.
-4. Move on to the next branch.
-
-After the last one, update your laptop:
-
-```
-git switch main
-git pull
-```
-
-## Part 4: check that CI is green
-
-The first time `feat/app` is pushed, GitHub runs the tests on its own machines. Open the repository on GitHub and click the **Actions** tab.
-
-- A green tick means every test passed there too.
-- A red cross means something failed on Linux that passed on Windows. **This workflow has never run before**, so that is possible. Open the failed run, copy the red part of the log, and give it to an agent with: "CI failed with this output. Fix it and check it locally first."
-
-Then protect `main` so nothing can be merged while tests fail: repository **Settings**, **Branches**, **Add branch ruleset** (or "Add rule"), pick `main`, and turn on **Require status checks to pass** with the check named `test`.
-
-## Part 5: the project board
-
-**Done on 18 November 2026:** the board is [project 1](https://github.com/users/sih2006/projects/1), public and linked to the repository. `tools/backlog_sync.py` copies both the product backlog and the PRD (each PRD requirement has a Version column), and runs again on `main` whenever either file changes. Only step 6 (auto-add) is still to do by hand. The steps are kept here for a fresh setup.
-
-The backlog can be copied to GitHub issues and shown on a public board.
-
-1. Allow the tool to use projects:
-   ```
-   gh auth refresh -s project
-   ```
-2. Create the board. It prints a number; remember it:
-   ```
-   gh project create --owner sih2006 --title "Student companion backlog"
-   ```
-3. See what would be created. This changes nothing:
-   ```
-   python tools/backlog_sync.py --dry-run
-   ```
-4. Create the issues and put them on the board (use your number in place of `1`):
-   ```
-   python tools/backlog_sync.py --project 1 --owner sih2006
-   ```
-5. On GitHub, open the board (your profile, **Projects**). In its menu choose **Settings** and set the visibility to **Public**.
-6. Still on the board, open **Workflows**, choose **Auto-add to project**, pick this repository, set the filter to `is:issue`, and turn it on. New issues then appear on the board by themselves.
-
-From then on, whenever the backlog file changes on `main`, the workflow `backlog-sync.yml` updates the issues.
-
-## Part 6: mark what is already done
-
-The script creates every story as an open issue. Much of release 0.1 is already built. To close the finished ones, ask an agent: "close the GitHub issues for the stories that docs/03-plan/test-plan.md marks as passing". Or close them by hand as you review each one, which is a good way to learn the code.
+Check that `git config user.name` and `git config user.email` match your `sih2006` account, so your commits link to your profile.

@@ -8,18 +8,20 @@ A personal companion app for one Monash University Malaysia student (working tit
 
 Runs on Android (Samsung Galaxy S24 Ultra) and in a desktop browser. Free tiers only.
 
-## Current stage: built, waiting for the owner's review
+## Current stage: version 0.3 released, building by versions
 
-On 16 November 2026 the user ended the planning-first stage and had the whole app built in one day. The app now exists and runs on a laptop: a C++ core (`core/`), a Node backend (`backend/`) and a web app in MVVM (`web/`).
+The app exists and runs on a laptop: a C++ core (`core/`), a Node backend (`backend/`), a web app in MVVM (`web/`) and the start of an Android app (`android/`). Work now follows the versions in [docs/03-plan/roadmap.md](docs/03-plan/roadmap.md), tracked on the [project board](https://github.com/users/sih2006/projects/1).
 
 **Start every session by reading [docs/handoff/STATUS.md](docs/handoff/STATUS.md)**, then [AGENTS.md](AGENTS.md), which holds the working rules and the map of the code. Run `python tools/check.py` before changing anything.
 
-- Most planning documents were drafted by Claude during or after the build and are marked Draft in the [planning hub](docs/README.md). ADRs 0002 to 0006 were decided by Claude alone and are marked Proposed. Treat none of them as the user's decision until the user has reviewed it.
+- Documents the user has not reviewed are marked Draft in the [planning hub](docs/README.md); ADRs taken without the user are marked Proposed. Treat none of them as the user's decision until the user has reviewed it.
+- No AI stamps: no "written by" lines in documents, no AI co-author line in commits, no "generated with" line in pull requests. The project says once, in the engineering principles, that it is built with an AI coding assistant.
+- The repository is public. The user's real data lives only in `backend/data/app.db`; tests, examples and documents use made-up numbers.
 - Write simple English, about B2 level, in documents, comments, commit messages and on screen.
 - Never create images, not even placeholders. Mascot art comes from the user's artist friend.
 - Every grade rule lives in the C++ core only. GPA and CGPA are different scales and are never mixed.
 - No packages and no build step in `backend/` or `web/` without an ADR.
-- The user owns every decision. Interview one question at a time, draft from the answers, then let the user review and edit. Never present a Claude decision as the user's.
+- The user owns every decision. Interview one question at a time, draft from the answers, then let the user review and edit. Never present a decision the user did not make as theirs.
 - Every significant decision gets an ADR in `docs/adr/` listing the options considered.
 - Requirements get stable IDs (for example `ACA-01`) so tests and issues can trace back to them.
 - Diagrams: Mermaid inside Markdown. draw.io (`.drawio.svg`) in `docs/diagrams/` for use-case, deployment and AWS diagrams. Wireframes and mockups in Claude Design artifacts.

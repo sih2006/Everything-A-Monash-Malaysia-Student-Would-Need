@@ -7,7 +7,7 @@ This guide explains how the code is layered and then adds one small feature from
 ```mermaid
 flowchart LR
   subgraph web [web/ - the browser]
-    V[View<br/>views/*.js<br/>HTML only] -->|calls a command| VM[ViewModel<br/>appViewModel.js: state and commands<br/>present.js: presenters]
+    V[View<br/>views/*.js<br/>HTML only] -->|calls a command| VM[ViewModel<br/>appViewModel.js: state and commands<br/>present.js, lifeTree.js, spendingMap.js:<br/>presenters and layouts]
     VM -->|state changed| V
     VM --> M[Model access<br/>api.js]
   end
@@ -24,7 +24,7 @@ flowchart LR
 | Part | Its one job | It must never |
 |---|---|---|
 | **View** (`web/js/views/`) | Turn state into HTML. Mark buttons and forms with `data-action`. | Call the backend, do sums, decide what a number means |
-| **ViewModel: presenters** (`present.js`) | Turn backend data into finished text, tones and lists for one screen | Contain HTML, touch the page, call the backend |
+| **ViewModel: presenters** (`present.js`, `lifeTree.js`, `spendingMap.js`) | Turn backend data into finished text, tones, lists and layouts for one screen | Contain HTML, touch the page, call the backend |
 | **ViewModel: commands** (`appViewModel.js`) | Check what was typed, call the API, put the answer in the state | Contain HTML, touch the page |
 | **Model access** (`web/js/api.js`) | Be the only file that uses `fetch` | Know about screens |
 | **API** (`backend/src/api.js`) | Check input at the edge, call store, domain and engine, return plain data | Contain SQL or a rule |
@@ -32,7 +32,7 @@ flowchart LR
 | **Store** (`backend/src/store.js`) | Hold every SQL statement | Contain a rule |
 | **Core** (`core/`) | Every grade rule, in C++ | Know that a web app exists |
 
-**Why split it this way:** each part can be tested alone, and each kind of change has one home. The presenters and commands run in plain Node with no browser, which is why the web app has 27 tests that run in a tenth of a second.
+**Why split it this way:** each part can be tested alone, and each kind of change has one home. The presenters and commands run in plain Node with no browser, which is why the web app's 64 tests run in well under a second.
 
 **The rule of thumb:** if you are about to write an `if` about marks, money or targets in a View, stop. It belongs in a presenter, the domain or the core.
 
@@ -88,7 +88,7 @@ ${field('Notes', 'notes', 'maxlength="300"', 'optional')}
 
 Note the `esc()`. Anything a user typed must go through it before it becomes HTML.
 
-The form already has `data-action="addWorkout"`, and [web/js/app.js](../../web/js/app.js) already maps that action to `vm.addWorkout(f)`, where `f` holds every field of the form. So no wiring is needed.
+The form already has `data-action="addWorkout"`. [web/js/app.js](../../web/js/app.js) sends any `data-action` to the ViewModel command of the same name, with `f` holding every field of the form, so `vm.addWorkout(f)` is called and no wiring is needed. Only commands that need more than that are listed in `COMMANDS` in `app.js`.
 
 ### Step 5: check it for real
 

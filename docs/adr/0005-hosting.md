@@ -43,7 +43,7 @@ What matters:
 
 ## Decision
 
-Not made. Claude's recommendation is **Option 1**, because it is what the project set out to demonstrate and it is the cheapest to leave running. Option 4 is a fine answer too if daily use on the laptop is enough for now.
+Not made. The recommendation is **Option 1**, because it is what the project set out to demonstrate and it is the cheapest to leave running. Option 4 is a fine answer too if daily use on the laptop is enough for now.
 
 ## What the owner needs to decide
 

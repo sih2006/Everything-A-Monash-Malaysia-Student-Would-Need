@@ -4,7 +4,7 @@ Read this file first if you are an AI assistant (any chatbot or coding agent) as
 
 ## 1. Start here, every time
 
-1. Read [docs/handoff/STATUS.md](docs/handoff/STATUS.md). It says what is built, what is tested and what is not.
+1. Read [docs/handoff/STATUS.md](docs/handoff/STATUS.md). It says what is built, what is tested and what is not. The [roadmap](docs/03-plan/roadmap.md) says which version is being worked on.
 2. Run `python tools/check.py`. All tests must pass before you change anything. If they do not, fix that first or tell the owner.
 3. Pick the next task from [docs/handoff/next-tasks.md](docs/handoff/next-tasks.md), or do what the owner asked.
 
@@ -34,7 +34,7 @@ These are not suggestions. The owner stated each one.
 - **Small steps.** Change one thing, test it, commit it.
 - **Tests first for rules.** Any rule with numbers (a grade rule, a budget rule) gets a test with a hand-worked example before or with the code.
 - **Commits:** conventional commits in plain English, for example `feat(budget): add a weekly view`. One logical change per commit. Mention the story ID (`Refs: ACA-09`) when there is one.
-- **Never push, open a pull request or change GitHub settings unless the owner asks.**
+- **Never push, open a pull request, merge or change GitHub settings unless the owner asks.** Work on a branch; `main` changes only through a pull request with green CI.
 - **When you finish a piece of work,** update [docs/handoff/STATUS.md](docs/handoff/STATUS.md) and, if the design changed, the matching document in `docs/`.
 
 ## 5. Where each kind of change goes
@@ -45,8 +45,8 @@ These are not suggestions. The owner stated each one.
 | A budget, food or health rule | `backend/src/domain.js` (pure functions) | `backend/test/domain.test.js` |
 | What is stored | a new entry at the end of `MIGRATIONS` in `backend/src/db.js`, then `backend/src/store.js` | `backend/test/api.test.js` |
 | An API address | `backend/src/api.js`, and list it in `docs/02-design/backend-schema.md` | `backend/test/api.test.js` |
-| What a screen says or shows | a presenter in `web/js/viewmodels/present.js` | `web/test/viewmodel.test.js` |
-| What happens when the user does something | a command in `web/js/viewmodels/appViewModel.js`, wired in `web/js/app.js` | `web/test/viewmodel.test.js` |
+| What a screen says or shows | a presenter in `web/js/viewmodels/` (`present.js`, or `lifeTree.js` and `spendingMap.js` for the two layouts) | `web/test/*.test.js` |
+| What happens when the user does something | a command in `web/js/viewmodels/appViewModel.js`; a `data-action` with the same name calls it (list it in `COMMANDS` in `web/js/app.js` only if it needs more) | `web/test/viewmodel.test.js` |
 | The HTML of a screen | `web/js/views/` | in a browser |
 | Colours, fonts, shapes | tokens in `web/css/styles.css` and `web/css/looks.css` | in a browser, light and dark |
 
@@ -58,7 +58,9 @@ The step-by-step version, with a worked example, is [docs/handoff/mvvm-guide.md]
 - **Do not add a standard-library container (`std::vector`, `std::map`, ...) to `core/`.** The hand-built structures in `core/include/ds/` are the point of the project. `std::string` and streams are allowed.
 - **Do not add npm packages or a build step** without an ADR. "No packages, no build" is a recorded decision ([ADR-0002](docs/adr/0002-local-first-stack.md), [ADR-0003](docs/adr/0003-web-app-without-a-build-step.md)).
 - **Escape everything a user typed** before putting it in HTML. Use `esc()` from `web/js/format.js`.
-- **Do not put raw marks into the page when grades are hidden.** The presenters mask them; a test checks this.
+- **Do not put raw marks into the page when numbers are hidden.** The presenters mask them; a test checks this.
+- **Never put the owner's real numbers in a test, an example or a document.** The repository is public. Real data lives only in `backend/data/app.db`. Use made-up numbers.
+- **No AI stamps.** Do not add "written by" lines to documents, or AI co-author lines to commits and pull requests. Documents not yet reviewed by the owner say "Draft" (ADRs: "Proposed") without naming an author.
 - **`git commit` with nothing after it commits everything staged.** The owner's editor sometimes stages unrelated files. Commit with the paths named: `git commit -m "..." -- path1 path2`.
 
 ## 7. What needs the owner (you cannot do these)
@@ -66,7 +68,7 @@ The step-by-step version, with a worked example, is [docs/handoff/mvvm-guide.md]
 | Task | Why it needs the owner | Guide |
 |---|---|---|
 | Get a Gemini API key | Needs their Google account | [gemini-setup.md](docs/handoff/gemini-setup.md) |
-| Push branches, open pull requests, set up the board | Needs their GitHub login | [github-setup.md](docs/handoff/github-setup.md) |
+| Merge into `main`, change GitHub settings | Their repository; ask first, every time | [github-setup.md](docs/handoff/github-setup.md) |
 | Create an AWS account and deploy | Needs their identity and a payment card | [aws-setup.md](docs/handoff/aws-setup.md) |
 | Install on the phone | Needs their phone | [android-setup.md](docs/handoff/android-setup.md) |
 | Mascot art, the app name, the look | Their choices | [next-tasks.md](docs/handoff/next-tasks.md) |

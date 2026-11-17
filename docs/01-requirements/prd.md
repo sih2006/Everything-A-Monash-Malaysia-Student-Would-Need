@@ -1,6 +1,6 @@
 # Product requirements (PRD)
 
-**Status:** Draft. Written by Claude on 16 November 2026. The grades requirements come from the [product backlog](product-backlog.md), which the owner shaped in an interview. The requirements for budget, food and health were **written after the code**, from what the owner asked for in the prototype, and the owner has not reviewed them.
+**Status:** Draft, 16 November 2026, updated 18 November. The grades requirements come from the [product backlog](product-backlog.md), which the owner shaped in an interview. The requirements for budget, food, health, the map and the app were **written after the code**, from what the owner asked for, and the owner has not reviewed them. Every requirement here is also an issue on the [project board](https://github.com/users/sih2006/projects/1).
 
 This document answers: what must each part of the app do?
 
@@ -32,7 +32,7 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | BUD-02 | The user makes their own categories, each with an optional monthly limit. A category name cannot be used twice. | Must | 0.2 | Built, tested |
 | BUD-03 | The user records spending: what, how much, which category, which day. The amount must be above 0. The day cannot be in the future. | Must | 0.2 | Built, tested |
 | BUD-04 | The app shows spent, left, and how much can be spent per day to stay inside the limit. | Must | 0.2 | Built, tested |
-| BUD-05 | The app gives a verdict: on pace, ahead of pace (more than 5 points ahead of the calendar), or over the limit. | Must | 0.2 | Built, tested. **The 5 points is Claude's number.** |
+| BUD-05 | The app gives a verdict: on pace, ahead of pace (more than 5 points ahead of the calendar), or over the limit. | Must | 0.2 | Built, tested. **The 5 points is a starting value, not the owner's choice yet.** |
 | BUD-06 | A category over its own limit is flagged, with the amount over. | Must | 0.2 | Built, tested |
 | BUD-07 | Spending can be removed. | Must | 0.2 | Built, tested |
 | BUD-08 | Another month can be viewed. | Should | 0.2 | Built, tested |
@@ -48,7 +48,7 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | BUD-13 | The user records money in. The month shows money in by source and what is left after spending. | Must | 0.3 | Built, tested |
 | BUD-14 | Budget is split into tabs: Overview, Banking, Investing and Expenses. Banking and Investing show one account at a time; the others stay hidden until picked. | Should | 0.3 | Built, tested |
 | BUD-15 | A category can be marked essential (such as rent or fees). | Should | 0.3 | Built, tested |
-| BUD-16 | "Could cut" shows spending outside essential categories over the last 3 months: per month, by category, and the places paid most, with how often and the usual amount. | Should | 0.3 | Built, tested. **3 months is Claude's number.** |
+| BUD-16 | "Could cut" shows spending outside essential categories over the last 3 months: per month, by category, and the places paid most, with how often and the usual amount. | Should | 0.3 | Built, tested. **3 months is a starting value, not the owner's choice yet.** |
 | BUD-17 | The Expenses tab shows advice. For now it is text written by hand; later the AI helper writes it from the numbers. | Could | 0.3 | Built, tested. The AI part is task D7 |
 | BUD-18 | A bank or e-wallet statement can be imported from a file. | Should | 0.7 | **Not built.** Task C16 |
 | BUD-19 | A spending map on the Expenses tab: one block per category outside the essential ones, sized by the average month, with the places inside it. A legend, a hover tip on every block and a table view. | Should | 0.3 | Built, tested. Checked in light, dark and at phone width |

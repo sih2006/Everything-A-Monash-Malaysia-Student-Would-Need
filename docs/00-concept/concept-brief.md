@@ -1,6 +1,6 @@
 # Concept brief
 
-**Status:** Draft. Written by Claude on 16 November 2026 from what the owner said across the planning sessions. The owner has not reviewed it. Lines marked **(assumed)** were not said by the owner and need a yes or no.
+**Status:** Draft, 16 November 2026, from what the owner said across the planning sessions. The owner has not reviewed it. Lines marked **(assumed)** were not said by the owner and need a yes or no.
 
 This document answers: what problem is this, for whom, what does success look like, and what is left out?
 

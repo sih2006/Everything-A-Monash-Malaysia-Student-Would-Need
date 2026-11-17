@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Decided by Claude during the build sprint on 16 November 2026. The owner has not reviewed it yet. It answers open question 4 in the product backlog (testing library and build tool) and open question 5 (file format).
+Proposed. Taken during the build sprint on 16 November 2026. Waiting for the owner's review. It answers open question 4 in the product backlog (testing library and build tool) and open question 5 (file format).
 
 ## Date
 
@@ -61,5 +61,5 @@ The backlog asked for white-box tests, black-box tests, a memory check and CI, w
 - Nothing is downloaded to build or test the project.
 - The test helper has no fixtures, no test filtering and no parallel runs. At 72 fast tests none of these is missed.
 - On Windows with MinGW, the test program and `tracker.exe` are linked statically. Without that, the allocation counter cannot see allocations made inside the C++ library, and it reports false leaks. This is set in `core/CMakeLists.txt` with a comment.
-- The sanitizer build runs only in CI. It has not run yet, because nothing has been pushed.
+- The sanitizer build runs only in CI, on Linux. It has passed on every pull request since 18 November 2026.
 - The browser itself is tested by hand so far. What was checked is listed in [test-plan.md](../03-plan/test-plan.md).

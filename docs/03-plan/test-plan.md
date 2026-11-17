@@ -1,6 +1,6 @@
 # Test plan
 
-**Status:** Draft. It describes the tests that exist on 16 November 2026 and what is still untested.
+**Status:** Draft, 16 November 2026, updated 18 November (version 0.3). It describes the tests that exist and what is still untested.
 
 This document answers: how do we know the app works, and which test proves which requirement?
 
@@ -8,14 +8,14 @@ This document answers: how do we know the app works, and which test proves which
 
 | Level | What it checks | How | Count | Where |
 |---|---|---|---|---|
-| **Unit, white-box** (core) | Each data structure and each rule, written with knowledge of the code | Our own test helper, with a leak check on every test | 72 | `core/tests/test_*.cpp` |
+| **Unit, white-box** (core) | Each data structure and each grade rule, written with knowledge of the code | Our own test helper, with a leak check on every test | 75 | `core/tests/test_*.cpp` |
 | **System, black-box** (core) | The terminal program as a user sees it, written from the backlog's acceptance criteria only | A script types into the real program and reads its output | 31 | `core/tests/blackbox.py` |
-| **Unit** (backend rules) | Budget, food and health rules as pure functions | `node:test` | 22 | `backend/test/domain.test.js` |
-| **Integration** (backend) | The real server, a real database and the real C++ engine, called over HTTP; export and import | `node:test` | 57 | `backend/test/api.test.js`, `export.test.js` |
-| **Unit** (web) | Presenters and commands, with a fake API and no browser | `node:test` | 39 | `web/test/viewmodel.test.js` |
+| **Unit** (backend rules) | Budget, money, food and health rules, and the life tree, as pure functions | `node:test` | 39 | `backend/test/domain.test.js`, `life.test.js` |
+| **Integration** (backend) | The real server, a real database and the real C++ engine, called over HTTP; export and import | `node:test` | 73 | `backend/test/api.test.js`, `export.test.js` |
+| **Unit** (web) | Presenters, commands and the two layouts, with a fake API and no browser | `node:test` | 64 | `web/test/*.test.js` |
 | **Browser, by hand** | The real screens in a real browser | Driven with the Playwright command-line tool, checked by eye | see section 5 | not automated |
 
-Total automated: **221 tests**. Run them all with `python tools/check.py`. The last saved run is in [docs/proofs/test-run.txt](../proofs/test-run.txt).
+Total automated: **282 tests**. Run them all with `python tools/check.py`; CI runs the same command on Linux for every pull request. The last saved run is in [docs/proofs/test-run.txt](../proofs/test-run.txt).
 
 This follows the test pyramid: many fast unit tests, fewer integration tests, and a small number of whole-app checks.
 
@@ -57,7 +57,7 @@ Black-box cases come from the acceptance criteria in the [backlog](../01-require
 
 ## 3. Traceability: which test proves which story
 
-Every story in release 0.1 is listed. "Pass" means the automated tests for it pass today.
+Every story in release 0.1 is listed. "Pass" means the automated tests for it pass today. The requirements in the PRD are traced on the [project board](https://github.com/users/sih2006/projects/1), where each closed issue names its proof. The money requirements of v0.3 are listed after the 0.2 table.
 
 | Story | What it asks for | Tests | State |
 |---|---|---|---|
@@ -79,21 +79,21 @@ Every story in release 0.1 is listed. "Pass" means the automated tests for it pa
 | ACA-16 | The attention list | black-box ×2; `engine_report_lists_units_that_need_attention`; presenter "the attention list" | Pass |
 | GPA-01 | Mark to grade | black-box ×1; `grade_boundaries` | Pass |
 | GPA-02 | Finished units | black-box ×1; `a_typed_grade_beats_the_mark` | Pass |
-| GPA-03 | GPA for a semester | black-box ×2; `gpa_and_cgpa_for_equal_units`; API "finished units give GPA, CGPA and WAM" | Pass against hand-worked numbers. **Not yet checked against Monash's calculator** (task A4) |
-| GPA-04 | WAM | `wam_counts_first_year_units_half`, `a_withdrawn_fail_counts_as_zero` | Same as above |
-| GPA-05 | CGPA, apart from GPA | `the_two_scales_are_different`; presenter "labelled as different scales" | Same as above |
+| GPA-03 | GPA for a semester | black-box ×2; `gpa_and_cgpa_for_equal_units`; API "finished units give GPA, CGPA and WAM" | Pass, and matches the owner's real transcript |
+| GPA-04 | WAM | `wam_counts_first_year_units_half`, `a_withdrawn_fail_counts_as_zero` | Pass, and matches the owner's real transcript |
+| GPA-05 | CGPA, apart from GPA | `the_two_scales_are_different`; presenter "labelled as different scales" | Pass against hand-worked numbers. **Not yet checked against Monash's calculator** (task A4) |
 | GPA-06 | A target for GPA, WAM or CGPA | black-box ×1; `goal_*` | Pass |
 | GPA-07 | Default targets from a final goal | black-box ×2; `goal_cgpa_need_and_default_target`; API "a final goal gives the average needed" | Pass |
 | GPA-08 | The path to the goal | black-box ×1; presenter "each map runs done, now, ahead, goal" | Pass |
 | ENG-01 | Builds with one documented command | `python tools/check.py` | Pass on Windows, and on Linux in CI |
 | ENG-02 | Hand-built structures with documented complexity | the tables at the top of each file in `core/include/ds/`, and [core/README.md](../../core/README.md) | Done |
-| ENG-03 | White-box tests | 72 tests | Pass |
+| ENG-03 | White-box tests | 75 tests | Pass |
 | ENG-04 | Black-box tests named by story | 31 tests | Pass |
 | ENG-05 | Memory checked automatically | the leak counter (every run); sanitizers (CI) | Pass: leak counter on every run, sanitizers in CI on Linux |
 | ENG-06 | CI on every push | `.github/workflows/ci.yml` | Pass: runs on every pull request and push to main, green since 18 November |
 | ENG-07 | Benchmarks | `core/bench/bench.cpp`; results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) | Done. `DynArray` holds its claim in real time; the linked structures count the right steps but slow down 2 to 4 times at a million items, because of memory caching |
 | ENG-08 | README | [README.md](../../README.md), [core/README.md](../../core/README.md) | Done |
-| ENG-09 | Backlog on a public board | `tools/backlog_sync.py` | Done: [public board](https://github.com/users/sih2006/projects/1) with 37 issues |
+| ENG-09 | Backlog on a public board | `tools/backlog_sync.py` | Done: [public board](https://github.com/users/sih2006/projects/1), now with every story and PRD requirement (97 issues) |
 
 Release 0.2 (screenshot import):
 
@@ -103,6 +103,19 @@ Release 0.2 (screenshot import):
 | ACA-21 Check before saving | ViewModel "a screenshot import saves only the rows the user kept" | Pass with a fake API |
 | ACA-22 Failures leave data untouched | API "a used-up limit, an outage and a strange answer" | Pass with a fake AI service |
 | ENG-20 The key is never in the repository | CI secret check; API "the key stays in the header" | Pass |
+
+Version 0.3 (money):
+
+| Requirement | Tests | State |
+|---|---|---|
+| BUD-10, BUD-12 Accounts, spending paid from an account | API "accounts with a starting balance, a manual overwrite, income and a move between them", "spending paid from an account takes it down" | Pass |
+| BUD-11 A balance set for a day keeps later moves | API "a balance set for an earlier day keeps the moves after that day" | Pass (added after the bug in section 6) |
+| BUD-13 Money in | rule "income: money in during the month by source"; API "a move between your own accounts is not income" | Pass |
+| BUD-15, BUD-16 Essential categories and could cut | rule "could cut: essential categories are left out", "after six places the rest are added up"; API "a category can be marked essential" | Pass |
+| BUD-17 Advice | API "keeps saved advice" | Pass |
+| BUD-19 Spending map | layout tests: "squarify" ×2, "spending map" ×3 | Pass, and checked in a browser at laptop and phone width, light and dark |
+| BUD-14 Budget tabs | view-model "budget tabs" | Pass, and checked in a browser |
+| MAP-05 Life tree | `life.test.js` ×8, `lifeTree.test.js` ×10 | Pass |
 
 ## 4. Tests beyond the backlog
 
@@ -139,27 +152,29 @@ On 16 and 17 November 2026, in Chromium at 1360 px and 390 px wide, with no erro
 
 Screenshots: [docs/proofs/screens/](../proofs/screens/).
 
-## 6. Bugs the tests found
+## 6. Bugs found, and how
 
 | Found by | Bug | Fix |
 |---|---|---|
 | Leak check | Under an optimised build on Windows the test program reported negative leaks | The C++ library was allocating inside its own DLL where the counter could not see it. The programs are now linked statically. |
 | Browser check | "Hide grades" did nothing while an error message was showing | A failed command now says so explicitly, instead of the screen guessing from a leftover error. A regression test was added. |
-| ViewModel test | With grades hidden, the edit forms still carried the raw marks in their input boxes | No raw mark is handed to the page while hidden; the forms are removed. |
+| View-model test | With grades hidden, the edit forms still carried the raw marks in their input boxes | No raw mark is handed to the page while hidden; the forms are removed. |
 | Writing the security review | A form on another website could have sent a change to the app on the user's computer | Every change must be sent as JSON. A test covers it. |
+| Loading real bank statements | A balance set for 1 January wiped out the January top-ups, because moves were applied in the order typed, not by day | Moves are applied by day, then in the order typed. A test covers it. |
+| Browser check | The advice tips ran off the page, because they reused the tooltip class | A class of their own. |
+| The first CI run of the board sync | Issues moved to a later version were moved back to a closed milestone, and the run failed | The backlog only sets a milestone when an issue is made. |
 
 ## 7. Not tested
 
 Be clear about these when describing the project:
 
-- **Linux and CI.** Everything ran on Windows only. The CI workflow and the sanitizer build have never run.
-- **The real Gemini API.** Both AI features were tested with a fake service.
-- **A real phone.** Phone width was tested in a desktop browser. Touch, pinch-to-zoom and "Add to Home screen" were not.
-- **Browsers other than Chromium.**
+- **The real Gemini API.** Both AI features were tested with a fake service (v0.6).
+- **A real phone.** Phone width was tested in a desktop browser. Touch, pinch-to-zoom and "Add to Home screen" were not. The Android app has not run on a phone or the emulator.
+- **Browsers other than Chromium, and macOS.**
 - **A real screen reader.** Contrast, names, sizes and keyboard use were checked ([accessibility.md](../proofs/accessibility.md)); how it sounds in NVDA or TalkBack was not.
-- **Automated browser tests.** The browser checks above are not repeatable by a script yet (task C1).
-- **Monash's own numbers.** GPA, CGPA and WAM match hand-worked examples built from Monash's published scales, not Monash's calculator output.
-- **Large data and long use.** Nothing was run for days or with thousands of rows.
+- **Automated browser tests.** The browser checks above are not repeatable by a script yet (task C1, v0.9).
+- **CGPA against Monash.** GPA and WAM match the owner's real transcript; CGPA has not been compared with Monash's calculator.
+- **Large data and long use.** A year of real spending works, but nothing was run for years or with much more data.
 
 ## 8. User acceptance test
 

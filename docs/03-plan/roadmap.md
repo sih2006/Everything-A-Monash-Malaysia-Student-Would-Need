@@ -1,6 +1,6 @@
 # Roadmap: versions 0.1 to 1.0
 
-**Status:** The owner's plan, set on 18 November 2026. Written down by Claude from the owner's words. Versions 0.1 to 0.3 are done and tagged; the rest are planned.
+**Status:** The owner's plan, set on 18 November 2026. Versions 0.1 to 0.3 are done and tagged; the rest are planned.
 
 Each version has one main theme. A version is finished when its theme works, its tests pass in CI, and it is tagged with a GitHub Release. Work does not always fall neatly into one theme: when a version also holds work from another theme, its release notes say so.
 

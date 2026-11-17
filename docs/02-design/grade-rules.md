@@ -1,6 +1,6 @@
 # Grade rules
 
-**Status:** Draft, written by Claude on 16 November 2026 from Monash's published pages. The owner should check it against their own results before relying on it.
+**Status:** Draft, 16 November 2026, from Monash's published pages. GPA and WAM match the owner's real transcript exactly; CGPA still needs checking against Monash's own calculator.
 
 This page lists every grade rule the app uses, where it came from, and where it lives in the code. The decision behind it is [ADR-0004](../adr/0004-grade-scales-and-rules.md).
 
