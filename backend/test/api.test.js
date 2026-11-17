@@ -35,7 +35,8 @@ async function start(options = {}) {
     engine: createEngine(options.enginePath ?? enginePath),
     gemini: createGemini({ apiKey: options.geminiKey ?? '', fetchImpl: options.fetchImpl }),
     today: () => TODAY,
-    token: options.token ?? ''
+    token: options.token ?? '',
+    now: options.now
   });
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -170,6 +171,16 @@ describe('academics', () => {
     assert.equal((await app.call('PUT', '/api/academics/settings', { goal: null })).body.goal, null);
   });
 
+  test('the name, semester and credit points of a unit can be changed; its marks stay', async () => {
+    const { status, body } = await app.call('PATCH', '/api/units/FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 });
+    assert.equal(status, 200);
+    const unit = body.units.find((u) => u.code === 'FIT2004');
+    assert.deepEqual([unit.name, unit.term, unit.credit], ['Algorithms', 'S2 2027', 12]);
+    assert.equal(unit.standing.earned, 28.7);
+    assert.equal((await app.call('PATCH', '/api/units/FIT2004', { credit: 0 })).status, 400);
+    await app.call('PATCH', '/api/units/FIT2004', { credit: 6 });
+  });
+
   test('deleting a unit removes its assessments too', async () => {
     await app.call('POST', '/api/units', { code: 'TMP1000' });
     await app.call('POST', '/api/units/TMP1000/assessments', { name: 'Quiz', weight: 10 });
@@ -258,6 +269,15 @@ describe('food and health', () => {
     assert.equal(after.body.kcal, 640);
   });
 
+  test('food: a remembered food can be forgotten, and what was logged with it stays', async () => {
+    const before = (await app.call('GET', '/api/food')).body;
+    const id = before.foods.find((f) => f.name === 'Nasi lemak').id;
+    const { body } = await app.call('DELETE', `/api/food/items/${id}`);
+    assert.equal(body.foods.some((f) => f.name === 'Nasi lemak'), false);
+    assert.equal(body.log.some((e) => e.food === 'Nasi lemak'), true);
+    assert.equal((await app.call('DELETE', `/api/food/items/${id}`)).status, 404);
+  });
+
   test('food: bad entries are refused', async () => {
     for (const [entry, field] of [[{ food: '', kcal: 100 }, 'food'], [{ food: 'x', kcal: -1 }, 'kcal'], [{ food: 'x', kcal: 100, meal: 'Brunch' }, 'meal'], [{ food: 'x', kcal: 100, protein: 'lots' }, 'protein']]) {
       const { status, body } = await app.call('POST', '/api/food/log', entry);
@@ -277,6 +297,23 @@ describe('food and health', () => {
     const { body } = await app.call('POST', '/api/workouts', { name: 'Push day' });
     assert.equal(body.workouts.done, 1);
     assert.equal((await app.call('DELETE', `/api/workouts/${body.workouts.list[0].id}`)).body.workouts.done, 0);
+  });
+
+  test('health: a past day can be filled in and looked at', async () => {
+    const saved = await app.call('PUT', '/api/health/days/2026-11-17', { steps: 9100 });
+    assert.equal(saved.body.date, '2026-11-17');
+    assert.equal(saved.body.steps, 9100);
+    const workout = await app.call('POST', '/api/workouts', { name: 'Leg day', date: '2026-11-18' });
+    assert.equal(workout.body.date, '2026-11-18');
+    assert.equal((await app.call('GET', '/api/health?date=2026-11-10')).body.week[0].date, '2026-11-09');
+  });
+
+  test('food: a past day can be logged and looked at', async () => {
+    const { body } = await app.call('POST', '/api/food/log', { food: 'Roti canai', kcal: 360, date: '2026-11-19' });
+    assert.equal(body.date, '2026-11-19');
+    assert.equal(body.log.length, 1);
+    assert.equal((await app.call('GET', '/api/food?date=2026-11-19')).body.kcal, 360);
+    assert.equal((await app.call('GET', '/api/food?date=2026-11-21')).status, 400);
   });
 
   test('health: impossible values and future days are refused', async () => {
@@ -358,6 +395,31 @@ describe('access token', () => {
     assert.equal((await app.call('GET', '/api/status', undefined, { Authorization: 'Bearer wrong' })).status, 401);
     assert.equal((await app.call('GET', '/api/status', undefined, { Authorization: 'Bearer secret-token' })).status, 200);
     assert.equal((await app.call('GET', '/')).status, 200);
+  });
+});
+
+describe('wrong token guesses', () => {
+  test('after five wrong tokens the address is refused for 15 minutes, even with the right token', async () => {
+    let clock = 1_000_000;
+    const app = await start({ token: 'secret-token', now: () => clock });
+    const wrong = { Authorization: 'Bearer wrong' }, right = { Authorization: 'Bearer secret-token' };
+    for (let i = 0; i < 5; i++) assert.equal((await app.call('GET', '/api/status', undefined, wrong)).status, 401);
+    const blocked = await app.call('GET', '/api/status', undefined, right);
+    assert.equal(blocked.status, 429);
+    assert.equal(blocked.body.error.code, 'too_many_guesses');
+    clock += 15 * 60 * 1000 + 1;                                         // the 15 minutes have passed
+    assert.equal((await app.call('GET', '/api/status', undefined, right)).status, 200);
+    await app.close();
+  });
+
+  test('a right token clears earlier wrong guesses', async () => {
+    const app = await start({ token: 'secret-token', now: () => 0 });
+    const wrong = { Authorization: 'Bearer wrong' }, right = { Authorization: 'Bearer secret-token' };
+    for (let i = 0; i < 4; i++) await app.call('GET', '/api/status', undefined, wrong);
+    assert.equal((await app.call('GET', '/api/status', undefined, right)).status, 200);
+    for (let i = 0; i < 4; i++) assert.equal((await app.call('GET', '/api/status', undefined, wrong)).status, 401);
+    assert.equal((await app.call('GET', '/api/status', undefined, right)).status, 200);
+    await app.close();
   });
 });
 

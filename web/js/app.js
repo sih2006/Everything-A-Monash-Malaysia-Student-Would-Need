@@ -77,7 +77,9 @@ function draw(state, info = {}) {
     void view.offsetWidth;          // restart the entrance animation
     view.classList.add('enter');
     window.scrollTo(0, 0);
-    view.focus({ preventScroll: true });
+    // Move focus to the new screen only when the user changed screens, not when the app first opens.
+    // On first load, focus stays at the top so Tab reaches "Skip to content" and the menu first.
+    if (drawnTab !== null) view.focus({ preventScroll: true });
   }
   drawnTab = state.tab;
 }
@@ -99,6 +101,23 @@ window.addEventListener('hashchange', goToHash);
 // Each entry turns a click or a submitted form into one ViewModel command.
 // `f` holds the form's fields, `d` holds the element's data-* values.
 
+// Saves the exported data as a .json file in the browser's downloads.
+function download(file) {
+  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `student-companion-${file.exportedOn}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+const readText = (file) => {
+  if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error('That file is larger than 8 MB, so it cannot be an export from this app.'));
+  return file.text();
+};
+
 const readPicture = (file) => new Promise((resolve, reject) => {
   if (file.size > 5 * 1024 * 1024) { reject(new Error('That picture is larger than 5 MB. Choose a smaller one.')); return; }
   const reader = new FileReader();
@@ -109,11 +128,17 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 
 const COMMANDS = {
   loadDemo: () => vm.loadDemo(),
+  toggleAllSpending: () => vm.toggleAllSpending(),
+  exportData: async () => { const file = await vm.exportData(); if (file) download(file); },
+  importData: async (f) => vm.importData(await readText(f.file)),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
+  showPeriod: (f, d) => vm.showPeriod(d.slice, Number(d.step)),
+  showCurrent: (f, d) => vm.showCurrent(d.slice),
   setMapKind: (f, d) => { mapSelected = -1; camera.reset(); vm.setMapKind(d.kind); },
 
   addUnit: (f) => vm.addUnit(f),
   deleteUnit: (f, d) => vm.deleteUnit(d.code),
+  saveUnitDetails: (f, d) => vm.saveUnitDetails(d.code, f),
   setTarget: (f, d) => vm.setTarget(d.code, f.target.trim()),
   addAssessment: (f, d) => vm.addAssessment(d.code, f),
   saveMark: (f, d) => vm.saveMark(d.id, f),
@@ -144,6 +169,7 @@ const COMMANDS = {
   logFood: (f) => vm.logFood(f),
   quickAddFood: (f, d) => vm.quickAddFood(d.id, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
   deleteFood: (f, d) => vm.deleteFood(d.id),
+  forgetFood: (f, d) => vm.forgetFood(d.id),
 
   saveHealthTargets: (f) => vm.saveHealthTargets(f),
   saveToday: (f) => vm.saveToday(f),
@@ -201,6 +227,14 @@ status.addEventListener('click', (e) => { if (e.target.closest('[data-dismiss]')
 
 // The what-if slider asks the backend and shows the answer. Nothing is saved.
 let whatIfTimer = null;
+// A choice in a drop-down list that changes the view straight away, with no Save button.
+view.addEventListener('change', (e) => {
+  const choice = e.target.closest('select[data-choose]');
+  if (!choice) return;
+  if (choice.dataset.choose === 'unitOrder') vm.setUnitOrder(choice.value);
+  if (choice.dataset.choose === 'spendingCategory') vm.setSpendingCategory(choice.value);
+});
+
 view.addEventListener('input', (e) => {
   const slider = e.target.closest('[data-whatif]');
   if (!slider) return;

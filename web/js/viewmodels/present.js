@@ -35,7 +35,7 @@ export function presentUnit(unit, hidden = false) {
   }
 
   return {
-    code: unit.code, name: unit.name, credit: unit.credit,
+    code: unit.code, name: unit.name, credit: unit.credit, term: unit.term,
     hasTarget: Boolean(unit.target),
     // While grades are hidden nothing can be edited, so no raw mark is handed to the screen at all.
     canEdit: !hidden,
@@ -90,7 +90,44 @@ function goalBanner(goal, hidden) {
   return banner;
 }
 
-export function presentGrades(report, hidden = false) {
+// ---------- ordering and filtering ----------
+
+export const UNIT_ORDERS = [['code', 'By unit code'], ['attention', 'Needs attention first'], ['need', 'Highest mark needed first']];
+
+// Worst first: a failed hurdle, then out of reach, not realistic, no target, and on course last.
+const URGENCY = { failed: 0, 'out-of-reach': 1, 'not-realistic': 2, 'no-target': 3, 'on-course': 4 };
+
+// `units` are from the backend (each has `standing`). The list given back is a new one; the input is not changed.
+export function orderUnits(units, order) {
+  const byCode = (a, b) => a.code.localeCompare(b.code);
+  const sorted = [...units];
+  if (order === 'attention') {
+    const rank = (u) => URGENCY[presentUnit(u).state];
+    sorted.sort((a, b) => rank(a) - rank(b) || byCode(a, b));
+  } else if (order === 'need') {
+    // Units with no mark needed (no target, or nothing left) go last.
+    const need = (u) => (u.target && u.standing.needMax !== null && !u.standing.secured ? u.standing.needMax : -1);
+    sorted.sort((a, b) => need(b) - need(a) || byCode(a, b));
+  } else {
+    sorted.sort(byCode);
+  }
+  return sorted;
+}
+
+// The spending list on the Budget screen: one category or all, and the newest 10 unless all are asked for.
+export const SPENDING_SHOWN = 10;
+export function presentSpending(entries, category = 'all', showAll = false) {
+  const matching = category === 'all' ? entries : entries.filter((x) => x.category === category);
+  const total = Math.round(matching.reduce((sum, x) => sum + x.amount, 0) * 100) / 100;
+  return {
+    rows: showAll ? matching : matching.slice(0, SPENDING_SHOWN),
+    count: matching.length,
+    hidden: showAll ? 0 : Math.max(0, matching.length - SPENDING_SHOWN),
+    total
+  };
+}
+
+export function presentGrades(report, hidden = false, order = 'code') {
   const m = (text) => mask(hidden, text);
   const finished = report.finished, projected = report.projected;
   const has = finished.units > 0;
@@ -99,7 +136,7 @@ export function presentGrades(report, hidden = false) {
     value: has ? m(format(finished[key])) : '—',
     note: !has ? 'No finished units yet' : projected ? `${m(format(projected[key]))} if this semester ends where it is heading` : 'All finished units'
   });
-  const units = report.units.map((u) => presentUnit(u, hidden));
+  const units = orderUnits(report.units, order).map((u) => presentUnit(u, hidden));
   const withTarget = units.filter((u) => u.hasTarget);
 
   return {

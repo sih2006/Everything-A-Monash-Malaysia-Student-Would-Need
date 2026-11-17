@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { ApiError } from '../js/api.js';
 import { typedNumber } from '../js/format.js';
 import { createAppViewModel } from '../js/viewmodels/appViewModel.js';
-import { MASK, presentGrades, presentHome, presentMap, presentUnit } from '../js/viewmodels/present.js';
+import { MASK, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
 
 // ---------- sample data, in the shape the backend sends ----------
 
@@ -188,6 +188,39 @@ test('maps still work with no targets set', () => {
   assert.equal(presentMap('studies', overview({ academics: null, academicsError: 'no engine' })).stops.length, 0);
 });
 
+test('units can be ordered by code, by what needs attention, and by the mark needed', () => {
+  const units = [
+    unit('MAT1830', {}, { realistic: false, onCourse: false, needMax: 65.7 }),
+    unit('FIT2004', {}, { needMax: 68.8 }),
+    unit('FIT2099', {}, { possible: false, realistic: false, onCourse: false, needMax: 102.3 }),
+    unit('FIT1008', { target: null }, { hasTarget: false, need: null, needMax: null })
+  ];
+  const codes = (list) => list.map((u) => u.code).join(' ');
+  assert.equal(codes(orderUnits(units, 'code')), 'FIT1008 FIT2004 FIT2099 MAT1830');
+  assert.equal(codes(orderUnits(units, 'attention')), 'FIT2099 MAT1830 FIT1008 FIT2004');
+  assert.equal(codes(orderUnits(units, 'need')), 'FIT2099 FIT2004 MAT1830 FIT1008');
+  assert.equal(codes(units), 'MAT1830 FIT2004 FIT2099 FIT1008');           // the input list is not changed
+  assert.equal(codes(presentGrades(report(units), false, 'attention').units), 'FIT2099 MAT1830 FIT1008 FIT2004');
+});
+
+test('spending can be filtered by category, with a count and a total, and shows the newest 10', () => {
+  const entries = Array.from({ length: 13 }, (_, i) => ({ id: i, what: `x${i}`, amount: 2.5, category: i % 3 === 0 ? 'Fun' : 'Food', date: '2026-11-10' }));
+  const all = presentSpending(entries);
+  assert.deepEqual([all.rows.length, all.count, all.hidden, all.total], [10, 13, 3, 32.5]);
+  assert.equal(presentSpending(entries, 'all', true).rows.length, 13);
+  const fun = presentSpending(entries, 'Fun');
+  assert.deepEqual([fun.rows.length, fun.count, fun.hidden, fun.total], [5, 5, 0, 12.5]);
+  assert.equal(presentSpending(entries, 'Transport').count, 0);
+});
+
+test('the unit order is remembered, and an unknown order falls back to the code', async () => {
+  const { vm, saved } = setup();
+  vm.setUnitOrder('attention');
+  assert.equal(saved.get('unitOrder'), 'attention');
+  vm.setUnitOrder('nonsense');
+  assert.equal(vm.state.unitOrder, 'code');
+});
+
 test('typed numbers: empty is null, text is NaN, and 0 stays 0', () => {
   assert.equal(typedNumber(''), null);
   assert.equal(typedNumber('  '), null);
@@ -207,6 +240,10 @@ function setup(apiOverrides = {}) {
   for (const name of ['addUnit', 'changeUnit', 'changeAssessment', 'addAssessment', 'saveHealthDay', 'logFood', 'addSpending', 'deleteEverything']) {
     api[name] ??= record(name, { marker: name });
   }
+  // Fetching a month or day is not a change, so it is not recorded in `calls`.
+  api.budget ??= () => Promise.resolve(overview().budget);
+  api.food ??= () => Promise.resolve(overview().food);
+  api.health ??= () => Promise.resolve(overview().health);
   const vm = createAppViewModel({ api, storage: { get: (k) => saved.get(k) ?? null, set: (k, v) => saved.set(k, v) }, onChange: (state, info) => changes.push(info) });
   return { vm, calls, saved, changes };
 }
@@ -288,16 +325,132 @@ test('today\'s health numbers: only filled boxes are sent, and sleep becomes min
   const { vm, calls } = setup();
   await vm.load();
   await vm.saveToday({ steps: '', sleepHours: '6', sleepMinutes: '10', restingHr: '' });
-  assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-21', { sleepMinutes: 370 }]);
+  // Saved for the day the Health screen shows. In this sample data that is the 20th.
+  assert.deepEqual(calls.at(-1), ['saveHealthDay', '2026-11-20', { sleepMinutes: 370 }]);
   assert.equal(await vm.saveToday({ steps: '', sleepHours: '', sleepMinutes: '', restingHr: '' }), false);
   assert.equal(vm.state.error.message, 'Fill in at least one box.');
+});
+
+test('unit details: name, semester and credit points are sent; credit points must be a number', async () => {
+  const { vm, calls } = setup();
+  await vm.load();
+  await vm.saveUnitDetails('FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: '12' });
+  assert.deepEqual(calls.at(-1), ['changeUnit', 'FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 }]);
+  assert.equal(await vm.saveUnitDetails('FIT2004', { name: 'x', term: '', credit: '' }), false);
+  assert.equal(vm.state.error.message, 'Credit points cannot be empty.');
+});
+
+test('the presenter passes the semester through for the edit form', () => {
+  assert.equal(presentUnit(unit('FIT2004')).term, 'S1 2027');
 });
 
 test('quick add logs the remembered food', async () => {
   const { vm, calls } = setup();
   await vm.load();
   await vm.quickAddFood('5', 'Dinner');
-  assert.deepEqual(calls.at(-1), ['logFood', { food: 'Chicken rice', kcal: 610, protein: 38, meal: 'Dinner' }]);
+  assert.deepEqual(calls.at(-1), ['logFood', { date: '2026-11-21', food: 'Chicken rice', kcal: 610, protein: 38, meal: 'Dinner' }]);
+});
+
+test('forgetting a remembered food calls the API and says so', async () => {
+  let forgotten = null;
+  const { vm } = setup({ forgetFood: (id) => { forgotten = id; return Promise.resolve(food({ foods: [] })); } });
+  await vm.load();
+  assert.equal(await vm.forgetFood(5), true);
+  assert.equal(forgotten, 5);
+  assert.deepEqual(vm.state.overview.food.foods, []);
+  assert.equal(vm.state.notice, 'Removed from quick add.');
+});
+
+// ---------- other days and months ----------
+
+// A fake API that answers budget, food and health for any period, and records what was asked.
+function periodSetup() {
+  const asked = [];
+  const answer = (slice, key) => {
+    asked.push([slice, key ?? 'current']);
+    if (slice === 'budget') return Promise.resolve(budget({ month: key ?? '2026-11' }));
+    return Promise.resolve((slice === 'food' ? food : health)({ date: key ?? '2026-11-21' }));
+  };
+  const api = {
+    overview: () => Promise.resolve(overview({ health: health({ date: '2026-11-21' }) })),
+    budget: (key) => answer('budget', key), food: (key) => answer('food', key), health: (key) => answer('health', key),
+    logFood: (entry) => Promise.resolve(food({ date: entry.date })),
+    saveHealthDay: (day) => Promise.resolve(health({ date: day })),
+    addSpending: (entry) => Promise.resolve(budget({ month: entry.date.slice(0, 7) }))
+  };
+  const vm = createAppViewModel({ api, storage: { get: () => null, set: () => {} } });
+  return { vm, asked, api };
+}
+
+test('previous and next move by a month on Budget and by a day on Food, and never past today', async () => {
+  const { vm, asked } = periodSetup();
+  await vm.load();
+  await vm.showPeriod('budget', -1);
+  assert.equal(vm.shown('budget').month, '2026-10');
+  assert.equal(vm.state.overview.budget.month, '2026-11');          // Home still sees the current month
+  await vm.showPeriod('budget', 1);
+  assert.equal(vm.state.views.budget, null);                        // back on the current month: nothing extra is kept
+  assert.equal(await vm.showPeriod('budget', 1), false);            // there is no next month yet
+  assert.equal(vm.state.error.message, 'That has not happened yet.');
+  await vm.showPeriod('food', -1);
+  assert.equal(vm.shown('food').date, '2026-11-20');
+  assert.deepEqual(asked, [['budget', '2026-10'], ['food', '2026-11-20']]);
+});
+
+test('a month back from January is December of the year before', async () => {
+  const { vm } = periodSetup();
+  await vm.load();
+  vm.state.views.budget = budget({ month: '2026-01' });
+  await vm.showPeriod('budget', -1);
+  assert.equal(vm.shown('budget').month, '2025-12');
+});
+
+test('food logged while looking at a past day goes on that day, and today stays right', async () => {
+  const { vm, asked } = periodSetup();
+  await vm.load();
+  await vm.showPeriod('food', -2);
+  await vm.logFood({ food: 'Roti canai', kcal: '360', protein: '', meal: 'Breakfast' });
+  assert.equal(vm.shown('food').date, '2026-11-19');                // the answer was for the day being looked at
+  assert.deepEqual(asked.at(-1), ['food', 'current']);              // and today was fetched again for Home
+  assert.equal(vm.state.overview.food.date, '2026-11-21');
+});
+
+test('back to this day forgets the past day', async () => {
+  const { vm } = periodSetup();
+  await vm.load();
+  await vm.showPeriod('health', -3);
+  assert.equal(vm.shown('health').date, '2026-11-18');
+  vm.showCurrent('health');
+  assert.equal(vm.shown('health').date, '2026-11-21');
+});
+
+test('health numbers are saved for the day being looked at', async () => {
+  const { vm } = periodSetup();
+  await vm.load();
+  await vm.showPeriod('health', -1);
+  await vm.saveToday({ steps: '9000', sleepHours: '', sleepMinutes: '', restingHr: '' });
+  assert.equal(vm.shown('health').date, '2026-11-20');
+});
+
+test('export hands back the file; import refuses text that is not an export and loads one that is', async () => {
+  let imported = null;
+  const { vm } = setup({
+    exportData: () => Promise.resolve({ format: 'student-companion-export', exportedOn: '2026-11-21' }),
+    importData: (file) => { imported = file; return Promise.resolve({ ok: true }); }
+  });
+  await vm.load();
+  const file = await vm.exportData();
+  assert.equal(file.exportedOn, '2026-11-21');
+  assert.equal(vm.state.notice, 'Your data was saved as a file.');
+
+  assert.equal(await vm.importData('not json at all'), false);
+  assert.equal(vm.state.error.message, 'That file is not a file exported from this app.');
+  assert.equal(await vm.importData('[1, 2]'), false);
+  assert.equal(imported, null);
+
+  assert.equal(await vm.importData('{"format": "student-companion-export", "version": 1}'), true);
+  assert.equal(imported.version, 1);
+  assert.equal(vm.state.notice, 'Your data was loaded from the file.');
 });
 
 test('deleting everything needs the word delete', async () => {

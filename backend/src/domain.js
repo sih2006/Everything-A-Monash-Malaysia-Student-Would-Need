@@ -94,7 +94,7 @@ export function budgetSummary({ month, today, limit, categories, transactions })
     tone: over || ahead ? 'warn' : 'good',
     mood: total <= 0 ? 'waiting' : over ? 'panicking' : ahead ? 'stressed' : 'relaxed',
     categories: perCategory, weeks,
-    recent: inMonth.slice(0, 8)
+    recent: inMonth
   };
 }
 
@@ -134,7 +134,8 @@ export function foodSummary({ date, targets, log, foods }) {
 
 // `days` have {day, steps, sleepMinutes, restingHr}; `workouts` have {id, date, name}.
 // `targets` has {steps, sleepMinutes, workouts}.
-export function healthSummary({ date, targets, days, workouts }) {
+// `date` is the day being looked at. `today` is the real today: days after it have not happened yet.
+export function healthSummary({ date, today = date, targets, days, workouts }) {
   const { from } = weekRange(date);
   const byDay = new Map(days.map((d) => [d.day, d]));
 
@@ -142,12 +143,12 @@ export function healthSummary({ date, targets, days, workouts }) {
     const day = addDays(from, index);
     const stored = byDay.get(day) ?? {};
     return {
-      name, date: day, today: day === date, future: day > date,
+      name, date: day, today: day === date, future: day > today,
       steps: stored.steps ?? null, sleepMinutes: stored.sleepMinutes ?? null, restingHr: stored.restingHr ?? null
     };
   });
 
-  const today = week.find((d) => d.today);
+  const chosen = week.find((d) => d.today);   // the day being looked at
   const heartRates = week.filter((d) => d.restingHr !== null).map((d) => d.restingHr);
   const weekWorkouts = workouts.filter((w) => w.date >= from && w.date <= addDays(from, 6));
   const stepDays = week.filter((d) => !d.future && d.steps !== null);
@@ -155,10 +156,10 @@ export function healthSummary({ date, targets, days, workouts }) {
   return {
     date, stepTarget: targets.steps, sleepTargetMinutes: targets.sleepMinutes, workoutTarget: targets.workouts,
     week,
-    steps: today.steps, sleepMinutes: today.sleepMinutes, restingHr: today.restingHr,
-    stepsOk: today.steps !== null && targets.steps > 0 && today.steps >= targets.steps,
-    stepsLeft: today.steps === null ? null : Math.max(0, targets.steps - today.steps),
-    sleepShort: today.sleepMinutes === null ? null : Math.max(0, targets.sleepMinutes - today.sleepMinutes),
+    steps: chosen.steps, sleepMinutes: chosen.sleepMinutes, restingHr: chosen.restingHr,
+    stepsOk: chosen.steps !== null && targets.steps > 0 && chosen.steps >= targets.steps,
+    stepsLeft: chosen.steps === null ? null : Math.max(0, targets.steps - chosen.steps),
+    sleepShort: chosen.sleepMinutes === null ? null : Math.max(0, targets.sleepMinutes - chosen.sleepMinutes),
     restingHrWeek: heartRates.length ? Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length) : null,
     daysOnTarget: stepDays.filter((d) => targets.steps > 0 && d.steps >= targets.steps).length,
     daysLogged: stepDays.length,

@@ -3,9 +3,9 @@
 // A screen decides nothing. It shows what the presenters prepared, and marks
 // buttons and forms with data-action="..." so app.js can call the right command.
 
-import { dayText, esc, f2, hm, num, plain, rm } from '../format.js';
-import { presentGrades, presentHome } from '../viewmodels/present.js';
-import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, select, trendChart } from './parts.js';
+import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
+import { UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
+import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
 const remove = (action, data, label) =>
@@ -38,7 +38,7 @@ export function homeView(state) {
 
     <section class="petals" aria-label="Today at a glance">
       ${home.cards.map((c) => `
-        <a class="petal ${tints[c.tab]}" href="#${c.tab}">
+        <a class="petal ${tints[c.tab]}" href="#${c.tab}" aria-label="${esc(`${c.title}: ${c.big}, ${c.line}. ${c.chip.text}.`)}">
           <div class="card-head">${artSpace(c.name)}${chip(c.chip)}</div>
           <h2>${esc(c.title)}</h2>
           <div class="big">${esc(c.big)}</div>
@@ -57,12 +57,21 @@ export function homeView(state) {
     <section class="card">
       <h2>Your data</h2>
       <p class="note">Everything you enter is kept on this computer, in one file. Nothing is sent anywhere unless you use the AI helper.</p>
-      ${fold('delete-all', 'Delete all my data', `
+      ${home.empty ? '' : `
+      <div class="row"><button type="button" class="btn quiet" data-action="exportData">Download all my data</button></div>
+      <p class="note">Saves one .json file with everything in the app. Keep it somewhere safe as a backup. It holds your marks, money and health numbers, so do not share it.</p>`}
+      ${!home.empty ? '' : fold('import', 'Load my data from a file', `
+        <form class="form" data-action="importData">
+          <div class="field"><label>A file downloaded from this app<input type="file" name="file" accept=".json,application/json" required></label></div>
+          <button class="btn primary" type="submit">Load the file</button>
+        </form>
+        <p class="note">Every row is checked before anything is saved. If one row is wrong, nothing is loaded.</p>`)}
+      ${home.empty ? '' : fold('delete-all', 'Delete all my data', `
         <form class="form" data-action="deleteEverything">
           ${field('Type the word delete to confirm', 'confirm', 'required')}
           <button class="btn danger" type="submit">Delete everything</button>
         </form>
-        <p class="note">This removes every unit, mark, spending entry, meal and health record. It cannot be undone.</p>`)}
+        <p class="note">This removes every unit, mark, spending entry, meal and health record. It cannot be undone. Download your data first if you might want it back.</p>`)}
     </section>`;
 }
 
@@ -142,6 +151,13 @@ function unitCard(u, state) {
           ${field('Target mark for the unit', 'target', `inputmode="decimal" value="${u.targetMark === null ? '' : plain(u.targetMark)}"`, 'P 50, C 60, D 70, HD 80. Empty = no target')}
           <button class="btn primary" type="submit">Save target</button>
         </form>
+        <form class="form" data-action="saveUnitDetails" data-code="${esc(u.code)}">
+          ${field('Name', 'name', `maxlength="80" value="${esc(u.name)}"`)}
+          ${field('Credit points', 'credit', `required inputmode="decimal" value="${plain(u.credit)}"`)}
+          ${field('Semester', 'term', `maxlength="40" value="${esc(u.term)}"`)}
+          <button class="btn quiet" type="submit">Save details</button>
+        </form>
+        <p class="note">The unit code cannot be changed. To fix a wrong code, add the unit again and remove this one.</p>
         ${remove('deleteUnit', `data-code="${esc(u.code)}" data-confirm="Remove ${esc(u.code)} and all its assessments?"`, `Remove ${u.code}`)}`)}
     </article>`;
 }
@@ -175,7 +191,7 @@ export function gradesView(state) {
     return pageHead('Grades', 'Units, marks, targets and your results.') +
       emptyCard('Grades cannot load', state.overview.academicsError ?? 'The grade engine is not ready.');
   }
-  const g = presentGrades(report, state.hidden);
+  const g = presentGrades(report, state.hidden, state.unitOrder);
   const goal = g.goalValues;
   const addUnit = `
     <form class="form" data-action="addUnit">
@@ -211,6 +227,8 @@ export function gradesView(state) {
 
     ${g.trend.length >= 2 ? `<section class="card"><h2>CGPA by semester</h2>${trendChart(g.trend, g.trendGoal, f2)}</section>` : ''}
 
+    ${g.units.length > 1 ? `<div class="row sorter"><label>Order the units
+      <select data-choose="unitOrder">${UNIT_ORDERS.map(([value, text]) => `<option value="${value}" ${value === state.unitOrder ? 'selected' : ''}>${text}</option>`).join('')}</select></label></div>` : ''}
     <section class="grid wide" aria-label="Units this semester">
       ${g.units.map((u) => unitCard(u, state)).join('')}
     </section>
@@ -251,10 +269,15 @@ export function gradesView(state) {
 // ================= budget =================
 
 export function budgetView(state) {
-  const b = state.overview.budget;
-  const head = pageHead('Budget', `${b.monthName}, day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
+  const b = state.views.budget ?? state.overview.budget;
+  const isCurrent = !state.views.budget;
+  const today = state.overview.today;
+  // New spending goes on today, or on the last day of a past month being looked at. The user can change it.
+  const spendDay = isCurrent ? today : lastDayOf(b.month);
+  const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
   return `
     ${head}
+    ${periodNav('budget', b.monthName, isCurrent, 'month')}
     ${b.hasLimit ? `
     <section class="grid stats" aria-label="Month so far">
       <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div><p class="note">${Math.round(b.spentPercent)}% of your limit</p></div>
@@ -301,24 +324,45 @@ export function budgetView(state) {
           ${field('What was it?', 'what', 'required maxlength="60"')}
           ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
           ${select('Category', 'category', b.categories.map((c) => [c.name, c.name]))}
+          ${field('Day', 'date', `type="date" required value="${spendDay}" min="${b.month}-01" max="${spendDay}"`)}
           <button class="btn primary" type="submit">Add</button>
         </form>`}
-        <h2>Latest spending</h2>
-        ${b.recent.length === 0 ? '<p class="note">Nothing recorded this month.</p>' : `<ul class="list">
-          ${b.recent.map((x) => `
+        <h2>Spending in ${esc(b.monthName.split(' ')[0])}</h2>
+        ${spendingList(b, state)}
+      </div>
+    </section>`;
+}
+
+// The spending list with its category filter. Kept apart so the budget screen above stays readable.
+function spendingList(b, state) {
+  if (b.recent.length === 0) return `<p class="note">Nothing recorded in ${esc(b.monthName)}.</p>`;
+  const chosen = b.categories.some((c) => c.name === state.spendingCategory) ? state.spendingCategory : 'all';
+  const s = presentSpending(b.recent, chosen, state.showAllSpending);
+  return `
+    <div class="row sorter"><label>Show
+      <select data-choose="spendingCategory">
+        <option value="all" ${chosen === 'all' ? 'selected' : ''}>All categories</option>
+        ${b.categories.map((c) => `<option value="${esc(c.name)}" ${c.name === chosen ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+      </select></label>
+      <span class="note">${s.count} ${s.count === 1 ? 'entry' : 'entries'} · ${rm(s.total)}</span></div>
+    ${s.count === 0 ? '<p class="note">Nothing in this category this month.</p>' : `<ul class="list">
+          ${s.rows.map((x) => `
             <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}</span></span>
             <span class="end">${rm(x.amount)} ${remove('deleteSpending', `data-id="${x.id}"`, `Remove ${x.what}`)}</span></li>`).join('')}
         </ul>`}
-      </div>
-    </section>`;
+    ${s.hidden > 0 ? `<button type="button" class="link" data-action="toggleAllSpending">Show all ${s.count}</button>`
+      : state.showAllSpending && s.count > 10 ? '<button type="button" class="link" data-action="toggleAllSpending">Show the newest 10</button>' : ''}`;
 }
 
 // ================= food =================
 
 export function foodView(state) {
-  const f = state.overview.food;
+  const f = state.views.food ?? state.overview.food;
+  const isCurrent = !state.views.food;
+  const when = isCurrent ? 'today' : `on ${dayText(f.date)}`;
   return `
-    ${pageHead('Food', f.hasTargets ? `Today. Your targets are ${num(f.targetKcal)} kcal${f.targetProtein ? ` and ${num(f.targetProtein)} g of protein` : ''}.` : 'Today. Set your own daily targets to get a verdict.', mood('t-food', 'Joel', f.mood))}
+    ${pageHead('Food', f.hasTargets ? `Your daily targets are ${num(f.targetKcal)} kcal${f.targetProtein ? ` and ${num(f.targetProtein)} g of protein` : ''}.` : 'Set your own daily targets to get a verdict.', mood('t-food', 'Joel', f.mood))}
+    ${periodNav('food', isCurrent ? `Today, ${dayText(f.date)}` : dayText(f.date), isCurrent, 'day')}
 
     ${f.hasTargets ? `
     <section class="grid wide" aria-label="Today so far">
@@ -364,12 +408,18 @@ export function foodView(state) {
           <button type="button" data-action="quickAddFood" data-id="${q.id}">
             <strong>${esc(q.name)}</strong><span>${num(q.kcal)} kcal · ${num(q.protein)} g protein</span>
           </button>`).join('')}
-      </div>` : ''}
+      </div>
+      ${fold('manage-foods', 'Change the quick-add list', `
+        <ul class="list">
+          ${f.foods.map((q) => `<li><span>${esc(q.name)} <span class="dim">· ${num(q.kcal)} kcal</span></span>
+            <span class="end">${remove('forgetFood', `data-id="${q.id}"`, `Remove ${q.name} from quick add`)}</span></li>`).join('')}
+        </ul>
+        <p class="note">Removing a food here does not change anything you already logged.</p>`)}` : ''}
     </section>
 
     <section class="card">
-      <h2>Logged today</h2>
-      ${f.log.length === 0 ? '<p class="note">Nothing logged yet today.</p>' : `<ul class="list">
+      <h2>Logged ${when}</h2>
+      ${f.log.length === 0 ? `<p class="note">Nothing logged ${when}.</p>` : `<ul class="list">
         ${f.log.map((e) => `
           <li><span><strong>${esc(e.food)}</strong> <span class="dim">· ${esc(e.meal)}</span></span>
           <span class="end">${num(e.kcal)} kcal <span class="dim">· ${num(e.protein)} g</span> ${remove('deleteFood', `data-id="${e.id}"`, `Remove ${e.food}`)}</span></li>`).join('')}
@@ -380,24 +430,27 @@ export function foodView(state) {
 // ================= health =================
 
 export function healthView(state) {
-  const h = state.overview.health;
+  const h = state.views.health ?? state.overview.health;
+  const isCurrent = !state.views.health;
+  const when = isCurrent ? 'today' : `on ${dayText(h.date)}`;
   const clock = (minutes) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
   const stepsMax = Math.max(10000, h.stepTarget, ...h.week.map((d) => d.steps ?? 0));
   const sleepMax = Math.max(540, h.sleepTargetMinutes, ...h.week.map((d) => d.sleepMinutes ?? 0));
   return `
     ${pageHead('Health', 'Type in your numbers for now. Reading them from your phone comes with the Android app.', mood('t-health', 'No mascot yet', 'not designed'))}
+    ${periodNav('health', isCurrent ? `Today, ${dayText(h.date)}` : dayText(h.date), isCurrent, 'day')}
 
     <section class="grid stats" aria-label="Today">
       <div class="card">
-        <div class="card-head"><div class="label">Steps today</div>${h.steps === null || !h.stepTarget ? '' : chip(h.stepsOk ? { text: 'Target reached', tone: 'good' } : { text: 'Behind', tone: 'warn' })}</div>
+        <div class="card-head"><div class="label">Steps ${when}</div>${h.steps === null || !h.stepTarget ? '' : chip(h.stepsOk ? { text: 'Target reached', tone: 'good' } : { text: 'Behind', tone: 'warn' })}</div>
         <div class="big">${h.steps === null ? '—' : num(h.steps)}</div>
         ${h.steps !== null && h.stepTarget ? bar(h.steps / h.stepTarget * 100) : ''}
-        <p class="note">${h.steps === null ? 'Not logged yet' : !h.stepTarget ? 'No target set' : h.stepsOk ? 'Target reached' : `${num(h.stepsLeft)} short of your ${num(h.stepTarget)} target`}</p>
+        <p class="note">${h.steps === null ? (isCurrent ? 'Not logged yet' : 'Not logged') : !h.stepTarget ? 'No target set' : h.stepsOk ? 'Target reached' : `${num(h.stepsLeft)} short of your ${num(h.stepTarget)} target`}</p>
       </div>
       <div class="card">
-        <div class="card-head"><div class="label">Sleep last night</div>${h.sleepMinutes === null || !h.sleepTargetMinutes ? '' : chip(h.sleepShort > 0 ? { text: 'Under target', tone: 'warn' } : { text: 'Target reached', tone: 'good' })}</div>
+        <div class="card-head"><div class="label">${isCurrent ? 'Sleep last night' : `Sleep before ${dayText(h.date)}`}</div>${h.sleepMinutes === null || !h.sleepTargetMinutes ? '' : chip(h.sleepShort > 0 ? { text: 'Under target', tone: 'warn' } : { text: 'Target reached', tone: 'good' })}</div>
         <div class="big">${h.sleepMinutes === null ? '—' : hm(h.sleepMinutes)}</div>
-        <p class="note ${h.sleepShort > 0 ? 'warn' : ''}">${h.sleepMinutes === null ? 'Not logged yet' : !h.sleepTargetMinutes ? 'No target set' : h.sleepShort > 0 ? `${hm(h.sleepShort)} under your ${hm(h.sleepTargetMinutes)} target` : 'Target reached'}</p>
+        <p class="note ${h.sleepShort > 0 ? 'warn' : ''}">${h.sleepMinutes === null ? (isCurrent ? 'Not logged yet' : 'Not logged') : !h.sleepTargetMinutes ? 'No target set' : h.sleepShort > 0 ? `${hm(h.sleepShort)} under your ${hm(h.sleepTargetMinutes)} target` : 'Target reached'}</p>
       </div>
       <div class="card">
         <div class="label">Resting heart rate</div>
@@ -407,7 +460,7 @@ export function healthView(state) {
     </section>
 
     <section class="card">
-      <h2>Today's numbers</h2>
+      <h2>Numbers for ${isCurrent ? 'today' : dayText(h.date)}</h2>
       <form class="form" data-action="saveToday">
         ${field('Steps', 'steps', `inputmode="numeric" value="${h.steps ?? ''}"`)}
         ${field('Sleep: hours', 'sleepHours', `inputmode="numeric" value="${h.sleepMinutes === null ? '' : Math.floor(h.sleepMinutes / 60)}"`)}
@@ -441,7 +494,7 @@ export function healthView(state) {
       </ul>`}
       <form class="form" data-action="addWorkout">
         ${field('Workout', 'name', 'required maxlength="60" placeholder="Push day"')}
-        <button class="btn primary" type="submit">Add today</button>
+        <button class="btn primary" type="submit">Add ${isCurrent ? 'today' : `on ${dayText(h.date)}`}</button>
       </form>
     </section>
 

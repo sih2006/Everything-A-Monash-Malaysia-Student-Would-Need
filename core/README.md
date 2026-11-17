@@ -93,7 +93,36 @@ A hash function (FNV-1a) turns the key into a number, and that number picks a bu
 
 ## Honest note on speed
 
-With a few dozen units and a few hundred assessments, none of these choices changes what a user feels. Any of the structures would answer in well under a millisecond. The value here is that each choice is stated, has a reason, and is tested. Measuring them on large generated data is still to do (story ENG-07).
+With a few dozen units and a few hundred assessments, none of these choices changes what a user feels. Any of the structures would answer in well under a millisecond. The value here is that each choice is stated, has a reason, and is tested.
+
+## Measured: do the costs hold?
+
+[bench/bench.cpp](bench/bench.cpp) times each structure on generated data, making n ten times larger each row. It then divides the time by what the claimed cost predicts. If the claim held exactly in real time, that number would stay at 1.
+
+```
+cmake --build core/build --target tracker_bench
+core/build/tracker_bench
+```
+
+Two runs on the owner's Windows laptop (Release build), 17 November 2026. The full output of the second run is in [docs/proofs/bench-run.txt](../docs/proofs/bench-run.txt).
+
+| Operation | Claimed | n = 1,000 or 10,000 | × 10 | × 100 | × 1,000 |
+|---|---|---|---|---|---|
+| `DynArray` push_back | O(1) amortised | 1.00 | 0.44 to 0.61 | 0.33 to 0.44 | 0.49 to 0.79 |
+| `HashMap` put and find | O(1) average | 1.00 | 0.53 to 1.15 | 0.95 to 1.41 | 1.55 to 2.62 |
+| `LinkedList` find | O(n) | 1.00 | 2.19 to 2.65 | 2.74 to 2.99 | 3.51 to 4.08 |
+| `LinkedList` merge sort | O(n log n) | 1.00 | 1.49 to 1.69 | 3.01 to 3.28 | |
+
+(The numbers in each row are scaled to its first column. A range means the two runs differed.)
+
+**What this shows:**
+
+- **`DynArray` holds its claim.** The time per item stays flat, even at 10 million items. Items sit next to each other in memory, which the processor reads very fast.
+- **The other three count the right number of steps, but each step gets slower as n grows.** At a few thousand items everything fits in the processor's cache, its small, fast memory. At a million items it does not, and many steps have to wait for main memory, which is about 100 times slower.
+- **Linked structures suffer most.** Each node of a `LinkedList` and each chain in the `HashMap` is a separate allocation somewhere in memory. Walking from one to the next is a jump the processor cannot predict. That is why the linked list's find and sort drift up to 3 or 4 times their small-n speed, while the array does not.
+- **So Big-O is about how the number of steps grows, not the time.** It predicts the shape well when the data fits in cache. Beyond that, memory layout matters as much as the algorithm.
+
+**What it means for this app:** nothing. A student has dozens of units, where everything fits in cache many times over. If the core ever had to hold millions of records, the first change would be to keep assessments in a `DynArray` instead of a `LinkedList`, and to store hash-map entries in one block instead of one node each.
 
 ## Memory safety
 

@@ -144,6 +144,12 @@ test('health: the week has seven days and marks today and the days still to come
   assert.equal(s.steps, null);                            // nothing logged is "no data", not zero
 });
 
+test('health: looking at a past day, the later days of that week are not "still to come"', () => {
+  const s = healthSummary({ date: '2026-11-17', today: '2026-11-20', targets, days: [], workouts: [] });
+  assert.equal(s.week[1].today, true);                    // the day being looked at: Tuesday
+  assert.deepEqual(s.week.map((d) => d.future), [false, false, false, false, false, true, true]);
+});
+
 test('health: reaching the step target exactly counts', () => {
   assert.equal(health([{ day: '2026-11-20', steps: 8000 }]).stepsOk, true);
   const short = health([{ day: '2026-11-20', steps: 7999 }]);

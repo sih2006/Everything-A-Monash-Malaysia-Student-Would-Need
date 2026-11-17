@@ -14,7 +14,7 @@ When a task is finished, move it to the "Done" table in [STATUS.md](STATUS.md).
 |---|---|---|
 | A1 | **Run the app and try everything.** `node backend/src/server.js`, open the address, load the example data, click through every screen, then delete the data and enter two of your own units. | You have used every screen once and written down anything that felt wrong |
 | A2 | **Read the five ADRs** in [docs/adr/](../adr/). Numbers 0002 to 0006 were decided by Claude during the build sprint and are marked "Proposed". For each one: accept it, or say what to change. | Each ADR's status is "Accepted" or it has been replaced |
-| A3 | **Push the four branches and merge them** ([github-setup.md](github-setup.md), parts 1 to 4). | `main` on GitHub has everything and the Actions tab shows a green run |
+| A3 | **Push the five branches and merge them** ([github-setup.md](github-setup.md), parts 1 to 4). | `main` on GitHub has everything and the Actions tab shows a green run |
 | A4 | **Check the grade rules against your own results.** Enter one finished semester and compare the CGPA with Monash's own CGPA calculator. | The numbers match, or you have reported the difference |
 | A5 | **Do the worked example** in [mvvm-guide.md](mvvm-guide.md) yourself: add notes to workouts. It is small on purpose, and it takes you through every layer once. | The note shows on the Health screen and the new test passes |
 
@@ -33,18 +33,20 @@ When a task is finished, move it to the "Done" table in [STATUS.md](STATUS.md).
 
 In rough order of value. Each one is a small pull request.
 
+**Done on 17 November 2026, on the branch `feat/next-tasks`:** C2, C3, C4, C5, C6, C7, C8, C9 and C10. Each row below says where. Only C1 is left, and it needs the owner's approval because it installs a package.
+
 | # | Task | Where | Done when |
 |---|---|---|---|
-| C1 | **Browser tests in CI.** Turn the hand-run browser checks (add a unit, a mark, a target, a refused weight, spending, reload) into a Playwright script. | new `web/e2e/`, `ci.yml` | The script passes locally and in CI, and fails if a button's action is unwired |
-| C2 | **Edit a unit's name, credit points and semester** from the screen. The API (`PATCH /api/units/:code`) already supports it. | `web/js/` | A form in "Target and unit settings" saves all three; a ViewModel test covers it |
-| C3 | **Look at other days and months.** The API takes `?date=` and `?month=`. Add previous and next buttons to Budget, Food and Health. | `web/js/` | You can see last month's budget and yesterday's food |
-| C4 | **Manage the quick-add food list** (remove and edit a remembered food). | `store.js`, `api.js`, `web/js/` | A remembered food can be removed; tests at each layer |
-| C5 | **Export and import all data** as one JSON file. | `api.js`, `web/js/` | Export, delete everything, import gives the same app back; a test proves the round trip |
-| C6 | **Limit wrong token guesses.** After 5 wrong tokens from one address, refuse for 15 minutes. | `backend/src/api.js` | A test shows the sixth wrong guess gets a 429 |
-| C7 | **Benchmarks for the data structures** (story ENG-07). Time each operation at growing sizes and record the results next to the stated complexity. | new `core/bench/` | A table in `core/README.md` shows the measured growth matches O(1), O(n), O(n log n) |
-| C8 | **Accessibility pass.** Keyboard-only run through every screen, screen-reader labels, colour contrast in all four looks and both modes. | `web/` | A short report in `docs/proofs/` with what was checked, what failed and what was fixed |
-| C9 | **Sort and filter spending and units** (by date, by category, by verdict). | `web/js/viewmodels/` | Presenter tests cover each order |
-| C10 | **A "reset to example data" script for demos**, and a short screen recording script. | `tools/` | One command gives a clean demo state |
+| C1 | **Browser tests in CI.** Needs the `@playwright/test` package: ask the owner first. Turn the hand-run browser checks (add a unit, a mark, a target, a refused weight, spending, reload) into a Playwright script. | new `web/e2e/`, `ci.yml` | The script passes locally and in CI, and fails if a button's action is unwired |
+| C2 | **Done.** **Edit a unit's name, credit points and semester** from the screen. The API (`PATCH /api/units/:code`) already supports it. | `web/js/` | A form in "Target and unit settings" saves all three; a ViewModel test covers it |
+| C3 | **Done.** **Look at other days and months.** The API takes `?date=` and `?month=`. Add previous and next buttons to Budget, Food and Health. | `web/js/` | You can see last month's budget and yesterday's food |
+| C4 | **Done.** **Manage the quick-add food list** (remove and edit a remembered food). | `store.js`, `api.js`, `web/js/` | A remembered food can be removed; tests at each layer |
+| C5 | **Done.** **Export and import all data** as one JSON file. | `api.js`, `web/js/` | Export, delete everything, import gives the same app back; a test proves the round trip |
+| C6 | **Done.** **Limit wrong token guesses.** After 5 wrong tokens from one address, refuse for 15 minutes. | `backend/src/api.js` | A test shows the sixth wrong guess gets a 429 |
+| C7 | **Done.** **Benchmarks for the data structures** (story ENG-07). Results: [core/README.md](../../core/README.md#measured-do-the-costs-hold). Time each operation at growing sizes and record the results next to the stated complexity. | new `core/bench/` | A table in `core/README.md` shows the measured growth matches O(1), O(n), O(n log n) |
+| C8 | **Done.** **Accessibility pass.** Results: [accessibility.md](../proofs/accessibility.md). Keyboard-only run through every screen, screen-reader labels, colour contrast in all four looks and both modes. | `web/` | A short report in `docs/proofs/` with what was checked, what failed and what was fixed |
+| C9 | **Done.** **Sort and filter spending and units** (by date, by category, by verdict). | `web/js/viewmodels/` | Presenter tests cover each order |
+| C10 | **Done.** **Demo mode** (`node backend/src/server.js --demo`) and a [walkthrough](demo-script.md). | `tools/` | One command gives a clean demo state |
 
 ## D. Agent tasks that wait for an owner decision
 

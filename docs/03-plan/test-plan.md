@@ -10,12 +10,12 @@ This document answers: how do we know the app works, and which test proves which
 |---|---|---|---|---|
 | **Unit, white-box** (core) | Each data structure and each rule, written with knowledge of the code | Our own test helper, with a leak check on every test | 72 | `core/tests/test_*.cpp` |
 | **System, black-box** (core) | The terminal program as a user sees it, written from the backlog's acceptance criteria only | A script types into the real program and reads its output | 31 | `core/tests/blackbox.py` |
-| **Unit** (backend rules) | Budget, food and health rules as pure functions | `node:test` | 21 | `backend/test/domain.test.js` |
-| **Integration** (backend) | The real server, a real database and the real C++ engine, called over HTTP | `node:test` | 34 | `backend/test/api.test.js` |
-| **Unit** (web) | Presenters and commands, with a fake API and no browser | `node:test` | 27 | `web/test/viewmodel.test.js` |
+| **Unit** (backend rules) | Budget, food and health rules as pure functions | `node:test` | 22 | `backend/test/domain.test.js` |
+| **Integration** (backend) | The real server, a real database and the real C++ engine, called over HTTP; export and import | `node:test` | 57 | `backend/test/api.test.js`, `export.test.js` |
+| **Unit** (web) | Presenters and commands, with a fake API and no browser | `node:test` | 39 | `web/test/viewmodel.test.js` |
 | **Browser, by hand** | The real screens in a real browser | Driven with the Playwright command-line tool, checked by eye | see section 5 | not automated |
 
-Total automated: **185 tests**. Run them all with `python tools/check.py`. The last saved run is in [docs/proofs/test-run.txt](../proofs/test-run.txt).
+Total automated: **221 tests**. Run them all with `python tools/check.py`. The last saved run is in [docs/proofs/test-run.txt](../proofs/test-run.txt).
 
 This follows the test pyramid: many fast unit tests, fewer integration tests, and a small number of whole-app checks.
 
@@ -63,7 +63,7 @@ Every story in release 0.1 is listed. "Pass" means the automated tests for it pa
 |---|---|---|---|
 | ACA-01 | Add a unit | black-box ×3; `units_are_checked`; API "a unit is added", "the same code twice", "bad input is refused" | Pass |
 | ACA-02 | Find and list units | black-box ×1; `sorted_codes_are_in_order` | Pass |
-| ACA-03 | Edit or remove a unit | black-box ×1 (remove); API "deleting a unit removes its assessments" | Pass for remove. **Edit: the API works, no screen yet** (task C2) |
+| ACA-03 | Edit or remove a unit | black-box ×1 (remove); API "deleting a unit removes its assessments", "the name, semester and credit points of a unit can be changed"; ViewModel "unit details" | Pass. The code itself cannot be changed; the screen explains how to fix a wrong one |
 | ACA-04 | Add assessments with weights | black-box ×1; `weights_cannot_pass_100`; API "weights above 100% are refused" | Pass |
 | ACA-05 | Record a mark | black-box ×2; `marks_are_checked`, `marks_out_of_other_totals`; API "a mark above the marks available" | Pass |
 | ACA-06 | Done and not done | black-box ×1; presenter "a unit shows its numbers" | Pass |
@@ -91,7 +91,7 @@ Every story in release 0.1 is listed. "Pass" means the automated tests for it pa
 | ENG-04 | Black-box tests named by story | 31 tests | Pass |
 | ENG-05 | Memory checked automatically | the leak counter (every run); sanitizers (CI) | Leak counter passes. **Sanitizers have not run yet** |
 | ENG-06 | CI on every push | `.github/workflows/ci.yml` | Written. **Has not run yet**: nothing is pushed |
-| ENG-07 | Benchmarks | none | **Not done** (task C7) |
+| ENG-07 | Benchmarks | `core/bench/bench.cpp`; results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) | Done. `DynArray` holds its claim in real time; the linked structures count the right steps but slow down 2 to 4 times at a million items, because of memory caching |
 | ENG-08 | README | [README.md](../../README.md), [core/README.md](../../core/README.md) | Done |
 | ENG-09 | Backlog on a public board | `tools/backlog_sync.py`, dry run only | **Needs the owner's GitHub login** |
 
@@ -132,6 +132,10 @@ On 16 and 17 November 2026, in Chromium at 1360 px and 390 px wide, with no erro
 | The map: drag, zoom buttons, picking a stop | Pass in the prototype. In the real app only by synthetic events |
 | With an access token set: the app shows a locked screen, refuses a wrong token and opens with the right one | Pass |
 | With the server stopped: the screens still open from the offline copy, with a clear message. 13 files are kept; no API answer is | Pass |
+| Previous and next on Budget, Food and Health; food logged on yesterday while today stays the same | Pass |
+| Download all data, delete everything, load the file back | Pass |
+| Order the units by what needs attention; filter spending by category | Pass |
+| Keyboard only and an automatic contrast, naming and size check on 42 pages | Pass after three fixes ([accessibility.md](../proofs/accessibility.md)) |
 
 Screenshots: [docs/proofs/screens/](../proofs/screens/).
 
@@ -152,7 +156,7 @@ Be clear about these when describing the project:
 - **The real Gemini API.** Both AI features were tested with a fake service.
 - **A real phone.** Phone width was tested in a desktop browser. Touch, pinch-to-zoom and "Add to Home screen" were not.
 - **Browsers other than Chromium.**
-- **Screen readers and keyboard-only use.** The markup uses real buttons, labels and live regions, but no full accessibility pass was done (task C8).
+- **A real screen reader.** Contrast, names, sizes and keyboard use were checked ([accessibility.md](../proofs/accessibility.md)); how it sounds in NVDA or TalkBack was not.
 - **Automated browser tests.** The browser checks above are not repeatable by a script yet (task C1).
 - **Monash's own numbers.** GPA, CGPA and WAM match hand-worked examples built from Monash's published scales, not Monash's calculator output.
 - **Large data and long use.** Nothing was run for days or with thousands of rows.

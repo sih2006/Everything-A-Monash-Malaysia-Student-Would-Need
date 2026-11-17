@@ -75,6 +75,7 @@ export function createStore(db) {
     listFoods: () => db.prepare('SELECT id, name, kcal, protein FROM foods ORDER BY name').all(),
     insertFood: (f) => db.prepare('INSERT INTO foods (name, kcal, protein) VALUES (?, ?, ?) ON CONFLICT(name) DO UPDATE SET kcal = excluded.kcal, protein = excluded.protein')
       .run(f.name, f.kcal, f.protein),
+    deleteFood: (id) => db.prepare('DELETE FROM foods WHERE id = ?').run(id).changes,
     listFoodLog: (day) => db.prepare('SELECT id, eaten_on AS date, meal, food, kcal, protein FROM food_log WHERE eaten_on = ? ORDER BY id').all(day),
     insertFoodLog: (e) => Number(db.prepare('INSERT INTO food_log (eaten_on, meal, food, kcal, protein) VALUES (?, ?, ?, ?, ?)')
       .run(e.date, e.meal, e.food, e.kcal, e.protein).lastInsertRowid),
@@ -94,6 +95,43 @@ export function createStore(db) {
     deleteWorkout: (id) => db.prepare('DELETE FROM workouts WHERE id = ?').run(id).changes,
 
     // ----- everything -----
+
+    // Every row the user has entered, in a plain shape that does not depend on the database.
+    // Database ids are left out, except where one row points at another (spending at its category).
+    exportAll() {
+      const all = (sql) => db.prepare(sql).all();
+      return {
+        settings: Object.fromEntries(all('SELECT key, value FROM settings ORDER BY key').map((r) => [r.key, JSON.parse(r.value)])),
+        units: all('SELECT code, name, term, credit, target FROM units ORDER BY code'),
+        assessments: all('SELECT unit_code AS unitCode, name, weight, score, max, hurdle FROM assessments ORDER BY unit_code, id'),
+        results: all('SELECT code, name, credit, mark, grade, term FROM results ORDER BY id'),
+        categories: all('SELECT id, name, monthly_limit AS "limit" FROM budget_categories ORDER BY id'),
+        transactions: all('SELECT category_id AS categoryId, what, amount, spent_on AS date FROM transactions ORDER BY spent_on, id'),
+        foods: all('SELECT name, kcal, protein FROM foods ORDER BY name'),
+        foodLog: all('SELECT eaten_on AS date, meal, food, kcal, protein FROM food_log ORDER BY eaten_on, id'),
+        healthDays: all('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr FROM health_days ORDER BY day'),
+        workouts: all('SELECT done_on AS date, name, notes FROM workouts ORDER BY done_on, id')
+      };
+    },
+
+    // Puts back what exportAll gave. The data must already be checked. Categories get new ids,
+    // and each spending entry is pointed at its category's new id.
+    importAll(data) {
+      for (const [key, value] of Object.entries(data.settings)) this.setSetting(key, value);
+      for (const u of data.units) {
+        this.insertUnit(u);
+        if (u.target !== null) this.updateUnit(u.code, { target: u.target });
+      }
+      for (const a of data.assessments) this.insertAssessment(a);
+      for (const r of data.results) this.insertResult(r);
+      const newId = new Map();
+      for (const c of data.categories) newId.set(c.id, this.insertCategory(c));
+      for (const t of data.transactions) this.insertTransaction({ ...t, categoryId: newId.get(t.categoryId) });
+      for (const f of data.foods) this.insertFood(f);
+      for (const e of data.foodLog) this.insertFoodLog(e);
+      for (const d of data.healthDays) this.saveHealthDay(d.day, d);
+      for (const w of data.workouts) this.insertWorkout(w);
+    },
     isEmpty() {
       const tables = ['units', 'results', 'transactions', 'food_log', 'health_days', 'workouts'];
       return tables.every((table) => db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n === 0);

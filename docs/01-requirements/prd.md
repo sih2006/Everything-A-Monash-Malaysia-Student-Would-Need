@@ -35,7 +35,7 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | BUD-05 | The app gives a verdict: on pace, ahead of pace (more than 5 points ahead of the calendar), or over the limit. | Must | Built, tested. **The 5 points is Claude's number.** |
 | BUD-06 | A category over its own limit is flagged, with the amount over. | Must | Built, tested |
 | BUD-07 | Spending can be removed. | Must | Built, tested |
-| BUD-08 | Another month can be viewed. | Should | API built and tested. **No screen control yet** (task C3) |
+| BUD-08 | Another month can be viewed. | Should | Built, tested |
 | BUD-09 | Spending is shown week by week. | Could | Built (used by the map), tested |
 
 ## Food
@@ -45,10 +45,10 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | NUT-01 | The user sets a daily calorie target and an optional protein target. With no target, the app shows totals and gives no verdict. | Must | Built, tested |
 | NUT-02 | The user logs a food with calories, optional protein, and a meal (breakfast, lunch, dinner or snack). | Must | Built, tested |
 | NUT-03 | The app shows eaten, left, and whether the day is on or over target. Exactly on target is not over. | Must | Built, tested |
-| NUT-04 | A food can be remembered and logged again with one press. | Should | Built, tested. **Removing a remembered food is not built** (task C4) |
+| NUT-04 | A food can be remembered and logged again with one press, and removed from that list. | Should | Built, tested |
 | NUT-05 | A log entry can be removed. | Must | Built, tested |
 | NUT-06 | A lookup of Malaysian foods with their calories. | Could | **Not built.** The capability map names it. Foods are typed in once instead. |
-| NUT-07 | Another day can be viewed. | Should | API built. **No screen control yet** (task C3) |
+| NUT-07 | Another day can be viewed, and food can be logged on it. | Should | Built, tested |
 
 ## Health
 
@@ -81,12 +81,12 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | APP-05 | An empty app explains how to start, and offers example data that can be deleted again. | Must | Built, tested |
 | APP-06 | A wrong entry shows a plain message and keeps what was typed. | Must | Built, checked by hand |
 | APP-07 | The user can delete all their data. It asks for confirmation. | Must | Built, tested |
-| APP-08 | Text is large and easy to read: body text at least 18 px. Meaning is never shown by colour alone. | Must | Built: 18 px base; verdicts carry words and a shape. No full accessibility check yet (task C8) |
+| APP-08 | Text is large and easy to read: body text at least 18 px. Meaning is never shown by colour alone. | Must | Built and checked on 42 pages ([accessibility.md](../proofs/accessibility.md)). Not checked with a real screen reader |
 | APP-09 | Each area's mascot shows the verdict as a mood, in words as well as in art. | Must | Mood in words: built. Art: **waiting for the artist** |
 | APP-10 | The app opens with no internet connection. | Should | Partly. The screens open offline; the data needs the server. Full offline use needs sync. |
 | APP-11 | Money is shown in MYR, dates in Malaysian time. | Must | Built, tested |
 | APP-12 | Movement on screen has a purpose and is turned off when the device asks for less motion. | Should | Built |
-| APP-13 | The user's data can be exported to one file. | Should | **Not built** (task C5) |
+| APP-13 | The user's data can be exported to one file, and loaded back into an empty app. | Should | Built, tested |
 
 ## The AI helper
 

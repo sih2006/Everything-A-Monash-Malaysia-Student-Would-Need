@@ -29,6 +29,8 @@ node backend/src/server.js
 
 Then open <http://127.0.0.1:8080>. Press **Load example data** on the home screen to look around with made-up data.
 
+To show the app without touching your own data: `node backend/src/server.js --demo`. The example data then lives only in memory.
+
 The terminal program: `core/build/tracker` (on Windows: `core\build\tracker.exe`).
 
 ## Test it
@@ -37,7 +39,7 @@ The terminal program: `core/build/tracker` (on Windows: `core\build\tracker.exe`
 python tools/check.py
 ```
 
-This builds the core and runs all 185 tests. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt), and screenshots of every screen are in [docs/proofs/screens/](docs/proofs/screens/).
+This builds the core and runs all 221 tests. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt), and screenshots of every screen are in [docs/proofs/screens/](docs/proofs/screens/).
 
 ## How it is built
 
@@ -60,6 +62,7 @@ Every grade rule lives in the C++ core and nowhere else. The backend sends the s
 | Putting it online (AWS) | [docs/handoff/aws-setup.md](docs/handoff/aws-setup.md) |
 | Using it on an Android phone | [docs/handoff/android-setup.md](docs/handoff/android-setup.md) |
 | GitHub: pushing, CI and the project board | [docs/handoff/github-setup.md](docs/handoff/github-setup.md) |
+| Showing the app to someone (demo mode) | [docs/handoff/demo-script.md](docs/handoff/demo-script.md) |
 | How to add a feature the MVVM way | [docs/handoff/mvvm-guide.md](docs/handoff/mvvm-guide.md) |
 | All planning documents | [docs/README.md](docs/README.md) |
 | The clickable design prototype (made-up data) | [prototype/](prototype/) |
