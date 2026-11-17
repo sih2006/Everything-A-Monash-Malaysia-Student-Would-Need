@@ -4,7 +4,7 @@ Everything in this guide needs your GitHub login, so an AI agent cannot do it fo
 
 ## Where the work is now
 
-All the work is committed on your laptop. **None of it is on GitHub yet.** There are four branches, each built on top of the one before:
+All the work is committed on your laptop. **None of it is on GitHub yet.** There are five branches, each built on top of the one before:
 
 | Order | Branch | What it holds |
 |---|---|---|
@@ -12,6 +12,7 @@ All the work is committed on your laptop. **None of it is on GitHub yet.** There
 | 2 | `feat/prototype` | The clickable design prototype |
 | 3 | `chore/backlog-board` | The updated backlog and the script that copies it to GitHub issues |
 | 4 | `feat/app` | The real app: C++ core, backend, web app, CI, documents |
+| 5 | `feat/next-tasks` | Editing units, other days and months, export and import, sorting, benchmarks, accessibility fixes, demo mode |
 
 ## Part 1: check which account git uses
 
@@ -42,7 +43,7 @@ Choose GitHub.com, HTTPS, "Login with a web browser", and log in as `sih2006`.
 
 ## Part 3: push and merge, one branch at a time
 
-Do this in order. For each of the four branches in the table:
+Do this in order. For each of the five branches in the table:
 
 1. Push it:
    ```
@@ -55,7 +56,7 @@ Do this in order. For each of the four branches in the table:
 3. Open the link it prints, read the changes, and press **Merge pull request**. Choose **Create a merge commit**. Do not choose "Squash" for these: the later branches are built on these exact commits, and squashing would make the next pull request show changes that are already merged.
 4. Move on to the next branch.
 
-After the fourth one, update your laptop:
+After the last one, update your laptop:
 
 ```
 git switch main

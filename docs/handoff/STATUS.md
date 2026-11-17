@@ -2,11 +2,11 @@
 
 This file says what is built, what is tested and what is still to do. **Read it first.** Update it at the end of every piece of work.
 
-**Last updated:** 17 November 2026, at the end of the one-day build sprint.
+**Last updated:** 17 November 2026, after the follow-up session that finished tasks C2 to C10.
 
 ## In one paragraph
 
-The app works on a laptop. Grades, budget, food, health and the map all run on real data that you type in, with 185 automated tests passing. Nothing is on GitHub yet, nothing is online, and nothing has run on a real phone. Five decisions were made by Claude alone and wait for the owner's review.
+The app works on a laptop. Grades, budget, food, health and the map all run on real data that you type in, with 221 automated tests passing. Nothing is on GitHub yet, nothing is online, and nothing has run on a real phone. Five decisions were made by Claude alone and wait for the owner's review.
 
 ## How to run and check it
 
@@ -14,6 +14,7 @@ The app works on a laptop. Grades, budget, food, health and the map all run on r
 cmake -S core -B core/build          build the C++ core (once, and after changing it)
 cmake --build core/build
 node backend/src/server.js           start the app, then open http://127.0.0.1:8080
+node backend/src/server.js --demo    the same, with example data kept in memory only
 python tools/check.py                build and run every test
 ```
 
@@ -25,11 +26,14 @@ python tools/check.py                build and run every test
 | Grade rules: bands, the GPA and CGPA scales, WAM, standing, possible, realistic, hurdles, what-if, final goal | `core/src/lib/` | 35 |
 | Save files, the text format, the JSON report | `core/src/lib/codec.cpp`, `report.cpp` | 13 |
 | The terminal program | `core/src/cli.cpp` | 31 black-box |
-| Budget, food and health rules | `backend/src/domain.js` | 21 |
-| Database, API, engine bridge, AI helper, access token, static files | `backend/src/` | 34, against the real engine |
-| Web app: presenters and commands (MVVM) | `web/js/viewmodels/` | 27 |
+| Budget, food and health rules | `backend/src/domain.js` | 22 |
+| Database, API, engine bridge, AI helper, access token with a guess limit, static files | `backend/src/` | 40, against the real engine |
+| Export to one file and import into an empty app | `backend/src/api.js`, `store.js` | 17, including a full round trip and 13 kinds of damaged file |
+| Web app: presenters and commands (MVVM) | `web/js/viewmodels/` | 39 |
 | Web app: screens, map, looks, hide grades, dark mode | `web/js/views/`, `web/css/` | Checked by hand in a browser, see the [test plan](../03-plan/test-plan.md#5-checked-by-hand-in-a-browser) |
 | One command for all tests | `tools/check.py` | It is the proof: [test-run.txt](../proofs/test-run.txt) |
+| Benchmarks of the data structures | `core/bench/` | Results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) |
+| Accessibility: contrast, names, sizes, keyboard | `tools/a11y-check.js` | 42 pages checked: [accessibility.md](../proofs/accessibility.md) |
 
 ## Written but never run
 
@@ -55,16 +59,14 @@ Checked by hand on 17 November and working: with the server stopped, the app's o
 | Login and hosting | No decision yet: [ADR-0005](../adr/0005-hosting.md) |
 | Cloud sync and working offline with data | Needs hosting first |
 | Reading steps, sleep and heart rate from the phone | Needs a native Android app |
-| Automated browser tests | Task C1 |
-| Editing a unit's name and credit points from the screen; viewing other days and months; removing a remembered food; export | The API supports the first two. Tasks C2 to C5 |
-| Benchmarks for the data structures | Task C7 |
+| Automated browser tests | Task C1. Needs the `@playwright/test` package, which needs the owner's approval |
 | Handbook lookup, future goals, unit reviews, YouTube suggestions, a Malaysian food database | Later epics; each starts with an interview |
 
 ## Waiting for the owner
 
 1. **Review ADRs 0002 to 0006** in [docs/adr/](../adr/). Claude made these choices alone.
 2. **Check the grade numbers** against Monash's CGPA calculator with a real semester.
-3. **Push and merge** the four branches, in order ([github-setup.md](github-setup.md)).
+3. **Push and merge** the five branches, in order ([github-setup.md](github-setup.md)).
 4. **Decide:** the name, the look, hosting. See section B of [next-tasks.md](next-tasks.md).
 5. **Read the drafts.** Every document marked "Draft" in the [planning hub](../README.md) was written by Claude and is not yours until you have changed what is wrong in it.
 
@@ -73,8 +75,7 @@ Checked by hand on 17 November and working: with the server stopped, the app's o
 | Problem | Effect | Fix |
 |---|---|---|
 | Fonts load from Google Fonts | Google learns the page was opened; with no internet the app falls back to a system font | Save the fonts into `web/` |
-| No limit on wrong access-token guesses | Not safe on the open internet | Task C6 |
-| No backup of `backend/data/app.db` | One lost file is all your data | Copy the file by hand until task C5 |
+| Backups are by hand | One lost file is all your data | Press **Download all my data** on Home now and then, and keep the file somewhere safe |
 | Four looks are loaded | Four font families downloaded; only one is used at a time | Decide the look, remove the rest |
 | The phone menu has six items | One more than the usual limit; tight at 390 px | Decide whether Map moves into Home |
 | Node prints an "ExperimentalWarning" for SQLite when the server starts | Harmless noise | Goes away when Node marks it stable |
@@ -89,7 +90,8 @@ None is pushed. Each is built on the one before.
 | `docs/engineering-principles` | Principles, ADR-0001, capability map, first backlog |
 | `feat/prototype` | The design prototype |
 | `chore/backlog-board` | Updated backlog, the board script |
-| `feat/app` | Everything else: core, backend, web app, CI, documents. **You are here.** |
+| `feat/app` | The build sprint: core, backend, web app, CI, documents |
+| `feat/next-tasks` | Tasks C2 to C10, and the updated engineering principles. **You are here.** |
 
 ## Where to go next
 
