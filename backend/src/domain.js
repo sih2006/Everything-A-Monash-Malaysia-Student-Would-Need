@@ -7,7 +7,7 @@
 //
 // (The grade rules are not here. They live in the C++ core.)
 
-const round2 = (n) => Math.round(n * 100) / 100;
+export const round2 = (n) => Math.round(n * 100) / 100;
 
 // ---------- dates ----------
 // A day is always the text "YYYY-MM-DD". Text days sort and compare correctly.

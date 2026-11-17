@@ -2,7 +2,7 @@
 //
 // Each handler is short on purpose. It checks the input, asks the store to
 // read or write, asks the domain (or the C++ engine) to work things out, and
-// returns plain data. The full list of addresses is in docs/02-design/api.md.
+// returns plain data. The full list of addresses is in docs/02-design/backend-schema.md.
 
 import { timingSafeEqual } from 'node:crypto';
 
