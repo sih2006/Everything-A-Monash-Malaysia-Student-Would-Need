@@ -189,6 +189,7 @@ const COMMANDS = {
   deleteAccount: (f, d) => vm.deleteAccount(Number(d.id)),
   setBalance: (f, d) => vm.setBalance(Number(d.id), f.balance),
   addIncome: (f, d) => vm.addIncome(Number(d.id), f),
+  addMoneyIn: (f) => vm.addMoneyIn(f),
   transfer: (f) => vm.transfer(f),
   deleteAccountMove: (f, d) => vm.deleteAccountMove(Number(d.id)),
 

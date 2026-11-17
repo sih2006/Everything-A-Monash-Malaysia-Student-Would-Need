@@ -304,7 +304,12 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     deleteAccount: (id) => act('budget', () => api.deleteAccount(id), 'Account removed.'),
     // The manual overwrite: the user types what the account really holds now.
     setBalance: (id, text) => act('budget', () => api.setBalance(id, number(text, 'The balance')), 'Balance updated.'),
-    addIncome: (id, f) => act('budget', () => api.addIncome(id, { amount: number(f.amount, 'The amount'), note: f.note ?? '' }), 'Money added.'),
+    addIncome: (id, f) => act('budget', () => api.addIncome(id, { amount: number(f.amount, 'The amount'), note: f.note ?? '', ...(f.date ? { date: f.date } : {}) }), 'Money added.'),
+    // Money in from the Budget screen: the account is picked in the form.
+    addMoneyIn: (f) => act('budget', () => {
+      if (!f.account) throw new ApiError(400, 'invalid', 'Pick the account the money went into.');
+      return api.addIncome(Number(f.account), { amount: number(f.amount, 'The amount'), note: f.note ?? '', ...(f.date ? { date: f.date } : {}) });
+    }, 'Money in added.'),
     transfer: (f) => act('budget', () => {
       if (!f.from || !f.to) throw new ApiError(400, 'invalid', 'Pick both accounts.');
       return api.transfer({ from: Number(f.from), to: Number(f.to), amount: number(f.amount, 'The amount') });
@@ -328,7 +333,8 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       sleepTargetMinutes: Math.round((number(f.sleepHours, 'The sleep target', { required: false }) ?? 0) * 60),
       workoutTarget: number(f.workouts, 'The workout target', { required: false }) ?? 0,
       waterTarget: Math.round((number(f.waterLitres, 'The water target', { required: false }) ?? 0) * 1000),
-      weightGoalKg: number(f.weightGoal, 'The goal weight', { required: false })
+      weightGoalKg: number(f.weightGoal, 'The goal weight', { required: false }),
+      heightCm: number(f.heightCm, 'Your height', { required: false })
     }), 'Targets saved.'),
     // Only the boxes that were filled in are sent, so an empty box never wipes a saved value.
     saveToday: (f) => act('health', () => {

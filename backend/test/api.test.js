@@ -332,6 +332,20 @@ describe('money accounts', () => {
     assert.equal((await app.call('DELETE', `/api/account-moves/${moves[1].id}`)).status, 200);
   });
 
+  test('the month shows money in and what is left; a move between your own accounts is not income', async () => {
+    const bank = (await app.call('POST', '/api/accounts', { name: 'Income bank', kind: 'bank', balance: 0 })).body.money.accounts.find((a) => a.name === 'Income bank');
+    const wallet = (await app.call('POST', '/api/accounts', { name: 'Income wallet', kind: 'ewallet', balance: 0 })).body.money.accounts.find((a) => a.name === 'Income wallet');
+    await app.call('POST', `/api/accounts/${bank.id}/income`, { amount: 500, note: 'Allowance', date: '2026-11-03' });
+    const after = await app.call('POST', '/api/accounts/transfer', { from: bank.id, to: wallet.id, amount: 100, date: '2026-11-04' });
+    assert.equal(after.status, 200);
+    const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
+    assert.ok(month.income.sources.some((s) => s.source === 'Allowance' && s.amount === 500));
+    assert.ok(!month.income.sources.some((s) => s.source.startsWith('From ')));     // the transfer is not income
+    assert.equal(month.income.net, Math.round((month.income.total - month.spent) * 100) / 100);
+    await app.call('DELETE', `/api/accounts/${bank.id}`);
+    await app.call('DELETE', `/api/accounts/${wallet.id}`);
+  });
+
   test('accounts are checked', async () => {
     assert.equal((await app.call('POST', '/api/accounts', { name: 'maybank' })).status, 409);
     assert.equal((await app.call('POST', '/api/accounts', { name: 'Crypto', kind: 'magic' })).status, 400);

@@ -350,6 +350,26 @@ function moneySection(money) {
 
 // ================= budget =================
 
+// Money in during the month shown, where it came from, and what is left after spending.
+function incomeSection(b, day) {
+  const income = b.income ?? { total: 0, net: 0, sources: [] };
+  const accounts = b.money?.accounts ?? [];
+  return `
+    <section class="card">
+      <div class="card-head"><h2>Money in: ${rm(income.total)}</h2>${income.total ? chip(income.net >= 0 ? { text: `${rm(income.net)} left after spending`, tone: 'good' } : { text: `${rm(-income.net)} more out than in`, tone: 'warn' }) : ''}</div>
+      ${income.sources.length ? `<ul class="list">${income.sources.map((s) => `<li><span>${esc(s.source)}</span><span class="end">${rm(s.amount)}</span></li>`).join('')}</ul>`
+        : '<p class="note">Nothing came in this month yet. Moving money between your own accounts does not count.</p>'}
+      ${accounts.length ? fold('money-in', 'Add money in', `
+        <form class="form" data-action="addMoneyIn">
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          ${field('From', 'note', 'maxlength="60" placeholder="Money from home, part-time job"', 'optional')}
+          ${select('Into', 'account', accounts.map((a) => [String(a.id), a.name]))}
+          ${field('Date', 'date', `type="date" value="${day}"`)}
+          <button class="btn primary" type="submit">Add</button>
+        </form>`) : '<p class="note">Add an account above first, so the money has somewhere to go.</p>'}
+    </section>`;
+}
+
 export function budgetView(state) {
   const b = state.views.budget ?? state.overview.budget;
   const isCurrent = !state.views.budget;
@@ -361,6 +381,7 @@ export function budgetView(state) {
     ${head}
     ${moneySection(b.money)}
     ${periodNav('budget', b.monthName, isCurrent, 'month')}
+    ${incomeSection(b, spendDay)}
     ${b.hasLimit ? `
     <section class="grid stats" aria-label="Month so far">
       <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div><p class="note">${Math.round(b.spentPercent)}% of your limit</p></div>
@@ -553,6 +574,7 @@ export function healthView(state) {
       <div class="card">
         <div class="label">Body weight</div>
         <div class="big">${h.weight.latest === null ? '—' : `${plain(h.weight.latest.kg)} kg`}</div>
+        ${h.weight.bmi === null ? '' : `<p class="note">BMI ${plain(h.weight.bmi)} at ${h.weight.heightCm} cm</p>`}
         <p class="note">${h.weight.latest === null ? 'Not logged yet'
           : [h.weight.latest.date === h.date ? 'Weighed this day' : `Last weighed ${dayText(h.weight.latest.date)}`,
              h.weight.change30 === null ? '' : `${signed(h.weight.change30)} in 30 days`,
@@ -636,6 +658,7 @@ export function healthView(state) {
           ${field('Workouts a week', 'workouts', `inputmode="numeric" value="${h.workoutTarget || ''}"`)}
           ${field('Water a day (litres)', 'waterLitres', `inputmode="decimal" value="${h.waterTarget ? plain(h.waterTarget / 1000) : ''}"`)}
           ${field('Goal weight (kg)', 'weightGoal', `inputmode="decimal" value="${h.weight.goalKg ?? ''}"`, 'optional, your own choice')}
+          ${field('Height (cm)', 'heightCm', `inputmode="numeric" value="${h.weight.heightCm ?? ''}"`, 'for BMI')}
           <button class="btn primary" type="submit">Save targets</button>
         </form>`, !(h.stepTarget || h.sleepTargetMinutes || h.workoutTarget))}
     </section>`;

@@ -81,10 +81,10 @@ export function createStore(db) {
     renameAccount: (id, name, kind) => db.prepare('UPDATE accounts SET name = ?, kind = ? WHERE id = ?').run(name, kind, id).changes,
     deleteAccount: (id) => db.prepare('DELETE FROM accounts WHERE id = ?').run(id).changes,
     // Every move of every account, in the order they were entered. The order is what decides a balance.
-    listAccountMoves: () => db.prepare(`SELECT id, account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId
-      FROM account_moves ORDER BY id`).all(),
-    insertAccountMove: (m) => Number(db.prepare('INSERT INTO account_moves (account_id, kind, amount, moved_on, note, transaction_id) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(m.accountId, m.kind, m.amount, m.date, m.note ?? '', m.transactionId ?? null).lastInsertRowid),
+    listAccountMoves: () => db.prepare(`SELECT id, account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId, transfer
+      FROM account_moves ORDER BY id`).all().map((m) => ({ ...m, transfer: m.transfer === 1 })),
+    insertAccountMove: (m) => Number(db.prepare('INSERT INTO account_moves (account_id, kind, amount, moved_on, note, transaction_id, transfer) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(m.accountId, m.kind, m.amount, m.date, m.note ?? '', m.transactionId ?? null, m.transfer ? 1 : 0).lastInsertRowid),
     getAccountMove: (id) => db.prepare('SELECT id, transaction_id AS transactionId FROM account_moves WHERE id = ?').get(id),
     deleteAccountMove: (id) => db.prepare('DELETE FROM account_moves WHERE id = ?').run(id).changes,
 
@@ -154,7 +154,7 @@ export function createStore(db) {
         healthDays: all('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr, weight_kg AS weightKg, water_ml AS waterMl FROM health_days ORDER BY day'),
         workouts: this.listWorkouts('0000-01-01', '9999-12-31').reverse().map(({ id, exercises, ...w }) => ({ ...w, exercises: exercises.map(({ id: _, ...x }) => x) })),
         accounts: all('SELECT id, name, kind FROM accounts ORDER BY id'),
-        accountMoves: all('SELECT account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId FROM account_moves ORDER BY id')
+        accountMoves: all('SELECT account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId, transfer FROM account_moves ORDER BY id').map((m) => ({ ...m, transfer: m.transfer === 1 }))
       };
       // A move made by spending points at that spending by its place in the list, not by a database id.
       const place = new Map(data.transactions.map((t, i) => [t.id, i]));

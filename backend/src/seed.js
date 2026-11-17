@@ -93,7 +93,7 @@ export function loadDemo(store, today) {
   store.insertFoodLog({ date: today, meal: 'Snack', food: 'Banana', kcal: 100, protein: 1 });
 
   // ----- health: this week, up to today -----
-  store.setSetting('health.targets', { steps: 8000, sleepMinutes: 450, workouts: 4, waterMl: 2500, weightGoalKg: 70 });
+  store.setSetting('health.targets', { steps: 8000, sleepMinutes: 450, workouts: 4, waterMl: 2500, weightGoalKg: 70, heightCm: 175 });
   const { from } = weekRange(today);
   const days = [[7810, 425, 63], [9240, 400, 62], [5130, 450, 64], [8460, 350, 63], [6420, 370, 62], [7200, 480, 61], [4100, 510, 62]];
   const water = [2100, 2600, 1800, 2500, 2300, 2700, 1500];

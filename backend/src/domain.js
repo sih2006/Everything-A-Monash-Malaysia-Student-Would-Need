@@ -105,6 +105,23 @@ export const ACCOUNT_KINDS = ['bank', 'ewallet', 'investment', 'cash'];
 // Works out each account's balance from its moves, which must be in the order they were entered.
 // A 'set' move is the user typing the real balance: it replaces whatever was worked out before it.
 // Then each 'in' adds and each 'out' takes away.
+// Money that came in during a month: every "in" move except moves between your own accounts.
+// Grouped by where it came from (the note), biggest first. Net is what is left after the month's spending.
+export function incomeSummary(moves, month, spent) {
+  const { from, to } = monthRange(month);
+  const inMonth = moves.filter((m) => m.kind === 'in' && !m.transfer && m.date >= from && m.date <= to);
+  const bySource = new Map();
+  for (const m of inMonth) {
+    const source = m.note || 'Money in';
+    bySource.set(source, round2((bySource.get(source) ?? 0) + m.amount));
+  }
+  const total = round2(inMonth.reduce((sum, m) => sum + m.amount, 0));
+  return {
+    total, net: round2(total - spent),
+    sources: [...bySource].map(([source, amount]) => ({ source, amount })).sort((a, b) => b.amount - a.amount)
+  };
+}
+
 export function accountSummary(accounts, moves) {
   const byAccount = new Map(accounts.map((a) => [a.id, { ...a, balance: 0, lastSet: null, recent: [] }]));
   for (const m of moves) {
@@ -172,9 +189,9 @@ const average = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.
 
 // Body weight over time. `weights` is every day with a weight, oldest first, up to the day looked at.
 // The change is from the first weight in the 30 days before the latest one. The goal is the user's own.
-export function weightTrend(weights, goalKg = null) {
+export function weightTrend(weights, goalKg = null, heightCm = null) {
   const latest = weights.at(-1) ?? null;
-  if (!latest) return { latest: null, change30: null, goalKg, toGoal: null, points: [] };
+  if (!latest) return { latest: null, change30: null, goalKg, toGoal: null, points: [], heightCm, bmi: null };
   const start = weights.find((w) => w.day >= addDays(latest.day, -30));
   const round1 = (x) => Math.round(x * 10) / 10;
   return {
@@ -182,6 +199,8 @@ export function weightTrend(weights, goalKg = null) {
     change30: start && start.day !== latest.day ? round1(latest.weightKg - start.weightKg) : null,
     goalKg,
     toGoal: goalKg === null ? null : round1(latest.weightKg - goalKg),   // above the goal when positive
+    heightCm,
+    bmi: heightCm ? round1(latest.weightKg / (heightCm / 100) ** 2) : null,
     points: weights.slice(-30).map((w) => ({ date: w.day, kg: w.weightKg }))
   };
 }
@@ -230,7 +249,7 @@ export function healthSummary({ date, today = date, targets, days, workouts, wei
     waterMl: chosen.waterMl, waterTarget,
     waterLeft: chosen.waterMl === null || !waterTarget ? null : Math.max(0, waterTarget - chosen.waterMl),
     weightKg: chosen.weightKg,
-    weight: weightTrend(weights, targets.weightGoalKg ?? null),
+    weight: weightTrend(weights, targets.weightGoalKg ?? null, targets.heightCm ?? null),
     bests
   };
 }

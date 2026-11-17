@@ -7,7 +7,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
@@ -218,15 +218,18 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
 
   function budgetFor(month) {
     const { from, to } = monthRange(month);
+    const summary = budgetSummary({
+      month, today: today(),
+      limit: store.getSetting('budget.limit', null),
+      categories: store.listCategories(),
+      transactions: store.listTransactions(from, to)
+    });
+    const moves = store.listAccountMoves();
     return {
-      ...budgetSummary({
-        month, today: today(),
-        limit: store.getSetting('budget.limit', null),
-        categories: store.listCategories(),
-        transactions: store.listTransactions(from, to)
-      }),
+      ...summary,
+      income: incomeSummary(moves, month, summary.spent),
       // Balances are always as they are now, whichever month is being looked at.
-      money: accountSummary(store.listAccounts(), store.listAccountMoves())
+      money: accountSummary(store.listAccounts(), moves)
     };
   }
   const budgetNow = () => budgetFor(today().slice(0, 7));
@@ -339,7 +342,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   // The manual overwrite: "this account holds exactly this much now". Earlier moves stop counting.
   route('PUT', '/api/accounts/:id/balance', ({ params, body }) => {
     const account = mustFindAccount(check.id(params.id));
-    store.insertAccountMove({ accountId: account.id, kind: 'set', amount: balanceValue(body.balance), date: today(), note: check.text(body.note, 'note', { max: 60, required: false }) || 'Balance set by hand' });
+    store.insertAccountMove({ accountId: account.id, kind: 'set', amount: balanceValue(body.balance), date: dayOf(body.date), note: check.text(body.note, 'note', { max: 60, required: false }) || 'Balance set by hand' });
     return budgetNow();
   });
 
@@ -358,8 +361,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const amount = moveAmount(body.amount);
     const date = dayOf(body.date);
     inTransaction(db, () => {
-      store.insertAccountMove({ accountId: from.id, kind: 'out', amount, date, note: `To ${to.name}` });
-      store.insertAccountMove({ accountId: to.id, kind: 'in', amount, date, note: `From ${from.name}` });
+      store.insertAccountMove({ accountId: from.id, kind: 'out', amount, date, note: `To ${to.name}`, transfer: true });
+      store.insertAccountMove({ accountId: to.id, kind: 'in', amount, date, note: `From ${from.name}`, transfer: true });
     });
     return budgetNow();
   });
@@ -438,7 +441,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     sleepMinutes: check.number(b.sleepMinutes ?? 0, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
     workouts: check.number(b.workouts ?? 0, 'workoutTarget', { min: 0, max: 21, whole: true }),
     waterMl: check.number(b.waterMl ?? 0, 'waterTarget', { min: 0, max: 10000, whole: true }),
-    weightGoalKg: check.number(b.weightGoalKg ?? null, 'weightGoalKg', { min: 20, max: 400, nullable: true })
+    weightGoalKg: check.number(b.weightGoalKg ?? null, 'weightGoalKg', { min: 20, max: 400, nullable: true }),
+    heightCm: check.number(b.heightCm ?? null, 'heightCm', { min: 100, max: 250, nullable: true })
   });
   const workoutKind = (value) => {
     const kind = value ?? 'other';
@@ -462,7 +466,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   route('PUT', '/api/health/settings', ({ body }) => {
     store.setSetting('health.targets', healthTargets({
       steps: body.stepTarget, sleepMinutes: body.sleepTargetMinutes, workouts: body.workoutTarget,
-      waterMl: body.waterTarget, weightGoalKg: body.weightGoalKg
+      waterMl: body.waterTarget, weightGoalKg: body.weightGoalKg, heightCm: body.heightCm
     }));
     return healthFor(today());
   });
@@ -705,7 +709,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
         amount: m.kind === 'set' ? balanceValue(m.amount, 'amount') : moveAmount(m.amount),
         date: day(m.date, 'date'),
         note: check.text(m.note, 'note', { max: 60, required: false }),
-        transaction
+        transaction,
+        transfer: m.transfer === true
       };
     });
     return { settings, units, assessments, results, categories, transactions, foods, foodLog, healthDays, workouts, accounts, accountMoves };

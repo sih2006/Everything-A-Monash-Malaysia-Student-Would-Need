@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { accountSummary, addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, incomeSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -216,6 +216,27 @@ test('health: minutes and kinds of the workouts this week', () => {
   ]);
   assert.equal(s.workouts.minutes, 90);
   assert.deepEqual(s.workouts.kinds, [{ kind: 'gym', count: 2, minutes: 60 }, { kind: 'run', count: 1, minutes: 30 }]);
+});
+
+test('income: money in during the month by source, without moves between your own accounts', () => {
+  const moves = [
+    { kind: 'in', amount: 6050, date: '2026-10-24', note: 'Money from home' },
+    { kind: 'in', amount: 13.5, date: '2026-10-08', note: 'Paid back by a friend' },
+    { kind: 'in', amount: 10, date: '2026-10-09', note: 'Paid back by a friend' },
+    { kind: 'in', amount: 200, date: '2026-10-17', note: 'From Maybank', transfer: true },   // own money moved: not income
+    { kind: 'in', amount: 999, date: '2026-09-30', note: 'Money from home' },                // another month
+    { kind: 'out', amount: 50, date: '2026-10-10', note: 'Lunch' }
+  ];
+  const s = incomeSummary(moves, '2026-10', 3333.2);
+  assert.equal(s.total, 6073.5);
+  assert.equal(s.net, 2740.3);
+  assert.deepEqual(s.sources, [{ source: 'Money from home', amount: 6050 }, { source: 'Paid back by a friend', amount: 23.5 }]);
+  assert.deepEqual(incomeSummary([], '2026-10', 0), { total: 0, net: 0, sources: [] });
+});
+
+test('weight: BMI is weight divided by height in metres squared, once a height is set', () => {
+  assert.equal(weightTrend([{ day: '2026-11-18', weightKg: 72.5 }], null, 175).bmi, 23.7);
+  assert.equal(weightTrend([{ day: '2026-11-18', weightKg: 72.5 }]).bmi, null);
 });
 
 test('weight: latest, change over 30 days and distance to the goal the user set', () => {

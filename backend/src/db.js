@@ -141,6 +141,10 @@ const MIGRATIONS = [
   // Step 4: units graded pass or fail only. They never count in GPA, CGPA or WAM.
   `
   ALTER TABLE units ADD COLUMN pass_fail INTEGER NOT NULL DEFAULT 0;
+  `,
+  // Step 5: a move between two of your own accounts is marked, so it never counts as income or spending.
+  `
+  ALTER TABLE account_moves ADD COLUMN transfer INTEGER NOT NULL DEFAULT 0;
   `
 ];
 
