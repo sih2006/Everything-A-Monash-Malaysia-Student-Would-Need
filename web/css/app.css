@@ -172,7 +172,8 @@ h3.label { margin-top: var(--s2); }
 .linechart text.axis { stroke: none; }
 
 /* ----- Budget tabs ----- */
-.budget-tabs { margin: var(--s3) 0; }
+.budget-tabs { margin: var(--s3) 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 36rem; }
+.budget-tabs button { padding-inline: var(--s2); }
 .account-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-bottom: var(--s3); }
 .account-rows li { padding: 0; }
 .account-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); width: 100%; padding: var(--s2) 0; text-align: left; text-decoration: none; color: inherit; }
@@ -181,6 +182,6 @@ h3.label { margin-top: var(--s2); }
 .ranked { counter-reset: place; }
 .ranked li { counter-increment: place; }
 .ranked li > span:first-child::before { content: counter(place) ". "; font-variant-numeric: tabular-nums; opacity: .6; }
-.advice .tip { padding-left: var(--s3); border-left: 3px solid currentColor; margin: var(--s2) 0; }
+.advice .advice-tip { padding-left: var(--s3); border-left: 3px solid currentColor; margin: var(--s2) 0; }
 .advice textarea { width: 100%; font: inherit; }
 .essential[aria-pressed="true"] { font-weight: 600; }

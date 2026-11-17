@@ -441,7 +441,7 @@ function adviceCard(advice) {
     <section class="card advice">
       <div class="card-head"><h2>Advice</h2>${advice ? chip({ text: advice.by, tone: '' }) : ''}</div>
       ${advice ? `${advice.text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => line.startsWith('- ')
-          ? `<p class="tip">${esc(line.slice(2))}</p>` : `<p>${esc(line)}</p>`).join('')}
+          ? `<p class="advice-tip">${esc(line.slice(2))}</p>` : `<p>${esc(line)}</p>`).join('')}
         <p class="note">Written on ${esc(dayText(advice.on))}. Later the AI helper will write this from your own numbers.</p>`
         : '<p class="note">No advice yet. Later the AI helper will write it from your spending. You can write your own below.</p>'}
       ${fold('advice-edit', advice ? 'Change the advice' : 'Write advice', `
