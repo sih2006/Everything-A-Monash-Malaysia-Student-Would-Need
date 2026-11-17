@@ -16,7 +16,8 @@ const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const GRADES = ['HD', 'D', 'C', 'P', 'NP', 'N', 'NH', 'WN'];
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const SMALL = 64 * 1024;            // size limit for normal requests
-const PICTURE = 8 * 1024 * 1024;    // size limit for a screenshot
+const PICTURE = 8 * 1024 * 1024;    // size limit for a screenshot, or a file of exported data
+const EXPORT_FORMAT = 'student-companion-export';
 
 export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now() }) {
   const router = createRouter();
@@ -359,6 +360,155 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const day = today();
     return { today: day, academics, academicsError, budget: budgetFor(day.slice(0, 7)), food: foodFor(day), health: healthFor(day), ai: gemini.configured, empty: store.isEmpty() };
   });
+
+  // ================= export and import =================
+
+  route('GET', '/api/export', () => ({ format: EXPORT_FORMAT, version: 1, exportedOn: today(), ...store.exportAll() }));
+
+  // Checks every row of an exported file with the same rules as the normal forms, so a file
+  // that was edited by hand cannot put anything into the app that the forms would refuse.
+  function cleanExport(file) {
+    if (file.format !== EXPORT_FORMAT) throw new HttpError(400, 'invalid', 'This is not a file exported from this app.');
+    if (file.version !== 1) throw new HttpError(400, 'invalid', 'This file is from a newer version of the app.');
+    const list = (name, max) => {
+      const rows = file[name] ?? [];
+      if (!Array.isArray(rows)) throw new HttpError(400, 'invalid', `The part "${name}" of the file is damaged.`);
+      if (rows.length > max) throw new HttpError(400, 'invalid', `The part "${name}" of the file has too many rows.`);
+      return rows;
+    };
+    const day = (value, field) => {
+      if (!isDay(value)) throw new HttpError(400, 'invalid', `A date in the file is not valid: ${String(value).slice(0, 20)}.`, field);
+      return value;
+    };
+    const maybe = (value, field, range) => (value === null || value === undefined ? null : check.number(value, field, range));
+
+    const settings = {};
+    const s = file.settings ?? {};
+    if (typeof s !== 'object' || Array.isArray(s)) throw new HttpError(400, 'invalid', 'The settings in the file are damaged.');
+    if (s['academics.currentTerm'] !== undefined) settings['academics.currentTerm'] = check.text(s['academics.currentTerm'], 'currentTerm', { max: 40, required: false });
+    if (s['academics.margin'] !== undefined) settings['academics.margin'] = check.number(s['academics.margin'], 'margin', { min: 0, max: 100 });
+    if (s['academics.goal']) {
+      const g = s['academics.goal'];
+      if (!['cgpa', 'gpa', 'wam'].includes(g.measure)) throw new HttpError(400, 'invalid', 'The goal in the file is damaged.');
+      settings['academics.goal'] = {
+        measure: g.measure,
+        value: check.number(g.value, 'goal', { min: 0.01, max: g.measure === 'wam' ? 100 : 4 }),
+        totalCredits: check.number(g.totalCredits, 'totalCredits', { min: 1, max: 1000 })
+      };
+    }
+    if (s['budget.limit'] !== undefined) settings['budget.limit'] = maybe(s['budget.limit'], 'limit', { min: 0, max: 1e7 });
+    if (s['food.targets']) {
+      settings['food.targets'] = {
+        kcal: check.number(s['food.targets'].kcal, 'targetKcal', { min: 0, max: 10000 }),
+        protein: check.number(s['food.targets'].protein, 'targetProtein', { min: 0, max: 1000 })
+      };
+    }
+    if (s['health.targets']) {
+      const h = s['health.targets'];
+      settings['health.targets'] = {
+        steps: check.number(h.steps, 'stepTarget', { min: 0, max: 100000, whole: true }),
+        sleepMinutes: check.number(h.sleepMinutes, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
+        workouts: check.number(h.workouts, 'workoutTarget', { min: 0, max: 21, whole: true })
+      };
+    }
+
+    const units = list('units', 500).map((u) => ({
+      code: unitCode(u.code),
+      name: check.text(u.name, 'name', { required: false }),
+      term: check.text(u.term, 'term', { max: 40, required: false }),
+      credit: check.number(u.credit, 'credit', { min: 0.5, max: 48 }),
+      target: maybe(u.target, 'target', { min: 1, max: 100 })
+    }));
+    const codes = new Set(units.map((u) => u.code));
+    if (codes.size !== units.length) throw new HttpError(400, 'invalid', 'The file has the same unit twice.');
+
+    const assessments = list('assessments', 5000).map((a) => {
+      const owner = String(a.unitCode ?? '').toUpperCase();
+      if (!codes.has(owner)) throw new HttpError(400, 'invalid', 'An assessment in the file belongs to a unit that is not in it.');
+      return {
+        unitCode: owner,
+        name: check.text(a.name, 'name'),
+        weight: check.number(a.weight, 'weight', { min: 0.01, max: 100 }),
+        score: maybe(a.score, 'score', { min: 0, max: 100000 }),
+        max: check.number(a.max ?? 100, 'max', { min: 0.01, max: 100000 }),
+        hurdle: maybe(a.hurdle, 'hurdle', { min: 1, max: 100 })
+      };
+    });
+
+    const results = list('results', 500).map((r) => {
+      const grade = r.grade === null || r.grade === undefined ? null : String(r.grade).toUpperCase();
+      if (grade !== null && !GRADES.includes(grade)) throw new HttpError(400, 'invalid', 'A grade in the file is not valid.');
+      return {
+        code: unitCode(r.code),
+        name: check.text(r.name, 'name', { required: false }),
+        credit: check.number(r.credit, 'credit', { min: 0.5, max: 48 }),
+        mark: check.number(r.mark, 'mark', { min: 0, max: 100 }),
+        grade,
+        term: check.text(r.term, 'term', { max: 40, required: false })
+      };
+    });
+
+    const categories = list('categories', 200).map((c) => ({
+      id: check.number(c.id, 'id', { min: 1, max: 1e9, whole: true }),
+      name: check.text(c.name, 'name', { max: 30 }),
+      limit: check.number(c.limit, 'limit', { min: 0, max: 1e7 })
+    }));
+    const categoryIds = new Set(categories.map((c) => c.id));
+    if (categoryIds.size !== categories.length || new Set(categories.map((c) => c.name.toLowerCase())).size !== categories.length) {
+      throw new HttpError(400, 'invalid', 'The file has the same budget category twice.');
+    }
+    const transactions = list('transactions', 50000).map((t) => {
+      if (!categoryIds.has(t.categoryId)) throw new HttpError(400, 'invalid', 'A spending entry in the file has no category.');
+      return {
+        categoryId: t.categoryId,
+        what: check.text(t.what, 'what', { max: 60 }),
+        amount: check.number(t.amount, 'amount', { min: 0.01, max: 1e6 }),
+        date: day(t.date, 'date')
+      };
+    });
+
+    const foods = list('foods', 2000).map((f) => ({
+      name: check.text(f.name, 'food', { max: 60 }),
+      kcal: check.number(f.kcal, 'kcal', { min: 0, max: 5000 }),
+      protein: check.number(f.protein ?? 0, 'protein', { min: 0, max: 500 })
+    }));
+    const foodLog = list('foodLog', 50000).map((e) => {
+      if (!MEALS.includes(e.meal)) throw new HttpError(400, 'invalid', 'A meal in the file is not valid.');
+      return {
+        date: day(e.date, 'date'), meal: e.meal,
+        food: check.text(e.food, 'food', { max: 60 }),
+        kcal: check.number(e.kcal, 'kcal', { min: 0, max: 5000 }),
+        protein: check.number(e.protein ?? 0, 'protein', { min: 0, max: 500 })
+      };
+    });
+
+    const healthDays = list('healthDays', 20000).map((d) => ({
+      day: day(d.day, 'day'),
+      steps: maybe(d.steps, 'steps', { min: 0, max: 100000, whole: true }),
+      sleepMinutes: maybe(d.sleepMinutes, 'sleepMinutes', { min: 0, max: 1440, whole: true }),
+      restingHr: maybe(d.restingHr, 'restingHr', { min: 20, max: 250, whole: true })
+    }));
+    const workouts = list('workouts', 20000).map((w) => ({
+      date: day(w.date, 'date'),
+      name: check.text(w.name, 'name', { max: 60 }),
+      notes: check.text(w.notes, 'notes', { max: 300, required: false })
+    }));
+
+    return { settings, units, assessments, results, categories, transactions, foods, foodLog, healthDays, workouts };
+  }
+
+  // Loads an exported file into an empty app. Everything is checked first, and the grade
+  // engine must accept the result, or nothing at all is kept.
+  route('POST', '/api/import', ({ body }) => {
+    if (!store.isEmpty()) throw new HttpError(409, 'not_empty', 'A file can only be loaded into an empty app. Delete your data first.');
+    const clean = cleanExport(body);
+    inTransaction(db, () => {
+      store.wipe();               // removes settings, categories and remembered foods, which do not count as "data" above
+      store.importAll(clean);
+      academicsReport();
+    });
+    return { ok: true };
+  }, PICTURE);
 
   route('POST', '/api/demo', () => {
     if (!store.isEmpty()) throw new HttpError(409, 'not_empty', 'Example data can only be loaded into an empty app. Delete your data first.');

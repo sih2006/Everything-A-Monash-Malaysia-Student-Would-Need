@@ -99,6 +99,23 @@ window.addEventListener('hashchange', goToHash);
 // Each entry turns a click or a submitted form into one ViewModel command.
 // `f` holds the form's fields, `d` holds the element's data-* values.
 
+// Saves the exported data as a .json file in the browser's downloads.
+function download(file) {
+  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `student-companion-${file.exportedOn}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+const readText = (file) => {
+  if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error('That file is larger than 8 MB, so it cannot be an export from this app.'));
+  return file.text();
+};
+
 const readPicture = (file) => new Promise((resolve, reject) => {
   if (file.size > 5 * 1024 * 1024) { reject(new Error('That picture is larger than 5 MB. Choose a smaller one.')); return; }
   const reader = new FileReader();
@@ -109,6 +126,8 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 
 const COMMANDS = {
   loadDemo: () => vm.loadDemo(),
+  exportData: async () => { const file = await vm.exportData(); if (file) download(file); },
+  importData: async (f) => vm.importData(await readText(f.file)),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
   showPeriod: (f, d) => vm.showPeriod(d.slice, Number(d.step)),
   showCurrent: (f, d) => vm.showCurrent(d.slice),

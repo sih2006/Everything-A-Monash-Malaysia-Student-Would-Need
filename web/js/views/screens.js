@@ -57,12 +57,21 @@ export function homeView(state) {
     <section class="card">
       <h2>Your data</h2>
       <p class="note">Everything you enter is kept on this computer, in one file. Nothing is sent anywhere unless you use the AI helper.</p>
-      ${fold('delete-all', 'Delete all my data', `
+      ${home.empty ? '' : `
+      <div class="row"><button type="button" class="btn quiet" data-action="exportData">Download all my data</button></div>
+      <p class="note">Saves one .json file with everything in the app. Keep it somewhere safe as a backup. It holds your marks, money and health numbers, so do not share it.</p>`}
+      ${!home.empty ? '' : fold('import', 'Load my data from a file', `
+        <form class="form" data-action="importData">
+          <div class="field"><label>A file downloaded from this app<input type="file" name="file" accept=".json,application/json" required></label></div>
+          <button class="btn primary" type="submit">Load the file</button>
+        </form>
+        <p class="note">Every row is checked before anything is saved. If one row is wrong, nothing is loaded.</p>`)}
+      ${home.empty ? '' : fold('delete-all', 'Delete all my data', `
         <form class="form" data-action="deleteEverything">
           ${field('Type the word delete to confirm', 'confirm', 'required')}
           <button class="btn danger" type="submit">Delete everything</button>
         </form>
-        <p class="note">This removes every unit, mark, spending entry, meal and health record. It cannot be undone.</p>`)}
+        <p class="note">This removes every unit, mark, spending entry, meal and health record. It cannot be undone. Download your data first if you might want it back.</p>`)}
     </section>`;
 }
 

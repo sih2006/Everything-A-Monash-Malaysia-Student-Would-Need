@@ -45,6 +45,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     overview: () => get('/api/overview'),
     loadDemo: () => post('/api/demo'),
     deleteEverything: () => remove('/api/data', { confirm: 'delete everything' }),
+    exportData: () => get('/api/export'),
+    importData: (file) => post('/api/import', file),
 
     // grades
     addUnit: (unit) => post('/api/units', unit),

@@ -137,6 +137,20 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     dismiss() { state.error = null; state.notice = null; changed(); },
 
     loadDemo: () => reload(() => api.loadDemo(), 'Example data loaded. Everything in it is made up.'),
+
+    // Gets everything as one object. Saving it as a file is the View's job, because it needs the page.
+    async exportData() {
+      let file = null;
+      await act(null, async () => { file = await api.exportData(); }, 'Your data was saved as a file.');
+      return file;
+    },
+    // `text` is what the chosen file holds. Only an empty app can load a file.
+    importData: (text) => reload(() => {
+      let file;
+      try { file = JSON.parse(text); } catch { throw new ApiError(400, 'invalid', 'That file is not a file exported from this app.'); }
+      if (file === null || typeof file !== 'object' || Array.isArray(file)) throw new ApiError(400, 'invalid', 'That file is not a file exported from this app.');
+      return api.importData(file);
+    }, 'Your data was loaded from the file.'),
     deleteEverything(typed) {
       if (String(typed).trim().toLowerCase() !== 'delete') {
         state.error = { message: 'Type the word delete to confirm.', field: 'confirm' };

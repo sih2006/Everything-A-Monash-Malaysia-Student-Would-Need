@@ -399,6 +399,27 @@ test('health numbers are saved for the day being looked at', async () => {
   assert.equal(vm.shown('health').date, '2026-11-20');
 });
 
+test('export hands back the file; import refuses text that is not an export and loads one that is', async () => {
+  let imported = null;
+  const { vm } = setup({
+    exportData: () => Promise.resolve({ format: 'student-companion-export', exportedOn: '2026-11-21' }),
+    importData: (file) => { imported = file; return Promise.resolve({ ok: true }); }
+  });
+  await vm.load();
+  const file = await vm.exportData();
+  assert.equal(file.exportedOn, '2026-11-21');
+  assert.equal(vm.state.notice, 'Your data was saved as a file.');
+
+  assert.equal(await vm.importData('not json at all'), false);
+  assert.equal(vm.state.error.message, 'That file is not a file exported from this app.');
+  assert.equal(await vm.importData('[1, 2]'), false);
+  assert.equal(imported, null);
+
+  assert.equal(await vm.importData('{"format": "student-companion-export", "version": 1}'), true);
+  assert.equal(imported.version, 1);
+  assert.equal(vm.state.notice, 'Your data was loaded from the file.');
+});
+
 test('deleting everything needs the word delete', async () => {
   const { vm, calls } = setup();
   await vm.load();
