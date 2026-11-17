@@ -64,6 +64,7 @@ WAM  =  ---------------------------------------------
 - The year level is the first digit in the unit code: `FIT1045` is first year, `FIT2004` is second year. The level counts, not the year you took it in.
 - A withdrawn fail (WN) counts as a mark of 0, and its credit points still count.
 - Failed and repeated units are included.
+- **A failed unit is entered with the credit points you attempted** (usually 6), not the 0 the transcript shows. The transcript's "credit points" column shows points *earned*, and a fail earns none, but GPA, CGPA and WAM all count the points *attempted*. Entering 0 would leave the fail out and make every average too high.
 
 **Worked example.** FIT1045 with 80 and FIT2004 with 70, both 6 points:
 
@@ -143,6 +144,10 @@ Checked on 16 November 2026. Monash's pages refuse automatic reading, so they we
 - [Weighted average mark (WAM)](https://www.monash.edu/students/admin/exams/results/wam): the year weights, and that failed and repeated units are included.
 - [Grading Schema Procedure](https://publicpolicydms.monash.edu/Monash/documents/1935755): that CGPA is used in Malaysia in place of the standard GPA.
 - [CGPA vs GPA, Monash Malaysia](https://www.monash.edu.my/news-and-events/trending/cgpa-vs-gpa-differences-explained): background.
+
+## Checked against a real transcript
+
+On 17 November 2026 the rules were run on the owner's official transcript: 12 finished units over three semesters, including one hurdle fail (NH). The GPA and the WAM came out **exactly** as printed on the transcript, to three decimal places. The transcript does not print a CGPA, so the CGPA still needs checking against Monash's CGPA calculator. The marks themselves are kept out of this repository on purpose.
 
 ## Tests
 

@@ -48,6 +48,11 @@ In rough order of value. Each one is a small pull request.
 | C9 | **Done.** **Sort and filter spending and units** (by date, by category, by verdict). | `web/js/viewmodels/` | Presenter tests cover each order |
 | C10 | **Done.** **Demo mode** (`node backend/src/server.js --demo`) and a [walkthrough](demo-script.md). | `tools/` | One command gives a clean demo state |
 
+| C11 | **Done.** Money accounts, the life tree, semester dates, more grade sorting and more health. See [STATUS.md](STATUS.md). | `backend/`, `web/` | Tests at each layer |
+| C12 | **Android: port the budget, food and health rules to Kotlin**, with the same worked examples as `backend/test/domain.test.js`. | `android/` on `feat/android` | JUnit tests pass with the same numbers |
+| C13 | **Android: a database on the phone** (Room or plain SQLite) with the same tables as `backend/src/db.js`. | `android/` | Data stays after the app is closed |
+| C14 | **Android: screens in Compose, MVVM**, starting with Grades. | `android/` | The phone shows the same report as the laptop for the same data |
+
 ## D. Agent tasks that wait for an owner decision
 
 | # | Task | Waits for |

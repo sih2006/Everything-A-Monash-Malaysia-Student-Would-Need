@@ -2,11 +2,11 @@
 
 This file says what is built, what is tested and what is still to do. **Read it first.** Update it at the end of every piece of work.
 
-**Last updated:** 17 November 2026, after the follow-up session that finished tasks C2 to C10.
+**Last updated:** 17 November 2026, after the session that added money accounts, the life tree, more grade sorting and more health, and started the Android app.
 
 ## In one paragraph
 
-The app works on a laptop. Grades, budget, food, health and the map all run on real data that you type in, with 221 automated tests passing. Nothing is on GitHub yet, nothing is online, and nothing has run on a real phone. Five decisions were made by Claude alone and wait for the owner's review.
+The app works on a laptop. Grades, budget, food, health and the map all run on real data that you type in, with 259 automated tests passing (103 core, 102 backend, 54 web). A native Android app has been started on its own branch. Nothing is on GitHub yet, nothing is online, and nothing has run on a real phone. Five decisions were made by Claude alone and wait for the owner's review.
 
 ## How to run and check it
 
@@ -34,6 +34,22 @@ python tools/check.py                build and run every test
 | One command for all tests | `tools/check.py` | It is the proof: [test-run.txt](../proofs/test-run.txt) |
 | Benchmarks of the data structures | `core/bench/` | Results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) |
 | Accessibility: contrast, names, sizes, keyboard | `tools/a11y-check.js` | 42 pages checked: [accessibility.md](../proofs/accessibility.md) |
+
+## Added on 17 November (branch `feat/more-features`)
+
+| Part | What it does | Tests |
+|---|---|---|
+| Money accounts | Bank, e-wallet, investing and cash accounts, a total, balances set by hand, money in, moves between accounts, spending paid from an account | API and rule tests, export round trip |
+| Life tree (Map → Life) | Your life by year, then studies, money, food and health, then semesters, units and assessments, months, weeks and days. Rings show how much is done and how much time has gone. Opens to full page. | `backend/test/life.test.js`, `web/test/lifeTree.test.js` |
+| Semester dates | The current semester's first and last day, for the "time gone" rings | API test |
+| More grade sorting | Units by code, name, attention, mark needed, best average or work left; finished units by semester, mark, grade, code or year level | ViewModel tests |
+| More health | Body weight with a 30-day change and a chart, water with quick buttons, workout kind and length, exercises with sets, reps and kg, best lifts, weekly averages, a goal weight the owner sets | Rule, API and ViewModel tests |
+
+The owner's real transcript is loaded into the local data file `backend/data/app.db`, which git ignores. It is not in the repository.
+
+## Android app (branch `feat/android`)
+
+A Kotlin and Jetpack Compose app with the C++ core built in through the NDK. See [ADR-0007](../adr/0007-native-android-app.md). So far it only runs the engine and shows its report. It builds into an APK for the phone and the emulator, but it has **not run** on either yet. To try it: open `android/` in Android Studio, start the emulator, and tap "Allow" when the emulator asks about debugging.
 
 ## Written but never run
 
@@ -64,8 +80,8 @@ Checked by hand on 17 November and working: with the server stopped, the app's o
 
 ## Waiting for the owner
 
-1. **Review ADRs 0002 to 0006** in [docs/adr/](../adr/). Claude made these choices alone.
-2. **Check the grade numbers** against Monash's CGPA calculator with a real semester.
+1. **Review ADRs 0002 to 0007** in [docs/adr/](../adr/). Claude made these choices alone, except the parts of ADR-0007 that were yours.
+2. **Check the CGPA** against Monash's CGPA calculator. GPA and WAM already match your transcript exactly.
 3. **Push and merge** the five branches, in order ([github-setup.md](github-setup.md)).
 4. **Decide:** the name, the look, hosting. See section B of [next-tasks.md](next-tasks.md).
 5. **Read the drafts.** Every document marked "Draft" in the [planning hub](../README.md) was written by Claude and is not yours until you have changed what is wrong in it.
