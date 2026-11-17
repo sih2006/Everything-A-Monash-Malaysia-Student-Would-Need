@@ -14,7 +14,7 @@ This backlog covers the academics tracker only: the `gpa` and `academics` module
 |---|---|
 | 0.1 | A terminal program on a laptop with typed entry. Data saved to a file. Hand-built data structures, tests and CI. |
 | 0.2 | Importing assessments and marks from a screenshot, read by the free Gemini tier. |
-| 0.3 onwards | Handbook lookup, an AI plan for reaching a target, and future goals such as postgraduate entry requirements. |
+| 0.6 (see the [roadmap](../03-plan/roadmap.md)) | Handbook lookup, an AI plan for reaching a target, and future goals such as postgraduate entry requirements. |
 
 **Out of scope for this backlog:** reading Moodle directly, phone and browser screens, mascots, login and cloud sync, and the budget, calorie and health modules.
 
@@ -118,9 +118,9 @@ Each of these is unconfirmed until the author approves this document.
 | ACA-22 | As a student, I want import failures to leave my data untouched, so that I can always fall back to typing. | With no internet, a used-up daily limit or an unreadable image, a clear message is shown, the data is unchanged and typed entry still works. | Must | S |
 | ENG-20 | The Gemini API key is never in the repository. | The key is read from outside the code. A check in CI fails if a key is committed. | Must | S |
 
-## Release 0.3 onwards
+## Later releases
 
-These are not yet broken into stories. Each one is interviewed and specified when its release comes up.
+The versions after 0.2 follow the [roadmap](../03-plan/roadmap.md): 0.3 money, 0.4 health, 0.5 food, 0.6 API integration, 0.7 database and integration, 0.8 the phone app, 0.9 full testing, 1.0 UI and UX polish. The epics below are not yet broken into stories. Each one is interviewed and specified when its version comes up.
 
 | Epic | What it would deliver |
 |---|---|
@@ -128,8 +128,8 @@ These are not yet broken into stories. Each one is interviewed and specified whe
 | Plan to reach a target | On request, an AI-written plan for making a target achievable. |
 | Future goals | The WAM, GPA or CGPA needed for a goal such as a master's in Australia or study in America, from researched entry requirements with source links and the date checked, which the user can edit. |
 | What people say about a unit | A summary of recent public discussion about a unit (for example, the last 30 days of posts), with links to the sources. |
-| Screens | Phone and laptop screens for the tracker, based on the prototype: home, grades, the map, hide grades, dark mode and a chosen look. Needs the decision on how the C++ core is put behind screens. |
-| Maps for other goals | The same path-to-goal map for budget, food and health, once those modules exist. |
+| Screens (built in 0.2) | Phone and laptop screens for the tracker, based on the prototype: home, grades, the map, hide grades, dark mode and a chosen look. Needs the decision on how the C++ core is put behind screens. |
+| Maps for other goals (built in 0.2 and 0.3) | The same path-to-goal map for budget, food and health, once those modules exist. |
 
 ## Open questions
 
