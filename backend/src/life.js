@@ -23,9 +23,9 @@
 //   now       true on the path to today
 //   grade     true when value or note shows a grade or mark (hidden when grades are hidden)
 //   children  the nodes inside it
+import { round2 } from './domain.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const round2 = (n) => Math.round(n * 100) / 100;
 const clamp01 = (n) => Math.max(0, Math.min(1, n));
 const rm = (n) => 'RM ' + round2(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const group = (items, keyOf) => {

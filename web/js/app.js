@@ -143,14 +143,13 @@ const readPicture = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+// Commands that need more than "call the ViewModel method of the same name with the form".
+// Any other data-action, such as addUnit, goes straight to vm.addUnit(form) (see runCommand).
 const COMMANDS = {
-  loadDemo: () => vm.loadDemo(),
-  toggleAllSpending: () => vm.toggleAllSpending(),
   setBudgetTab: (f, d) => vm.setBudgetTab(d.tab),
   showAccount: (f, d) => vm.showAccount(d.group, Number(d.id)),
   setEssential: (f, d) => vm.setEssential(Number(d.id), d.essential === 'true'),
   saveAdvice: (f) => vm.saveAdvice(f.text),
-  clearAdvice: () => vm.clearAdvice(),
   exportData: async () => { const file = await vm.exportData(); if (file) download(file); },
   importData: async (f) => vm.importData(await readText(f.file)),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
@@ -161,7 +160,6 @@ const COMMANDS = {
   lifeOpenAll: () => { vm.lifeOpenAll(); camera.showAll(true); },
   lifeCloseAll: () => { vm.lifeCloseAll(); camera.showAll(true); },
 
-  addUnit: (f) => vm.addUnit(f),
   deleteUnit: (f, d) => vm.deleteUnit(d.code),
   saveUnitDetails: (f, d) => vm.saveUnitDetails(d.code, f),
   setTarget: (f, d) => vm.setTarget(d.code, f.target.trim()),
@@ -169,15 +167,8 @@ const COMMANDS = {
   saveMark: (f, d) => vm.saveMark(d.id, f),
   saveHurdle: (f, d) => vm.saveHurdle(d.id, f.hurdle),
   deleteAssessment: (f, d) => vm.deleteAssessment(d.id),
-  addResult: (f) => vm.addResult(f),
   deleteResult: (f, d) => vm.deleteResult(d.id),
-  clearPredictions: () => vm.clearPredictions(),
-  saveGoal: (f) => vm.saveGoal(f),
-  clearGoal: () => vm.clearGoal(),
-  saveTermDates: (f) => vm.saveTermDates(f),
-  askPlan: () => vm.askPlan(),
   readScreenshot: async (f, d) => vm.readScreenshot(d.code, await readPicture(f.picture)),
-  cancelImport: () => vm.cancelImport(),
   confirmImport: (f) => {
     const rows = [];
     for (let i = 0; `name-${i}` in f; i++) {
@@ -187,27 +178,17 @@ const COMMANDS = {
   },
 
   saveBudgetLimit: (f) => vm.saveBudgetLimit(f.limit),
-  addCategory: (f) => vm.addCategory(f),
   deleteCategory: (f, d) => vm.deleteCategory(d.id),
-  addSpending: (f) => vm.addSpending(f),
   deleteSpending: (f, d) => vm.deleteSpending(d.id),
-  addAccount: (f) => vm.addAccount(f),
   deleteAccount: (f, d) => vm.deleteAccount(Number(d.id)),
   setBalance: (f, d) => vm.setBalance(Number(d.id), f.balance),
   addIncome: (f, d) => vm.addIncome(Number(d.id), f),
-  addMoneyIn: (f) => vm.addMoneyIn(f),
-  transfer: (f) => vm.transfer(f),
   deleteAccountMove: (f, d) => vm.deleteAccountMove(Number(d.id)),
 
-  saveFoodTargets: (f) => vm.saveFoodTargets(f),
-  logFood: (f) => vm.logFood(f),
   quickAddFood: (f, d) => vm.quickAddFood(d.id, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
   deleteFood: (f, d) => vm.deleteFood(d.id),
   forgetFood: (f, d) => vm.forgetFood(d.id),
 
-  saveHealthTargets: (f) => vm.saveHealthTargets(f),
-  saveToday: (f) => vm.saveToday(f),
-  addWorkout: (f) => vm.addWorkout(f),
   deleteWorkout: (f, d) => vm.deleteWorkout(d.id),
   addWater: (f, d) => vm.addWater(Number(d.ml)),
   addExercise: (f, d) => vm.addExercise(Number(d.id), f),
@@ -215,10 +196,11 @@ const COMMANDS = {
 };
 
 async function runCommand(name, fields, element) {
-  if (vm.state.busy || !COMMANDS[name]) return;
+  const command = COMMANDS[name] ?? (typeof vm[name] === 'function' ? (form) => vm[name](form) : null);
+  if (vm.state.busy || !command) return;
   if (element.dataset.confirm && !window.confirm(element.dataset.confirm)) return;
   try {
-    await COMMANDS[name](fields, element.dataset);
+    await command(fields, element.dataset);
   } catch (problem) {
     vm.state.error = { message: problem.message };
     drawStatus(vm.state);
