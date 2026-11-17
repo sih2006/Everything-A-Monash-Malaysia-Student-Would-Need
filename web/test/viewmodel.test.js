@@ -293,6 +293,19 @@ test('today\'s health numbers: only filled boxes are sent, and sleep becomes min
   assert.equal(vm.state.error.message, 'Fill in at least one box.');
 });
 
+test('unit details: name, semester and credit points are sent; credit points must be a number', async () => {
+  const { vm, calls } = setup();
+  await vm.load();
+  await vm.saveUnitDetails('FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: '12' });
+  assert.deepEqual(calls.at(-1), ['changeUnit', 'FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 }]);
+  assert.equal(await vm.saveUnitDetails('FIT2004', { name: 'x', term: '', credit: '' }), false);
+  assert.equal(vm.state.error.message, 'Credit points cannot be empty.');
+});
+
+test('the presenter passes the semester through for the edit form', () => {
+  assert.equal(presentUnit(unit('FIT2004')).term, 'S1 2027');
+});
+
 test('quick add logs the remembered food', async () => {
   const { vm, calls } = setup();
   await vm.load();

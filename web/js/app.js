@@ -114,6 +114,7 @@ const COMMANDS = {
 
   addUnit: (f) => vm.addUnit(f),
   deleteUnit: (f, d) => vm.deleteUnit(d.code),
+  saveUnitDetails: (f, d) => vm.saveUnitDetails(d.code, f),
   setTarget: (f, d) => vm.setTarget(d.code, f.target.trim()),
   addAssessment: (f, d) => vm.addAssessment(d.code, f),
   saveMark: (f, d) => vm.saveMark(d.id, f),

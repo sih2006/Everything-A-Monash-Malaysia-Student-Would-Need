@@ -110,6 +110,10 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     // ----- grades -----
     addUnit: (f) => act('academics', () => api.addUnit({ code: f.code, name: f.name, term: f.term, credit: number(f.credit, 'Credit points', { required: false }) ?? 6 }), 'Unit added.'),
     deleteUnit: (code) => act('academics', () => api.deleteUnit(code), `${code} removed.`),
+    // Name, credit points and semester. The code is the unit's key, so it cannot change here.
+    saveUnitDetails: (code, f) => act('academics', () => api.changeUnit(code, {
+      name: f.name ?? '', term: f.term ?? '', credit: number(f.credit, 'Credit points')
+    }), 'Unit saved.'),
     setTarget: (code, text) => act('academics', () => api.changeUnit(code, { target: number(text, 'The target', { required: false }) }), text === '' ? 'Target removed.' : 'Target saved.'),
     addAssessment: (code, f) => act('academics', () => api.addAssessment(code, {
       name: f.name, weight: number(f.weight, 'The weight'),

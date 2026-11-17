@@ -171,6 +171,16 @@ describe('academics', () => {
     assert.equal((await app.call('PUT', '/api/academics/settings', { goal: null })).body.goal, null);
   });
 
+  test('a unit's name, semester and credit points can be changed; its marks stay', async () => {
+    const { status, body } = await app.call('PATCH', '/api/units/FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 });
+    assert.equal(status, 200);
+    const unit = body.units.find((u) => u.code === 'FIT2004');
+    assert.deepEqual([unit.name, unit.term, unit.credit], ['Algorithms', 'S2 2027', 12]);
+    assert.equal(unit.standing.earned, 28.7);
+    assert.equal((await app.call('PATCH', '/api/units/FIT2004', { credit: 0 })).status, 400);
+    await app.call('PATCH', '/api/units/FIT2004', { credit: 6 });
+  });
+
   test('deleting a unit removes its assessments too', async () => {
     await app.call('POST', '/api/units', { code: 'TMP1000' });
     await app.call('POST', '/api/units/TMP1000/assessments', { name: 'Quiz', weight: 10 });

@@ -142,6 +142,13 @@ function unitCard(u, state) {
           ${field('Target mark for the unit', 'target', `inputmode="decimal" value="${u.targetMark === null ? '' : plain(u.targetMark)}"`, 'P 50, C 60, D 70, HD 80. Empty = no target')}
           <button class="btn primary" type="submit">Save target</button>
         </form>
+        <form class="form" data-action="saveUnitDetails" data-code="${esc(u.code)}">
+          ${field('Name', 'name', `maxlength="80" value="${esc(u.name)}"`)}
+          ${field('Credit points', 'credit', `required inputmode="decimal" value="${plain(u.credit)}"`)}
+          ${field('Semester', 'term', `maxlength="40" value="${esc(u.term)}"`)}
+          <button class="btn quiet" type="submit">Save details</button>
+        </form>
+        <p class="note">The unit code cannot be changed. To fix a wrong code, add the unit again and remove this one.</p>
         ${remove('deleteUnit', `data-code="${esc(u.code)}" data-confirm="Remove ${esc(u.code)} and all its assessments?"`, `Remove ${u.code}`)}`)}
     </article>`;
 }
