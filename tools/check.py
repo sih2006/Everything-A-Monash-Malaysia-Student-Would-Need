@@ -71,7 +71,11 @@ def main():
     if "--save" in sys.argv:
         target = ROOT / "docs" / "proofs" / "test-run.txt"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("\n".join(log) + "\n", encoding="utf-8", newline="\n")
+        # The saved file is public: replace the project's full path (which holds the user's folder name) with ".".
+        text = "\n".join(log) + "\n"
+        for path in {str(ROOT), str(ROOT).replace("\\", "/")}:
+            text = text.replace(path, ".")
+        target.write_text(text, encoding="utf-8", newline="\n")
         print(f"Saved to {target.relative_to(ROOT)}")
     sys.exit(1 if failed else 0)
 

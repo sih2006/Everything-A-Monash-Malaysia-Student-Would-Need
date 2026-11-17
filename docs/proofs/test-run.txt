@@ -1,10 +1,10 @@
-Check run on 2026-11-17, Windows AMD64
+Check run on 2026-11-18, Windows AMD64
 
 === Configure the C++ core ===
 $ cmake -S core -B core/build -G Ninja
--- Configuring done (0.2s)
--- Generating done (0.1s)
--- Build files have been written to: C:/Users/ibrah/Downloads/EAMMWN/Everything-A-Monash-Malaysia-Student-Would-Need/core/build
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: ./core/build
 --> ok
 
 === Build the C++ core ===
@@ -14,7 +14,7 @@ ninja: no work to do.
 --> ok
 
 === Core: white-box tests and leak check ===
-$ C:/Users/ibrah/Downloads/EAMMWN/Everything-A-Monash-Malaysia-Student-Would-Need/core/build/tracker_tests.exe
+$ ./core/build/tracker_tests.exe
 ok    dyn_array_starts_empty
 ok    dyn_array_keeps_items_in_order
 ok    dyn_array_doubles_when_full
@@ -49,6 +49,9 @@ ok    an_unknown_file_version_is_reported
 ok    empty_text_loads_as_an_empty_tracker
 ok    file_round_trip_keeps_a_backup
 ok    engine_report_has_the_worked_out_numbers
+ok    a_pass_or_fail_unit_is_saved_and_never_counted
+ok    what_if_marks_give_the_totals_for_the_semester
+ok    a_unit_line_with_a_wrong_6th_field_is_refused
 ok    engine_report_lists_units_that_need_attention
 ok    engine_report_escapes_text_and_reports_errors
 ok    engine_report_for_an_empty_tracker
@@ -88,11 +91,11 @@ ok    marks_are_checked
 ok    targets_results_and_goals_are_checked
 ok    sorted_codes_are_in_order
 
-72 of 72 tests passed, 464 checks, 0 leak(s)
+75 of 75 tests passed, 477 checks, 0 leak(s)
 --> ok
 
 === Core: black-box tests of the terminal program ===
-$ C:/msys64/mingw64/bin/python.exe core/tests/blackbox.py C:/Users/ibrah/Downloads/EAMMWN/Everything-A-Monash-Malaysia-Student-Would-Need/core/build/tracker.exe
+$ C:/msys64/mingw64/bin/python.exe core/tests/blackbox.py ./core/build/tracker.exe
 ok    ACA-01        EP  a valid unit is added and listed, with the code in capitals
 ok    ACA-01        EP  a unit code that already exists is rejected
 ok    ACA-01        BVA credit points of 0 are refused and asked for again
@@ -131,163 +134,223 @@ ok    ACA-13        EP  input that ends in the middle of a question is handled
 === Backend: rules and API tests (uses the real engine) ===
 $ node --test
 ▶ academics
-  ✔ an empty app gives an empty report, not an error (82.3648ms)
-  ✔ a unit is added with its code in capitals and comes back in the report (228.3124ms)
-  ✔ the same code twice is refused (4.1061ms)
-  ✔ bad input is refused with a message that names the field (13.5771ms)
-  ✔ setting a target gives the mark needed and both verdicts (43.0964ms)
-  ✔ the engine decides what is valid: weights above 100% are refused and nothing is stored (69.0018ms)
-  ✔ a mark above the marks available is refused and rolled back (95.9033ms)
-  ✔ what-if answers without saving anything (34.3004ms)
-  ✔ a mark below the hurdle fails the unit even when the total is a pass (107.0991ms)
-  ✔ finished units give GPA, CGPA and WAM by semester, on two different scales (76.0487ms)
-  ✔ a final goal gives the average needed and a default target (65.4142ms)
-  ✔ the name, semester and credit points of a unit can be changed; its marks stay (63.1209ms)
-  ✔ deleting a unit removes its assessments too (105.7175ms)
-  ✔ a finished unit can be removed (71.7965ms)
-✔ academics (1099.3754ms)
+  ✔ an empty app gives an empty report, not an error (42.7978ms)
+  ✔ a unit is added with its code in capitals and comes back in the report (94.2697ms)
+  ✔ the same code twice is refused (2.1866ms)
+  ✔ bad input is refused with a message that names the field (5.6379ms)
+  ✔ setting a target gives the mark needed and both verdicts (19.1854ms)
+  ✔ the engine decides what is valid: weights above 100% are refused and nothing is stored (35.9726ms)
+  ✔ a mark above the marks available is refused and rolled back (48.0254ms)
+  ✔ what-if answers without saving anything (18.2813ms)
+  ✔ a mark below the hurdle fails the unit even when the total is a pass (52.1593ms)
+  ✔ finished units give GPA, CGPA and WAM by semester, on two different scales (35.3645ms)
+  ✔ a final goal gives the average needed and a default target (35.0546ms)
+  ✔ the name, semester and credit points of a unit can be changed; its marks stay (31.4552ms)
+  ✔ predicted marks from the sliders give the semester totals; nothing is saved (113.7575ms)
+  ✔ a unit can be marked pass or fail only; then it never counts in GPA, CGPA or WAM (124.8636ms)
+  ✔ deleting a unit removes its assessments too (52.3506ms)
+  ✔ a finished unit can be removed (42.4689ms)
+✔ academics (769.5679ms)
 ▶ budget
-  ✔ with nothing set up the summary still loads (6.183ms)
-  ✔ categories, a limit and spending give the totals (9.4244ms)
-  ✔ spending is checked: amount, category and date (8.2111ms)
-  ✔ a category name cannot be used twice; a category can be changed and removed (13.9414ms)
-  ✔ another month can be asked for; a bad month is refused (5.8733ms)
-✔ budget (49.6187ms)
+  ✔ with nothing set up the summary still loads (3.2696ms)
+  ✔ categories, a limit and spending give the totals (6.4875ms)
+  ✔ spending is checked: amount, category and date (5.8169ms)
+  ✔ a category name cannot be used twice; a category can be changed and removed (7.6637ms)
+  ✔ another month can be asked for; a bad month is refused (2.7431ms)
+✔ budget (32.4584ms)
+▶ money accounts
+  ✔ accounts with a starting balance, a manual overwrite, income and a move between them (11.1259ms)
+  ✔ spending paid from an account takes it down, and deleting the spending puts it back (7.9857ms)
+  ✔ a move from spending cannot be removed on its own; other moves can (5.9279ms)
+  ✔ the month shows money in and what is left; a move between your own accounts is not income (13.0341ms)
+  ✔ a category can be marked essential; the month lists what could be cut and keeps saved advice (13.835ms)
+  ✔ a balance set for an earlier day keeps the moves after that day, even ones entered before it (11.9083ms)
+  ✔ accounts are checked (12.2218ms)
+  ✔ an account can be renamed and deleted (5.5937ms)
+✔ money accounts (85.9769ms)
 ▶ food and health
-  ✔ food: targets, logging and removing (10.8208ms)
-  ✔ food: a remembered food can be forgotten, and what was logged with it stays (6.4075ms)
-  ✔ food: bad entries are refused (10.0657ms)
-  ✔ health: targets, a day of data and workouts (17.3968ms)
-  ✔ health: a past day can be filled in and looked at (9.618ms)
-  ✔ food: a past day can be logged and looked at (7.8329ms)
-  ✔ health: impossible values and future days are refused (13.9192ms)
-✔ food and health (80.2207ms)
+  ✔ food: targets, logging and removing (5.3009ms)
+  ✔ food: a remembered food can be forgotten, and what was logged with it stays (2.9129ms)
+  ✔ food: bad entries are refused (6.5014ms)
+  ✔ health: targets, a day of data and workouts (9.4311ms)
+  ✔ health: a past day can be filled in and looked at (6.81ms)
+  ✔ food: a past day can be logged and looked at (3.6839ms)
+  ✔ health: body weight, water, a workout with exercises, and best lifts (13.7271ms)
+  ✔ health: bad workouts, exercises and weights are refused (9.4719ms)
+  ✔ health: impossible values and future days are refused (5.4059ms)
+✔ food and health (66.2505ms)
 ▶ the whole app
-  ✔ status says what is ready (7.3508ms)
-  ✔ example data loads once, fills every part, and can be deleted again (54.0273ms)
-  ✔ unknown addresses, wrong methods and broken requests get clear errors (16.0087ms)
-  ✔ a change that is not sent as JSON is refused, so a form on another site cannot make one (14.3646ms)
-  ✔ the web page is served with strict browser headers (6.5107ms)
-  ✔ files outside the web folder can never be read (8.2376ms)
-✔ the whole app (110.678ms)
+  ✔ status says what is ready (3.9018ms)
+  ✔ example data loads once, fills every part, and can be deleted again (27.2046ms)
+  ✔ the life tree holds every year, and the current semester shows how much time has gone (58.7454ms)
+  ✔ unknown addresses, wrong methods and broken requests get clear errors (8.3974ms)
+  ✔ a change that is not sent as JSON is refused, so a form on another site cannot make one (8.6026ms)
+  ✔ the web page is served with strict browser headers (5.0656ms)
+  ✔ files outside the web folder can never be read (4.389ms)
+✔ the whole app (122.0708ms)
 ▶ access token
-  ✔ with a token set, the API needs it and the page does not (9.7239ms)
-✔ access token (3019.6714ms)
+  ✔ with a token set, the API needs it and the page does not (4.8049ms)
+✔ access token (3011.1371ms)
 ▶ wrong token guesses
-  ✔ after five wrong tokens the address is refused for 15 minutes, even with the right token (26.5643ms)
-  ✔ a right token clears earlier wrong guesses (34.2019ms)
-✔ wrong token guesses (61.2489ms)
+  ✔ after five wrong tokens the address is refused for 15 minutes, even with the right token (12.5292ms)
+  ✔ a right token clears earlier wrong guesses (10.5024ms)
+✔ wrong token guesses (23.1717ms)
 ▶ the AI helper
-  ✔ with no key the feature explains how to turn it on, and the rest of the app works (380.9985ms)
-  ✔ with a key, only a short summary is sent and the key stays in the header (319.3946ms)
-  ✔ a screenshot is read into a list for the user to check; nothing is saved (21.0404ms)
-  ✔ a used-up limit, an outage and a strange answer each get their own message (1145.7452ms)
-✔ the AI helper (1867.8576ms)
+  ✔ with no key the feature explains how to turn it on, and the rest of the app works (126.1372ms)
+  ✔ with a key, only a short summary is sent and the key stays in the header (131.6436ms)
+  ✔ a screenshot is read into a list for the user to check; nothing is saved (9.4996ms)
+  ✔ a used-up limit, an outage and a strange answer each get their own message (413.6118ms)
+✔ the AI helper (681.0744ms)
 ▶ when the engine is not built
-  ✔ grades say so clearly and the other parts keep working (21.4598ms)
-✔ when the engine is not built (21.7269ms)
-✔ a month knows its first day, last day and length, leap years included (3.0043ms)
-✔ a week runs from Monday to Sunday (1.98ms)
-✔ adding days crosses months and years (0.2907ms)
-✔ only real dates and months are accepted (0.7121ms)
-✔ today is worked out in Malaysian time (31.2253ms)
-✔ budget: totals, what is left and the daily amount (1.3125ms)
-✔ budget: "ahead of pace" starts just past 5 points above the calendar (0.5145ms)
-✔ budget: spending exactly the limit is not over; one sen more is (0.4448ms)
-✔ budget: a category over its own limit is flagged (0.4105ms)
-✔ budget: with no overall limit the category limits are added up (0.5126ms)
-✔ budget: weeks split the month and know if they are done, now or ahead (0.5165ms)
-✔ budget: a past month is complete and a future month has not started (0.2492ms)
-✔ food: totals and what is left (2.4608ms)
-✔ food: eating exactly the target is on target; one more kcal is over (0.3271ms)
-✔ food: meals are grouped in the order they were first logged (0.3472ms)
-✔ food: with no target set nothing is judged (0.2539ms)
-✔ food: reaching the protein target makes the mascot proud (0.192ms)
-✔ health: the week has seven days and marks today and the days still to come (0.7939ms)
-✔ health: looking at a past day, the later days of that week are not "still to come" (0.3899ms)
-✔ health: reaching the step target exactly counts (0.4224ms)
-✔ health: sleep shortfall, average heart rate and days on target (0.3335ms)
-✔ health: only this week's workouts are counted (0.2839ms)
+  ✔ grades say so clearly and the other parts keep working (6.3004ms)
+✔ when the engine is not built (6.3807ms)
+✔ a month knows its first day, last day and length, leap years included (1.1352ms)
+✔ a week runs from Monday to Sunday (0.7687ms)
+✔ adding days crosses months and years (0.0983ms)
+✔ only real dates and months are accepted (0.3143ms)
+✔ today is worked out in Malaysian time (14.2948ms)
+✔ budget: totals, what is left and the daily amount (0.5297ms)
+✔ budget: "ahead of pace" starts just past 5 points above the calendar (0.1881ms)
+✔ budget: spending exactly the limit is not over; one sen more is (0.3711ms)
+✔ budget: a category over its own limit is flagged (0.2299ms)
+✔ budget: with no overall limit the category limits are added up (0.2659ms)
+✔ budget: weeks split the month and know if they are done, now or ahead (0.2007ms)
+✔ budget: a past month is complete and a future month has not started (0.0856ms)
+✔ accounts: a set balance replaces what came before; in adds and out takes away, in the order entered (0.2608ms)
+✔ accounts: an account with no moves is at 0, and a balance can be below 0 (0.075ms)
+✔ food: totals and what is left (0.213ms)
+✔ food: eating exactly the target is on target; one more kcal is over (0.0814ms)
+✔ food: meals are grouped in the order they were first logged (0.0914ms)
+✔ food: with no target set nothing is judged (0.0509ms)
+✔ food: reaching the protein target makes the mascot proud (0.0619ms)
+✔ health: the week has seven days and marks today and the days still to come (0.3393ms)
+✔ health: looking at a past day, the later days of that week are not "still to come" (0.1166ms)
+✔ health: reaching the step target exactly counts (0.1387ms)
+✔ health: sleep shortfall, average heart rate and days on target (0.0941ms)
+✔ health: water against its target, and weekly averages that skip empty days (0.1295ms)
+✔ health: minutes and kinds of the workouts this week (0.1179ms)
+✔ could cut: essential categories are left out; places are ranked by total with count, average and per month (0.3546ms)
+✔ could cut: after six places in a category, the rest are added up as one (0.1274ms)
+✔ income: money in during the month by source, without moves between your own accounts (0.1649ms)
+✔ weight: BMI is weight divided by height in metres squared, once a height is set (0.0827ms)
+✔ weight: latest, change over 30 days and distance to the goal the user set (0.0856ms)
+✔ health: only this week's workouts are counted (0.0883ms)
 ▶ export and import
-  ✔ the export names its format and holds every part (1.3155ms)
-  ✔ a file cannot be loaded over existing data (6.6741ms)
-  ✔ export, delete everything, import: the app is the same as before (179.5896ms)
-✔ export and import (268.3213ms)
+  ✔ the export names its format and holds every part (0.5694ms)
+  ✔ a file cannot be loaded over existing data (4.1982ms)
+  ✔ export, delete everything, import: the app is the same as before (75.3554ms)
+✔ export and import (120.2544ms)
 ▶ a damaged or edited file
-  ✔ is refused: not a file from this app (6.0606ms)
-  ✔ is refused: a newer version (4.1079ms)
-  ✔ is refused: a part that is not a list (3.7206ms)
-  ✔ is refused: the same unit twice (3.6496ms)
-  ✔ is refused: an assessment with no unit (3.5459ms)
-  ✔ is refused: a mark above 100 (3.555ms)
-  ✔ is refused: a made-up grade (6.4607ms)
-  ✔ is refused: spending with no category (4.8794ms)
-  ✔ is refused: a date that does not exist (4.7889ms)
-  ✔ is refused: a meal that does not exist (5.4482ms)
-  ✔ is refused: text with a line break in a name (4.7828ms)
-  ✔ is refused: steps that are not whole (3.6763ms)
-  ✔ weights above 100% pass every row check but are refused by the grade engine, and nothing is kept (47.0208ms)
-  ✔ the good file still loads after all of that (37.237ms)
-✔ a damaged or edited file (158.2753ms)
-ℹ tests 79
-ℹ suites 10
-ℹ pass 79
+  ✔ is refused: not a file from this app (3.5121ms)
+  ✔ is refused: a newer version (2.2556ms)
+  ✔ is refused: a part that is not a list (2.0895ms)
+  ✔ is refused: the same unit twice (2.0996ms)
+  ✔ is refused: an assessment with no unit (3.0657ms)
+  ✔ is refused: a mark above 100 (2.5047ms)
+  ✔ is refused: a made-up grade (3.3284ms)
+  ✔ is refused: spending with no category (2.0788ms)
+  ✔ is refused: a date that does not exist (1.9574ms)
+  ✔ is refused: a meal that does not exist (1.8793ms)
+  ✔ is refused: text with a line break in a name (1.7696ms)
+  ✔ is refused: steps that are not whole (2.0139ms)
+  ✔ is refused: an account entry with no account (3.0094ms)
+  ✔ is refused: an account of an unknown kind (2.0947ms)
+  ✔ is refused: two account entries for the same spending (2.2255ms)
+  ✔ weights above 100% pass every row check but are refused by the grade engine, and nothing is kept (21.2252ms)
+  ✔ the good file still loads after all of that (22.03ms)
+✔ a damaged or edited file (93.4328ms)
+✔ with no data the tree still has you and this year (2.3687ms)
+✔ the line runs to the last year of the course, worked out from the total credit points (0.6914ms)
+✔ each year with data appears, in order, with its areas (0.8292ms)
+✔ studies: finished semesters are full; the current one shows work marked and time gone (0.2722ms)
+✔ money: year, month, week, day and each entry, with the month measured against the limit (0.5233ms)
+✔ food: month, day, meal and food, with each day measured against the target (12.8353ms)
+✔ health: steps, sleep and workouts on each day (0.6541ms)
+✔ every id in the tree is unique (0.2377ms)
+ℹ tests 112
+ℹ suites 11
+ℹ pass 112
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 6550.1381
+ℹ duration_ms 4901.6549
 --> ok
 
 === Web: ViewModel tests ===
 $ node --test
-✔ a unit shows its numbers as finished text (4.7642ms)
-✔ possible and realistic are two separate chips (0.5112ms)
-✔ a failed hurdle replaces the other chips (0.473ms)
-✔ a unit with no target shows no verdict chips and no need (0.2478ms)
-✔ hiding grades masks every mark, target and result, but not the names (1.0176ms)
-✔ CGPA and GPA are labelled as different scales (0.7843ms)
-✔ with nothing finished the stats say so instead of showing 0 (0.3921ms)
-✔ the goal banner explains what is needed, and warns when the semester is short (1.0477ms)
-✔ the home headline counts units on course and names the ones that are not (29.9274ms)
-✔ the attention list gathers problems from every part (1.199ms)
-✔ home works when nothing is set up, and when grades cannot load (1.2886ms)
-✔ each map runs done, now, ahead, goal, in that order (3.0107ms)
-✔ the studies map lists each task as done or still to do, with the mark needed (0.796ms)
-✔ maps still work with no targets set (1.2235ms)
-✔ units can be ordered by code, by what needs attention, and by the mark needed (0.6917ms)
-✔ spending can be filtered by category, with a count and a total, and shows the newest 10 (0.5015ms)
-✔ the unit order is remembered, and an unknown order falls back to the code (1.2192ms)
-✔ typed numbers: empty is null, text is NaN, and 0 stays 0 (0.1959ms)
-✔ loading puts the overview into the state (0.3844ms)
-✔ a failed first load is kept as a message, not thrown (0.3859ms)
-✔ a command sends clean values and puts the answer in the right part of the state (0.8757ms)
-✔ text where a number belongs is stopped before the API is called (0.3625ms)
-✔ an API error becomes a message and the data is left as it was (0.2583ms)
-✔ after a failed command, other changes still redraw the screen (0.479ms)
-✔ hide grades is remembered (0.2434ms)
-✔ an empty mark clears it; a typed mark is sent with what it is out of (0.4819ms)
-✔ today's health numbers: only filled boxes are sent, and sleep becomes minutes (0.5145ms)
-✔ unit details: name, semester and credit points are sent; credit points must be a number (0.39ms)
-✔ the presenter passes the semester through for the edit form (0.1373ms)
-✔ quick add logs the remembered food (0.3302ms)
-✔ forgetting a remembered food calls the API and says so (0.2614ms)
-✔ previous and next move by a month on Budget and by a day on Food, and never past today (1.8374ms)
-✔ a month back from January is December of the year before (0.1894ms)
-✔ food logged while looking at a past day goes on that day, and today stays right (0.3264ms)
-✔ back to this day forgets the past day (0.1897ms)
-✔ health numbers are saved for the day being looked at (0.2513ms)
-✔ export hands back the file; import refuses text that is not an export and loads one that is (0.6567ms)
-✔ deleting everything needs the word delete (0.317ms)
-✔ a screenshot import saves only the rows the user kept, with the user's corrections (0.4839ms)
-ℹ tests 39
+✔ it starts with you and this year open (0.9098ms)
+✔ the years run down one line on the left and "You" is not drawn (0.3602ms)
+✔ a year ahead is marked, and the line to it is not walked yet (0.1881ms)
+✔ closed nodes hide their children; open ones show them one column to the right (0.1432ms)
+✔ open to today follows the path to the deepest node that is now, and marks it for Find today (0.1653ms)
+✔ open all opens down to months, never deeper (0.0991ms)
+✔ every edge joins a parent to a child that is drawn (0.1366ms)
+✔ hidden grades: figures marked as grades become dots and their ring is removed (0.1464ms)
+✔ opening the app straight onto the map loads the tree (1.1749ms)
+✔ the ViewModel loads the tree when the map opens, and toggles nodes (3.3379ms)
+✔ squarify: each block gets an area in proportion to its value, inside the box, with no overlaps (0.9013ms)
+✔ squarify: nothing to show gives no blocks; zero values are left out (0.4536ms)
+✔ spending map: colours follow the category name, not its size; past seven, categories fold into Everything else (7.5294ms)
+✔ spending map: nothing to cut gives no map (0.1058ms)
+✔ spending map: Everything else is always last in the legend (0.2276ms)
+✔ hide money: every RM amount is masked, nothing else changes, and the choice is remembered (1.3034ms)
+✔ a unit shows its numbers as finished text (0.7741ms)
+✔ possible and realistic are two separate chips (0.1923ms)
+✔ a failed hurdle replaces the other chips (0.1566ms)
+✔ a unit with no target shows no verdict chips and no need (0.1504ms)
+✔ hiding grades masks every mark, target and result, but not the names (0.4907ms)
+✔ CGPA and GPA are labelled as different scales (0.2218ms)
+✔ with nothing finished the stats say so instead of showing 0 (0.1827ms)
+✔ the goal banner explains what is needed, and warns when the semester is short (0.3624ms)
+✔ the home headline counts units on course and names the ones that are not (12.0946ms)
+✔ the attention list gathers problems from every part (0.5345ms)
+✔ home works when nothing is set up, and when grades cannot load (0.403ms)
+✔ each map runs done, now, ahead, goal, in that order (1.0079ms)
+✔ the studies map lists each task as done or still to do, with the mark needed (0.2326ms)
+✔ maps still work with no targets set (0.3749ms)
+✔ units can be ordered by code, by what needs attention, and by the mark needed (0.2385ms)
+✔ predicted marks: the cards use them, each slider keeps its value, and clearing goes back to "heading" (0.5025ms)
+✔ more unit orders: best average, most work left, and by name (0.1109ms)
+✔ finished units can be ordered by mark, grade, code and year level, across semesters (0.2331ms)
+✔ while grades are hidden, finished units stay in semester order so the order does not give marks away (0.1348ms)
+✔ spending can be filtered by category, with a count and a total, and shows the newest 10 (0.1849ms)
+✔ the unit order is remembered, and an unknown order falls back to the code (0.1343ms)
+✔ typed numbers: empty is null, text is NaN, and 0 stays 0 (0.0592ms)
+✔ loading puts the overview into the state (0.0851ms)
+✔ a failed first load is kept as a message, not thrown (0.18ms)
+✔ a command sends clean values and puts the answer in the right part of the state (0.2187ms)
+✔ text where a number belongs is stopped before the API is called (0.182ms)
+✔ an API error becomes a message and the data is left as it was (0.1495ms)
+✔ after a failed command, other changes still redraw the screen (0.1855ms)
+✔ hide grades is remembered (0.087ms)
+✔ an empty mark clears it; a typed mark is sent with what it is out of (0.1952ms)
+✔ today's health numbers: only filled boxes are sent, and sleep becomes minutes (0.2352ms)
+✔ health: weight and water are saved with the day; a glass of water adds to what is there (0.1588ms)
+✔ health: an exercise needs sets and reps; the weight may be left empty (0.1629ms)
+✔ unit details: name, semester, credit points and pass or fail are sent; credit points must be a number (0.1408ms)
+✔ the presenter passes the semester through for the edit form (0.0427ms)
+✔ quick add logs the remembered food (0.1583ms)
+✔ forgetting a remembered food calls the API and says so (0.5976ms)
+✔ previous and next move by a month on Budget and by a day on Food, and never past today (1.0062ms)
+✔ a month back from January is December of the year before (0.089ms)
+✔ food logged while looking at a past day goes on that day, and today stays right (0.1326ms)
+✔ back to this day forgets the past day (0.0816ms)
+✔ health numbers are saved for the day being looked at (0.0861ms)
+✔ export hands back the file; import refuses text that is not an export and loads one that is (0.2303ms)
+✔ accounts: the balance overwrite, money in, and moving money send clean numbers (0.31ms)
+✔ spending can say which account paid (0.164ms)
+✔ deleting everything needs the word delete (0.1421ms)
+✔ a screenshot import saves only the rows the user kept, with the user's corrections (0.2332ms)
+✔ budget tabs: the open tab and the account picked on each tab are kept for next time (0.1592ms)
+ℹ tests 64
 ℹ suites 0
-ℹ pass 39
+ℹ pass 64
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 271.2149
+ℹ duration_ms 121.0333
 --> ok
 
 === Summary ===
