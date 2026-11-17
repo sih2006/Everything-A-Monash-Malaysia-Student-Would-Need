@@ -4,7 +4,7 @@
 // buttons and forms with data-action="..." so app.js can call the right command.
 
 import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
-import { UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
+import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -191,7 +191,7 @@ export function gradesView(state) {
     return pageHead('Grades', 'Units, marks, targets and your results.') +
       emptyCard('Grades cannot load', state.overview.academicsError ?? 'The grade engine is not ready.');
   }
-  const g = presentGrades(report, state.hidden, state.unitOrder);
+  const g = presentGrades(report, state.hidden, state.unitOrder, state.resultOrder);
   const goal = g.goalValues;
   const addUnit = `
     <form class="form" data-action="addUnit">
@@ -254,7 +254,12 @@ export function gradesView(state) {
 
     <section class="card">
       <h2>Finished units</h2>
-      ${g.terms.length === 0 ? '<p class="note">None yet. Add your past results so your CGPA, GPA and WAM include them.</p>' : g.terms.map((t) => `
+      ${g.terms.length && !state.hidden ? `<div class="row sorter"><label>Order the finished units
+        <select data-choose="resultOrder">${RESULT_ORDERS.map(([value, text]) => `<option value="${value}" ${value === g.resultOrder ? 'selected' : ''}>${text}</option>`).join('')}</select></label></div>` : ''}
+      ${g.flatResults ? `<ul class="list">
+        ${g.flatResults.map((u) => `<li><span>${esc(u.code)} <span class="dim">· ${esc(u.name)} · ${esc(u.term)}</span></span>
+          <span class="end">${esc(u.result)} ${remove('deleteResult', `data-id="${u.id}" data-confirm="Remove ${esc(u.code)} from your finished units?"`, `Remove ${u.code}`)}</span></li>`).join('')}
+      </ul>` : g.terms.length === 0 ? '<p class="note">None yet. Add your past results so your CGPA, GPA and WAM include them.</p>' : g.terms.map((t) => `
         <h3 class="label">${esc(t.term)} · ${esc(t.summary)}</h3>
         <ul class="list">
           ${t.units.map((u) => `<li><span>${esc(u.code)} <span class="dim">· ${esc(u.name)}</span></span>

@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { ApiError } from '../js/api.js';
 import { typedNumber } from '../js/format.js';
 import { createAppViewModel } from '../js/viewmodels/appViewModel.js';
-import { MASK, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
+import { MASK, orderResults, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
 
 // ---------- sample data, in the shape the backend sends ----------
 
@@ -201,6 +201,38 @@ test('units can be ordered by code, by what needs attention, and by the mark nee
   assert.equal(codes(orderUnits(units, 'need')), 'FIT2099 FIT2004 MAT1830 FIT1008');
   assert.equal(codes(units), 'MAT1830 FIT2004 FIT2099 FIT1008');           // the input list is not changed
   assert.equal(codes(presentGrades(report(units), false, 'attention').units), 'FIT2099 MAT1830 FIT1008 FIT2004');
+});
+
+test('more unit orders: best average, most work left, and by name', () => {
+  const units = [
+    unit('FIT2004', { name: 'Zeta' }, { average: 71.75, leftWeight: 60 }),
+    unit('FIT2099', { name: 'Alpha' }, { average: 69.9, leftWeight: 30 }),
+    unit('MAT1830', { name: 'Mid' }, { average: null, leftWeight: 100 })
+  ];
+  const codes = (order) => orderUnits(units, order).map((u) => u.code).join(' ');
+  assert.equal(codes('average'), 'FIT2004 FIT2099 MAT1830');
+  assert.equal(codes('left'), 'MAT1830 FIT2004 FIT2099');
+  assert.equal(codes('name'), 'FIT2099 MAT1830 FIT2004');
+});
+
+test('finished units can be ordered by mark, grade, code and year level, across semesters', () => {
+  const terms = [
+    { term: 'S1 2025', units: [{ id: 1, code: 'ENG1005', name: 'Maths', mark: 45, grade: 'NH' }, { id: 2, code: 'FIT1045', name: 'Prog', mark: 82, grade: 'HD' }] },
+    { term: 'S1 2026', units: [{ id: 3, code: 'FIT2099', name: 'OO', mark: 61, grade: 'C' }, { id: 4, code: 'FIT3171', name: 'DB', mark: 66, grade: 'C' }] }
+  ];
+  const codes = (order) => orderResults(terms, order).map((u) => u.code).join(' ');
+  assert.equal(codes('mark-high'), 'FIT1045 FIT3171 FIT2099 ENG1005');
+  assert.equal(codes('mark-low'), 'ENG1005 FIT2099 FIT3171 FIT1045');
+  assert.equal(codes('grade'), 'FIT1045 FIT3171 FIT2099 ENG1005');    // HD, then the two Cs best mark first, then NH
+  assert.equal(codes('level'), 'ENG1005 FIT1045 FIT2099 FIT3171');
+  assert.equal(orderResults(terms, 'mark-high')[0].term, 'S1 2025');
+});
+
+test('while grades are hidden, finished units stay in semester order so the order does not give marks away', () => {
+  const g = presentGrades(report([unit('FIT2004')]), true, 'code', 'mark-high');
+  assert.equal(g.resultOrder, 'term');
+  assert.equal(g.flatResults, null);
+  assert.equal(presentGrades(report([unit('FIT2004')]), false, 'code', 'mark-high').flatResults.length, 1);
 });
 
 test('spending can be filtered by category, with a count and a total, and shows the newest 10', () => {

@@ -270,6 +270,7 @@ view.addEventListener('change', (e) => {
   if (!choice) return;
   if (choice.dataset.choose === 'unitOrder') vm.setUnitOrder(choice.value);
   if (choice.dataset.choose === 'spendingCategory') vm.setSpendingCategory(choice.value);
+  if (choice.dataset.choose === 'resultOrder') vm.setResultOrder(choice.value);
 });
 
 view.addEventListener('input', (e) => {

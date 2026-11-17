@@ -36,6 +36,7 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     lifeSelected: null,     // the node whose details show under the tree
     mapFull: false,         // the map fills the whole page
     unitOrder: storage.get('unitOrder') ?? 'code',   // how the units on Grades are ordered
+    resultOrder: storage.get('resultOrder') ?? 'term', // how the finished units are ordered
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
     hidden: storage.get('hideGrades') === '1',
@@ -158,8 +159,13 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     lifeCloseAll() { if (state.life) { state.lifeOpen = new Set([state.life.id]); state.lifeSelected = null; changed(); } },
     toggleMapFull() { state.mapFull = !state.mapFull; changed(); },
     setUnitOrder(order) {
-      state.unitOrder = ['code', 'attention', 'need'].includes(order) ? order : 'code';
+      state.unitOrder = ['code', 'name', 'attention', 'need', 'average', 'left'].includes(order) ? order : 'code';
       storage.set('unitOrder', state.unitOrder);
+      changed();
+    },
+    setResultOrder(order) {
+      state.resultOrder = ['term', 'mark-high', 'mark-low', 'grade', 'code', 'level'].includes(order) ? order : 'term';
+      storage.set('resultOrder', state.resultOrder);
       changed();
     },
     setSpendingCategory(category) { state.spendingCategory = category || 'all'; state.showAllSpending = false; changed(); },
