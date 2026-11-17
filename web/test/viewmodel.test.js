@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { ApiError } from '../js/api.js';
 import { typedNumber } from '../js/format.js';
 import { createAppViewModel } from '../js/viewmodels/appViewModel.js';
-import { MASK, presentGrades, presentHome, presentMap, presentUnit } from '../js/viewmodels/present.js';
+import { MASK, orderUnits, presentGrades, presentHome, presentMap, presentSpending, presentUnit } from '../js/viewmodels/present.js';
 
 // ---------- sample data, in the shape the backend sends ----------
 
@@ -186,6 +186,39 @@ test('maps still work with no targets set', () => {
   const bare = overview({ budget: budget({ hasLimit: false, limit: 0 }), food: food({ hasTargets: false }), health: health({ stepTarget: 0, sleepTargetMinutes: 0, workoutTarget: 0 }) });
   for (const kind of ['budget', 'food', 'health']) assert.equal(presentMap(kind, bare).stops.at(-1).big, '?', kind);
   assert.equal(presentMap('studies', overview({ academics: null, academicsError: 'no engine' })).stops.length, 0);
+});
+
+test('units can be ordered by code, by what needs attention, and by the mark needed', () => {
+  const units = [
+    unit('MAT1830', {}, { realistic: false, onCourse: false, needMax: 65.7 }),
+    unit('FIT2004', {}, { needMax: 68.8 }),
+    unit('FIT2099', {}, { possible: false, realistic: false, onCourse: false, needMax: 102.3 }),
+    unit('FIT1008', { target: null }, { hasTarget: false, need: null, needMax: null })
+  ];
+  const codes = (list) => list.map((u) => u.code).join(' ');
+  assert.equal(codes(orderUnits(units, 'code')), 'FIT1008 FIT2004 FIT2099 MAT1830');
+  assert.equal(codes(orderUnits(units, 'attention')), 'FIT2099 MAT1830 FIT1008 FIT2004');
+  assert.equal(codes(orderUnits(units, 'need')), 'FIT2099 FIT2004 MAT1830 FIT1008');
+  assert.equal(codes(units), 'MAT1830 FIT2004 FIT2099 FIT1008');           // the input list is not changed
+  assert.equal(codes(presentGrades(report(units), false, 'attention').units), 'FIT2099 MAT1830 FIT1008 FIT2004');
+});
+
+test('spending can be filtered by category, with a count and a total, and shows the newest 10', () => {
+  const entries = Array.from({ length: 13 }, (_, i) => ({ id: i, what: `x${i}`, amount: 2.5, category: i % 3 === 0 ? 'Fun' : 'Food', date: '2026-11-10' }));
+  const all = presentSpending(entries);
+  assert.deepEqual([all.rows.length, all.count, all.hidden, all.total], [10, 13, 3, 32.5]);
+  assert.equal(presentSpending(entries, 'all', true).rows.length, 13);
+  const fun = presentSpending(entries, 'Fun');
+  assert.deepEqual([fun.rows.length, fun.count, fun.hidden, fun.total], [5, 5, 0, 12.5]);
+  assert.equal(presentSpending(entries, 'Transport').count, 0);
+});
+
+test('the unit order is remembered, and an unknown order falls back to the code', async () => {
+  const { vm, saved } = setup();
+  vm.setUnitOrder('attention');
+  assert.equal(saved.get('unitOrder'), 'attention');
+  vm.setUnitOrder('nonsense');
+  assert.equal(vm.state.unitOrder, 'code');
 });
 
 test('typed numbers: empty is null, text is NaN, and 0 stays 0', () => {

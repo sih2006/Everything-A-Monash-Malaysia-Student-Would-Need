@@ -4,7 +4,7 @@
 // buttons and forms with data-action="..." so app.js can call the right command.
 
 import { dayText, esc, f2, hm, lastDayOf, num, plain, rm } from '../format.js';
-import { presentGrades, presentHome } from '../viewmodels/present.js';
+import { UNIT_ORDERS, presentGrades, presentHome, presentSpending } from '../viewmodels/present.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -191,7 +191,7 @@ export function gradesView(state) {
     return pageHead('Grades', 'Units, marks, targets and your results.') +
       emptyCard('Grades cannot load', state.overview.academicsError ?? 'The grade engine is not ready.');
   }
-  const g = presentGrades(report, state.hidden);
+  const g = presentGrades(report, state.hidden, state.unitOrder);
   const goal = g.goalValues;
   const addUnit = `
     <form class="form" data-action="addUnit">
@@ -227,6 +227,8 @@ export function gradesView(state) {
 
     ${g.trend.length >= 2 ? `<section class="card"><h2>CGPA by semester</h2>${trendChart(g.trend, g.trendGoal, f2)}</section>` : ''}
 
+    ${g.units.length > 1 ? `<div class="row sorter"><label>Order the units
+      <select data-choose="unitOrder">${UNIT_ORDERS.map(([value, text]) => `<option value="${value}" ${value === state.unitOrder ? 'selected' : ''}>${text}</option>`).join('')}</select></label></div>` : ''}
     <section class="grid wide" aria-label="Units this semester">
       ${g.units.map((u) => unitCard(u, state)).join('')}
     </section>
@@ -325,14 +327,31 @@ export function budgetView(state) {
           ${field('Day', 'date', `type="date" required value="${spendDay}" min="${b.month}-01" max="${spendDay}"`)}
           <button class="btn primary" type="submit">Add</button>
         </form>`}
-        <h2>Latest spending</h2>
-        ${b.recent.length === 0 ? `<p class="note">Nothing recorded in ${esc(b.monthName)}.</p>` : `<ul class="list">
-          ${b.recent.map((x) => `
+        <h2>Spending in ${esc(b.monthName.split(' ')[0])}</h2>
+        ${spendingList(b, state)}
+      </div>
+    </section>`;
+}
+
+// The spending list with its category filter. Kept apart so the budget screen above stays readable.
+function spendingList(b, state) {
+  if (b.recent.length === 0) return `<p class="note">Nothing recorded in ${esc(b.monthName)}.</p>`;
+  const chosen = b.categories.some((c) => c.name === state.spendingCategory) ? state.spendingCategory : 'all';
+  const s = presentSpending(b.recent, chosen, state.showAllSpending);
+  return `
+    <div class="row sorter"><label>Show
+      <select data-choose="spendingCategory">
+        <option value="all" ${chosen === 'all' ? 'selected' : ''}>All categories</option>
+        ${b.categories.map((c) => `<option value="${esc(c.name)}" ${c.name === chosen ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+      </select></label>
+      <span class="note">${s.count} ${s.count === 1 ? 'entry' : 'entries'} · ${rm(s.total)}</span></div>
+    ${s.count === 0 ? '<p class="note">Nothing in this category this month.</p>' : `<ul class="list">
+          ${s.rows.map((x) => `
             <li><span>${esc(x.what)} <span class="dim">· ${esc(x.category)} · ${esc(dayText(x.date))}</span></span>
             <span class="end">${rm(x.amount)} ${remove('deleteSpending', `data-id="${x.id}"`, `Remove ${x.what}`)}</span></li>`).join('')}
         </ul>`}
-      </div>
-    </section>`;
+    ${s.hidden > 0 ? `<button type="button" class="link" data-action="toggleAllSpending">Show all ${s.count}</button>`
+      : state.showAllSpending && s.count > 10 ? '<button type="button" class="link" data-action="toggleAllSpending">Show the newest 10</button>' : ''}`;
 }
 
 // ================= food =================

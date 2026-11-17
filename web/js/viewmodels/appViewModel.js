@@ -29,6 +29,9 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     busy: false,
     tab: 'home',
     mapKind: 'studies',
+    unitOrder: storage.get('unitOrder') ?? 'code',   // how the units on Grades are ordered
+    spendingCategory: 'all',                          // which spending the Budget list shows
+    showAllSpending: false,
     hidden: storage.get('hideGrades') === '1',
     plan: null,            // the AI helper's last plan
     imported: null,        // { code, items } read from a screenshot, waiting for the user to check
@@ -116,6 +119,13 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       changed();
     },
     setMapKind(kind) { state.mapKind = kind; changed(); },
+    setUnitOrder(order) {
+      state.unitOrder = ['code', 'attention', 'need'].includes(order) ? order : 'code';
+      storage.set('unitOrder', state.unitOrder);
+      changed();
+    },
+    setSpendingCategory(category) { state.spendingCategory = category || 'all'; state.showAllSpending = false; changed(); },
+    toggleAllSpending() { state.showAllSpending = !state.showAllSpending; changed(); },
 
     shown,
     // Moves Budget back or forward a month, or Food and Health back or forward a day. Never past today.

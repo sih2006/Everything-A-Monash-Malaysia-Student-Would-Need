@@ -126,6 +126,7 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 
 const COMMANDS = {
   loadDemo: () => vm.loadDemo(),
+  toggleAllSpending: () => vm.toggleAllSpending(),
   exportData: async () => { const file = await vm.exportData(); if (file) download(file); },
   importData: async (f) => vm.importData(await readText(f.file)),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
@@ -224,6 +225,14 @@ status.addEventListener('click', (e) => { if (e.target.closest('[data-dismiss]')
 
 // The what-if slider asks the backend and shows the answer. Nothing is saved.
 let whatIfTimer = null;
+// A choice in a drop-down list that changes the view straight away, with no Save button.
+view.addEventListener('change', (e) => {
+  const choice = e.target.closest('select[data-choose]');
+  if (!choice) return;
+  if (choice.dataset.choose === 'unitOrder') vm.setUnitOrder(choice.value);
+  if (choice.dataset.choose === 'spendingCategory') vm.setSpendingCategory(choice.value);
+});
+
 view.addEventListener('input', (e) => {
   const slider = e.target.closest('[data-whatif]');
   if (!slider) return;

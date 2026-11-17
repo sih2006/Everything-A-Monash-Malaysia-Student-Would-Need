@@ -94,7 +94,7 @@ export function budgetSummary({ month, today, limit, categories, transactions })
     tone: over || ahead ? 'warn' : 'good',
     mood: total <= 0 ? 'waiting' : over ? 'panicking' : ahead ? 'stressed' : 'relaxed',
     categories: perCategory, weeks,
-    recent: inMonth.slice(0, 8)
+    recent: inMonth
   };
 }
 
