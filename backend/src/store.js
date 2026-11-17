@@ -8,7 +8,7 @@
 const EDITABLE = {
   units: { name: 'name', term: 'term', credit: 'credit', target: 'target', passFail: 'pass_fail' },
   assessments: { name: 'name', weight: 'weight', score: 'score', max: 'max', hurdle: 'hurdle' },
-  budget_categories: { name: 'name', limit: 'monthly_limit' }
+  budget_categories: { name: 'name', limit: 'monthly_limit', essential: 'essential' }
 };
 
 export function createStore(db) {
@@ -56,9 +56,9 @@ export function createStore(db) {
     deleteResult: (id) => db.prepare('DELETE FROM results WHERE id = ?').run(id).changes,
 
     // ----- budget -----
-    listCategories: () => db.prepare('SELECT id, name, monthly_limit AS "limit" FROM budget_categories ORDER BY id').all(),
+    listCategories: () => db.prepare('SELECT id, name, monthly_limit AS "limit", essential FROM budget_categories ORDER BY id').all().map((c) => ({ ...c, essential: c.essential === 1 })),
     getCategoryByName: (name) => db.prepare('SELECT id, name, monthly_limit AS "limit" FROM budget_categories WHERE name = ? COLLATE NOCASE').get(name),
-    insertCategory: (c) => Number(db.prepare('INSERT INTO budget_categories (name, monthly_limit) VALUES (?, ?)').run(c.name, c.limit).lastInsertRowid),
+    insertCategory: (c) => Number(db.prepare('INSERT INTO budget_categories (name, monthly_limit, essential) VALUES (?, ?, ?)').run(c.name, c.limit, c.essential ? 1 : 0).lastInsertRowid),
     updateCategory: (id, fields) => update('budget_categories', 'id', id, fields),
     deleteCategory: (id) => db.prepare('DELETE FROM budget_categories WHERE id = ?').run(id).changes,
 
@@ -147,7 +147,7 @@ export function createStore(db) {
         units: this.listUnits(),
         assessments: all('SELECT unit_code AS unitCode, name, weight, score, max, hurdle FROM assessments ORDER BY unit_code, id'),
         results: all('SELECT code, name, credit, mark, grade, term FROM results ORDER BY id'),
-        categories: all('SELECT id, name, monthly_limit AS "limit" FROM budget_categories ORDER BY id'),
+        categories: this.listCategories(),
         transactions: all('SELECT id, category_id AS categoryId, what, amount, spent_on AS date FROM transactions ORDER BY spent_on, id'),
         foods: all('SELECT name, kcal, protein FROM foods ORDER BY name'),
         foodLog: all('SELECT eaten_on AS date, meal, food, kcal, protein FROM food_log ORDER BY eaten_on, id'),

@@ -26,6 +26,13 @@ export function addDays(day, count) {
   return toDay(date);
 }
 
+// "2026-10" plus -2 months is "2026-08".
+export function addMonths(month, count) {
+  const date = toUtc(month + '-01');
+  date.setUTCMonth(date.getUTCMonth() + count);
+  return toDay(date).slice(0, 7);
+}
+
 export const isDay = (text) => typeof text === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(toUtc(text).getTime()) && toDay(toUtc(text)) === text;
 export const isMonth = (text) => typeof text === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(text);
 
@@ -60,7 +67,7 @@ export function budgetSummary({ month, today, limit, categories, transactions })
 
   const perCategory = categories.map((c) => {
     const spent = round2(inMonth.filter((t) => t.categoryId === c.id).reduce((sum, t) => sum + t.amount, 0));
-    return { id: c.id, name: c.name, limit: c.limit, spent, left: round2(c.limit - spent), over: c.limit > 0 && spent > c.limit, percent: c.limit > 0 ? spent / c.limit * 100 : 0 };
+    return { id: c.id, name: c.name, limit: c.limit, essential: c.essential === true, spent, left: round2(c.limit - spent), over: c.limit > 0 && spent > c.limit, percent: c.limit > 0 ? spent / c.limit * 100 : 0 };
   });
 
   const total = limit ?? round2(categories.reduce((sum, c) => sum + c.limit, 0));
@@ -105,6 +112,32 @@ export const ACCOUNT_KINDS = ['bank', 'ewallet', 'investment', 'cash'];
 // Works out each account's balance from its moves, which must be in the order they were entered.
 // A 'set' move is the user typing the real balance: it replaces whatever was worked out before it.
 // Then each 'in' adds and each 'out' takes away.
+// Spending that could be cut: everything outside the essential categories, over the given months.
+// Each place is listed with its total, how often you went, the average, and what it comes to a month.
+export function reducibleSpending({ categories, transactions, months }) {
+  const essential = new Set(categories.filter((c) => c.essential).map((c) => c.id));
+  const name = new Map(categories.map((c) => [c.id, c.name]));
+  const cuttable = transactions.filter((t) => !essential.has(t.categoryId));
+  const total = round2(cuttable.reduce((sum, t) => sum + t.amount, 0));
+  const byCategory = new Map(), byPlace = new Map();
+  for (const t of cuttable) {
+    const c = name.get(t.categoryId) ?? 'Other';
+    byCategory.set(c, round2((byCategory.get(c) ?? 0) + t.amount));
+    const key = `${t.what}\u0000${c}`;
+    const p = byPlace.get(key) ?? { what: t.what, category: c, total: 0, count: 0 };
+    p.total = round2(p.total + t.amount);
+    p.count += 1;
+    byPlace.set(key, p);
+  }
+  return {
+    months, total, perMonth: months ? round2(total / months) : total,
+    byCategory: [...byCategory].map(([category, amount]) => ({ category, amount, perMonth: round2(amount / months) })).sort((a, b) => b.amount - a.amount),
+    top: [...byPlace.values()].sort((a, b) => b.total - a.total).slice(0, 8)
+      .map((p) => ({ ...p, average: round2(p.total / p.count), perMonth: round2(p.total / months) })),
+    essential: categories.filter((c) => c.essential).map((c) => c.name)
+  };
+}
+
 // Money that came in during a month: every "in" move except moves between your own accounts.
 // Grouped by where it came from (the note), biggest first. Net is what is left after the month's spending.
 export function incomeSummary(moves, month, spent) {

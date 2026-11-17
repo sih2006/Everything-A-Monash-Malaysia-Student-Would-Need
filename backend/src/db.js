@@ -145,6 +145,10 @@ const MIGRATIONS = [
   // Step 5: a move between two of your own accounts is marked, so it never counts as income or spending.
   `
   ALTER TABLE account_moves ADD COLUMN transfer INTEGER NOT NULL DEFAULT 0;
+  `,
+  // Step 6: a category can be marked essential (rent, tuition). Essential spending is never listed as "could cut".
+  `
+  ALTER TABLE budget_categories ADD COLUMN essential INTEGER NOT NULL DEFAULT 0;
   `
 ];
 

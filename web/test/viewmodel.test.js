@@ -589,3 +589,21 @@ test('a screenshot import saves only the rows the user kept, with the user\'s co
   assert.deepEqual(calls.filter(([name]) => name === 'addAssessment').map((c) => c[2]), [{ name: 'Assignment 1', weight: 20, score: 17, max: 20 }, { name: 'Exam', weight: 60 }]);
   assert.equal(vm.state.imported, null);
 });
+
+test('budget tabs: the open tab and the account picked on each tab are kept for next time', () => {
+  const saved = {};
+  const storage = { get: (k) => saved[k] ?? null, set: (k, v) => { saved[k] = v; } };
+  const vm = createAppViewModel({ api: {}, storage, onChange: () => {} });
+  assert.equal(vm.state.budgetTab, 'all');
+  vm.setBudgetTab('expenses');
+  vm.showAccount('investing', 7);
+  assert.equal(vm.state.budgetTab, 'investing');               // picking an account opens its tab
+  vm.setBudgetTab('nonsense');
+  assert.equal(vm.state.budgetTab, 'all');
+  vm.showAccount('banking', 3);
+  const again = createAppViewModel({ api: {}, storage, onChange: () => {} });
+  assert.equal(again.state.budgetTab, 'banking');
+  assert.deepEqual(again.state.budgetAccount, { banking: 3, investing: 7 });
+  saved.budgetAccount = 'not json';
+  assert.deepEqual(createAppViewModel({ api: {}, storage, onChange: () => {} }).state.budgetAccount, { banking: null, investing: null });
+});

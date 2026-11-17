@@ -146,6 +146,11 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 const COMMANDS = {
   loadDemo: () => vm.loadDemo(),
   toggleAllSpending: () => vm.toggleAllSpending(),
+  setBudgetTab: (f, d) => vm.setBudgetTab(d.tab),
+  showAccount: (f, d) => vm.showAccount(d.group, Number(d.id)),
+  setEssential: (f, d) => vm.setEssential(Number(d.id), d.essential === 'true'),
+  saveAdvice: (f) => vm.saveAdvice(f.text),
+  clearAdvice: () => vm.clearAdvice(),
   exportData: async () => { const file = await vm.exportData(); if (file) download(file); },
   importData: async (f) => vm.importData(await readText(f.file)),
   deleteEverything: (f) => vm.deleteEverything(f.confirm),

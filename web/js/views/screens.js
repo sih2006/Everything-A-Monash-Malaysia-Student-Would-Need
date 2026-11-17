@@ -318,17 +318,46 @@ function accountCard(a) {
     </article>`;
 }
 
-// The money in all your accounts. Always as it is now, whichever month the budget below shows.
-function moneySection(money) {
+// The accounts split into the two money tabs. Cash and e-wallets sit with the banks: money you can spend.
+const GROUPS = { banking: ['bank', 'ewallet', 'cash'], investing: ['investment'] };
+const groupOf = (a) => (GROUPS.investing.includes(a.kind) ? 'investing' : 'banking');
+const TABS = [['all', 'Overview'], ['banking', 'Banking'], ['investing', 'Investing'], ['expenses', 'Expenses']];
+
+function budgetTabs(active) {
+  return `<div class="seg budget-tabs" role="group" aria-label="Budget sections">
+    ${TABS.map(([id, label]) => `<button type="button" data-action="setBudgetTab" data-tab="${id}" aria-pressed="${active === id}">${label}</button>`).join('')}
+  </div>`;
+}
+
+// Your total, always as it is now, whichever month the tabs below show.
+function moneyBanner(money) {
   const accounts = money.accounts;
-  const options = accounts.map((a) => [String(a.id), a.name]);
   return `
     <section class="banner money ${money.total < 0 ? 'warn' : 'good'}">
       <h2>Your money: ${rm(money.total)}</h2>
       <p>${accounts.length === 0 ? 'Add your accounts, such as a bank, an e-wallet and an investing account, to see your total here.'
         : `${rm(money.spendable)} to spend${money.invested ? ` and ${rm(money.invested)} invested` : ''}, across ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}.`}</p>
+    </section>`;
+}
+
+// Overview: one short row per account. Picking a row opens that account on its own tab.
+function overviewTab(b) {
+  const accounts = b.money.accounts;
+  const options = accounts.map((a) => [String(a.id), a.name]);
+  return `
+    ${accounts.length ? `<section class="card">
+      <h2>Accounts</h2>
+      <ul class="list account-rows">
+        ${accounts.map((a) => `<li><button type="button" class="link account-row" data-action="showAccount" data-group="${groupOf(a)}" data-id="${a.id}">
+          <span>${esc(a.name)} <span class="dim">· ${esc(KIND_NAMES[a.kind] ?? a.kind)}</span></span><span class="end">${rm(a.balance)}</span></button></li>`).join('')}
+      </ul>
+      <p class="note">Pick an account to see its history and change it.</p>
+    </section>` : ''}
+    <section class="grid stats" aria-label="This month">
+      <div class="card"><div class="label">Money in, ${esc(b.monthName)}</div><div class="big">${rm(b.income?.total ?? 0)}</div></div>
+      <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div>${b.hasLimit ? `<p class="note">${Math.round(b.spentPercent)}% of your limit</p>` : ''}</div>
+      <div class="card"><div class="label">Could cut</div><div class="big">${rm(b.reducible?.perMonth ?? 0)}</div><p class="note">a month, from the last 3 months</p></div>
     </section>
-    ${accounts.length ? `<section class="grid" aria-label="Accounts">${accounts.map((a) => accountCard(a)).join('')}</section>` : ''}
     <section class="card">
       ${fold('add-account', 'Add an account', `
         <form class="form" data-action="addAccount">
@@ -346,6 +375,23 @@ function moneySection(money) {
         </form>
         <p class="note">For example topping up Touch 'n Go from your bank. It is not spending, so the budget does not change.</p>`) : ''}
     </section>`;
+}
+
+// Banking or Investing: pills to pick one account, then only that account.
+function accountTab(b, state, group) {
+  const accounts = b.money.accounts.filter((a) => groupOf(a) === group);
+  const word = group === 'investing' ? 'investing' : 'bank, e-wallet or cash';
+  if (accounts.length === 0) return emptyCard(`No ${word} accounts yet`, 'Add one on the Overview tab.');
+  const chosen = accounts.find((a) => a.id === state.budgetAccount?.[group]) ?? accounts[0];
+  const total = accounts.reduce((sum, a) => sum + a.balance, 0);
+  return `
+    <div class="row account-pick">
+      ${accounts.length > 1 ? `<div class="seg" role="group" aria-label="Pick an account">
+        ${accounts.map((a) => `<button type="button" data-action="showAccount" data-group="${group}" data-id="${a.id}" aria-pressed="${a.id === chosen.id}">${esc(a.name)}</button>`).join('')}
+      </div>` : ''}
+      <span class="note">${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'} · ${rm(total)} in all</span>
+    </div>
+    ${accountCard(chosen)}`;
 }
 
 // ================= budget =================
@@ -366,41 +412,68 @@ function incomeSection(b, day) {
           ${select('Into', 'account', accounts.map((a) => [String(a.id), a.name]))}
           ${field('Date', 'date', `type="date" value="${day}"`)}
           <button class="btn primary" type="submit">Add</button>
-        </form>`) : '<p class="note">Add an account above first, so the money has somewhere to go.</p>'}
+        </form>`) : '<p class="note">Add an account first, so the money has somewhere to go.</p>'}
     </section>`;
 }
 
-export function budgetView(state) {
-  const b = state.views.budget ?? state.overview.budget;
-  const isCurrent = !state.views.budget;
-  const today = state.overview.today;
-  // New spending goes on today, or on the last day of a past month being looked at. The user can change it.
-  const spendDay = isCurrent ? today : lastDayOf(b.month);
-  const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
+// What could be cut: spending outside the essential categories, over the last three months.
+function couldCut(r) {
+  if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in the last 3 months.</p></section>`;
+  const most = r.byCategory[0]?.amount || 1;
   return `
-    ${head}
-    ${moneySection(b.money)}
+    <section class="card could-cut">
+      <div class="card-head"><h2>Could cut: ${rm(r.perMonth)} a month</h2>${chip({ text: `last ${r.months} months`, tone: '' })}</div>
+      <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. ${rm(r.total)} in all.</p>
+      ${r.byCategory.slice(0, 6).map((c) => `
+        <div class="bar-row">
+          <div class="top"><strong>${esc(c.category)}</strong><span>${rm(c.perMonth)} <span class="note">a month</span></span></div>
+          ${bar((c.amount / most) * 100, '')}
+        </div>`).join('')}
+      <h3>The places you pay most</h3>
+      <ol class="list ranked">
+        ${r.top.map((p) => `<li><span>${esc(p.what)} <span class="dim">· ${esc(p.category)} · ${p.count}× at about ${rm(p.average)}</span></span><span class="end">${rm(p.perMonth)}<span class="dim"> /month</span></span></li>`).join('')}
+      </ol>
+    </section>`;
+}
+
+function adviceCard(advice) {
+  return `
+    <section class="card advice">
+      <div class="card-head"><h2>Advice</h2>${advice ? chip({ text: advice.by, tone: '' }) : ''}</div>
+      ${advice ? `${advice.text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => line.startsWith('- ')
+          ? `<p class="tip">${esc(line.slice(2))}</p>` : `<p>${esc(line)}</p>`).join('')}
+        <p class="note">Written on ${esc(dayText(advice.on))}. Later the AI helper will write this from your own numbers.</p>`
+        : '<p class="note">No advice yet. Later the AI helper will write it from your spending. You can write your own below.</p>'}
+      ${fold('advice-edit', advice ? 'Change the advice' : 'Write advice', `
+        <form class="form" data-action="saveAdvice">
+          <label class="field"><span>Advice (start a line with "- " for a tip)</span><textarea name="text" rows="8" maxlength="6000">${esc(advice?.text ?? '')}</textarea></label>
+          <button class="btn primary" type="submit">Save advice</button>
+          ${advice ? '<button type="button" class="link danger" data-action="clearAdvice">Remove the advice</button>' : ''}
+        </form>`)}
+    </section>`;
+}
+
+function expensesTab(b, state, isCurrent, spendDay) {
+  return `
     ${periodNav('budget', b.monthName, isCurrent, 'month')}
-    ${incomeSection(b, spendDay)}
-    ${b.hasLimit ? `
-    <section class="grid stats" aria-label="Month so far">
-      <div class="card"><div class="label">Spent</div><div class="big">${rm(b.spent)}</div><p class="note">${Math.round(b.spentPercent)}% of your limit</p></div>
+    <section class="grid stats" aria-label="Spending this month">
+      <div class="card"><div class="label">Spent in ${esc(b.monthName)}</div><div class="big">${rm(b.spent)}</div>
+        <p class="note">${b.hasLimit ? `${Math.round(b.spentPercent)}% of your ${rm(b.limit)} limit` : 'No monthly limit set'}</p></div>
+      ${b.hasLimit ? `
       <div class="card"><div class="label">${b.over ? 'Over by' : 'Left'}</div><div class="big">${rm(Math.abs(b.left))}</div><p class="note">with ${b.daysLeft} ${b.daysLeft === 1 ? 'day' : 'days'} to go</p></div>
-      <div class="card"><div class="label">Per day to stay inside</div><div class="big">${rm(b.perDay)}</div><p class="note">You have averaged ${rm(b.perDaySoFar)}</p></div>
+      <div class="card"><div class="label">Per day to stay inside</div><div class="big">${rm(b.perDay)}</div><p class="note">You have averaged ${rm(b.perDaySoFar)}</p></div>` : ''}
     </section>
+    ${b.hasLimit ? `
     <section class="banner scallop ${b.tone}">
       <h2>${esc(b.verdict)}</h2>
       <p>${Math.round(b.monthPercent)}% of the month has passed and ${Math.round(b.spentPercent)}% of your limit is spent.</p>
       ${bar(b.spentPercent, b.tone, b.monthPercent)}
       <p>The triangle points at today.</p>
-    </section>` : emptyCard('Set a monthly limit', 'You decide the limit. The app then tells you if your spending is on pace.')}
+    </section>` : ''}
 
-    <section class="card">
-      ${fold('limit', b.hasLimit ? 'Change the monthly limit' : 'Set the monthly limit', `
-        <form class="form" data-action="saveBudgetLimit">
-          ${field('Monthly limit (RM)', 'limit', `inputmode="decimal" value="${b.hasLimit ? plain(b.limit) : ''}"`, 'empty = add up the category limits')}
-          <button class="btn primary" type="submit">Save limit</button>
-        </form>`, !b.hasLimit)}
+    <section class="grid wide">
+      ${couldCut(b.reducible)}
+      ${adviceCard(b.advice)}
     </section>
 
     <section class="grid wide">
@@ -411,8 +484,15 @@ export function budgetView(state) {
             <div class="top"><strong>${esc(c.name)}</strong><span>${rm(c.spent)}${c.limit > 0 ? ` <span class="note">of ${rm(c.limit)}</span>` : ''}</span></div>
             ${c.limit > 0 ? bar(c.percent, c.over ? 'warn' : '') : ''}
             <div class="rowline"><span class="note ${c.over ? 'warn' : ''}">${c.limit <= 0 ? 'No limit' : c.over ? 'Over by ' + rm(c.spent - c.limit) : rm(c.left) + ' left'}</span>
-              ${remove('deleteCategory', `data-id="${c.id}" data-confirm="Remove ${esc(c.name)} and all spending in it?"`, `Remove ${c.name}`)}</div>
+              <span><button type="button" class="link essential" data-action="setEssential" data-id="${c.id}" data-essential="${!c.essential}" aria-pressed="${c.essential}">${c.essential ? 'Essential' : 'Mark essential'}</button>
+              ${remove('deleteCategory', `data-id="${c.id}" data-confirm="Remove ${esc(c.name)} and all spending in it?"`, `Remove ${c.name}`)}</span></div>
           </div>`).join('')}
+        <p class="note">Essential spending, such as rent and fees, is never listed under Could cut.</p>
+        ${fold('limit', b.hasLimit ? 'Change the monthly limit' : 'Set the monthly limit', `
+          <form class="form" data-action="saveBudgetLimit">
+            ${field('Monthly limit (RM)', 'limit', `inputmode="decimal" value="${b.hasLimit ? plain(b.limit) : ''}"`, 'empty = add up the category limits')}
+            <button class="btn primary" type="submit">Save limit</button>
+          </form>`)}
         ${fold('add-category', 'Add a category', `
           <form class="form" data-action="addCategory">
             ${field('Name', 'name', 'required maxlength="30" placeholder="Food"')}
@@ -436,6 +516,25 @@ export function budgetView(state) {
         ${spendingList(b, state)}
       </div>
     </section>`;
+}
+
+export function budgetView(state) {
+  const b = state.views.budget ?? state.overview.budget;
+  const isCurrent = !state.views.budget;
+  const today = state.overview.today;
+  // New spending goes on today, or on the last day of a past month being looked at. The user can change it.
+  const spendDay = isCurrent ? today : lastDayOf(b.month);
+  const tab = state.budgetTab ?? 'all';
+  const head = pageHead('Budget', isCurrent ? `Day ${b.day} of ${b.days}.${b.hasLimit ? ` Your monthly limit is ${rm(b.limit)}.` : ''}` : `A past month.${b.hasLimit ? ` The limit is ${rm(b.limit)}.` : ''}`, mood('t-budget', 'Crab', b.mood));
+  const body = tab === 'banking' ? `${accountTab(b, state, 'banking')}${periodNav('budget', b.monthName, isCurrent, 'month')}${incomeSection(b, spendDay)}`
+    : tab === 'investing' ? accountTab(b, state, 'investing')
+    : tab === 'expenses' ? expensesTab(b, state, isCurrent, spendDay)
+    : overviewTab(b);
+  return `
+    ${head}
+    ${moneyBanner(b.money)}
+    ${budgetTabs(tab)}
+    ${body}`;
 }
 
 // The spending list with its category filter. Kept apart so the budget screen above stays readable.

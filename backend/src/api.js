@@ -7,7 +7,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, addMonths, incomeSummary, reducibleSpending, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
@@ -225,9 +225,13 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       transactions: store.listTransactions(from, to)
     });
     const moves = store.listAccountMoves();
+    // "Could cut" looks at the three months up to the one shown, so one odd month does not decide it.
+    const first = monthRange(addMonths(month, -2)).from;
     return {
       ...summary,
       income: incomeSummary(moves, month, summary.spent),
+      reducible: reducibleSpending({ categories: store.listCategories(), transactions: store.listTransactions(first, to), months: 3 }),
+      advice: store.getSetting('budget.advice', null),
       // Balances are always as they are now, whichever month is being looked at.
       money: accountSummary(store.listAccounts(), moves)
     };
@@ -268,7 +272,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   route('POST', '/api/budget/categories', ({ body }) => {
     const name = check.text(body.name, 'name', { max: 30 });
     if (store.getCategoryByName(name)) throw new HttpError(409, 'exists', `There is already a category called ${name}.`, 'name');
-    store.insertCategory({ name, limit: check.number(body.limit ?? 0, 'limit', { min: 0, max: 1e7 }) });
+    store.insertCategory({ name, limit: check.number(body.limit ?? 0, 'limit', { min: 0, max: 1e7 }), essential: body.essential === true });
     return budgetFor(today().slice(0, 7));
   });
 
@@ -276,10 +280,25 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const fields = {};
     if (body.name !== undefined) fields.name = check.text(body.name, 'name', { max: 30 });
     if (body.limit !== undefined) fields.limit = check.number(body.limit, 'limit', { min: 0, max: 1e7 });
+    if (body.essential !== undefined) {
+      if (typeof body.essential !== 'boolean') throw new HttpError(400, 'invalid', 'Essential must be true or false.', 'essential');
+      fields.essential = body.essential ? 1 : 0;
+    }
     const other = fields.name ? store.getCategoryByName(fields.name) : null;
     if (other && other.id !== check.id(params.id)) throw new HttpError(409, 'exists', `There is already a category called ${fields.name}.`, 'name');
     if (Object.keys(fields).length && !store.updateCategory(check.id(params.id), fields)) throw new HttpError(404, 'not_found', 'That category does not exist.');
     return budgetFor(today().slice(0, 7));
+  });
+
+  // Advice shown on the Expenses tab. For now it is written by hand (by Claude); later the AI helper fills it.
+  route('PUT', '/api/budget/advice', ({ body }) => {
+    if (body.text === null) store.setSetting('budget.advice', null);
+    else store.setSetting('budget.advice', {
+      text: check.text(String(body.text ?? '').replace(/\r?\n/g, ' \u2028 '), 'text', { max: 6000 }).replace(/ \u2028 /g, '\n'),
+      by: check.text(body.by, 'by', { max: 60, required: false }) || 'You',
+      on: today()
+    });
+    return budgetNow();
   });
 
   route('DELETE', '/api/budget/categories/:id', ({ params }) => {
@@ -640,7 +659,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const categories = list('categories', 200).map((c) => ({
       id: check.number(c.id, 'id', { min: 1, max: 1e9, whole: true }),
       name: check.text(c.name, 'name', { max: 30 }),
-      limit: check.number(c.limit, 'limit', { min: 0, max: 1e7 })
+      limit: check.number(c.limit, 'limit', { min: 0, max: 1e7 }),
+      essential: c.essential === true
     }));
     const categoryIds = new Set(categories.map((c) => c.id));
     if (categoryIds.size !== categories.length || new Set(categories.map((c) => c.name.toLowerCase())).size !== categories.length) {

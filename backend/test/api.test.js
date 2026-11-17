@@ -346,6 +346,22 @@ describe('money accounts', () => {
     await app.call('DELETE', `/api/accounts/${wallet.id}`);
   });
 
+  test('a category can be marked essential; the month lists what could be cut and keeps saved advice', async () => {
+    await app.call('POST', '/api/budget/categories', { name: 'Housing', limit: 0, essential: true });
+    const after = await app.call('POST', '/api/budget/categories', { name: 'Treats', limit: 0 });
+    const treats = after.body.categories.find((c) => c.name === 'Treats');
+    assert.equal(after.body.categories.find((c) => c.name === 'Housing').essential, true);
+    await app.call('POST', '/api/transactions', { category: 'Housing', what: 'Rent', amount: 2850, date: '2026-11-02' });
+    await app.call('POST', '/api/transactions', { category: 'Treats', what: 'Bubble tea', amount: 12, date: '2026-11-03' });
+    const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
+    assert.ok(month.reducible.top.some((p) => p.what === 'Bubble tea'));
+    assert.ok(!month.reducible.top.some((p) => p.what === 'Rent'));                  // essential: never "could cut"
+    assert.equal((await app.call('PATCH', `/api/budget/categories/${treats.id}`, { essential: 'yes' })).status, 400);
+    const saved = (await app.call('PUT', '/api/budget/advice', { text: 'Line one.\nLine two.', by: 'Claude' })).body;
+    assert.deepEqual([saved.advice.text, saved.advice.by], ['Line one.\nLine two.', 'Claude']);
+    assert.equal((await app.call('PUT', '/api/budget/advice', { text: null })).body.advice, null);
+  });
+
   test('accounts are checked', async () => {
     assert.equal((await app.call('POST', '/api/accounts', { name: 'maybank' })).status, 409);
     assert.equal((await app.call('POST', '/api/accounts', { name: 'Crypto', kind: 'magic' })).status, 400);

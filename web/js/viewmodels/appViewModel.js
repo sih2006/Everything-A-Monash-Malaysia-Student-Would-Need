@@ -20,6 +20,15 @@ const PERIODS = {
   health: { keyOf: (data) => data.date, current: (today) => today, step: addDays }
 };
 
+// The Budget screen's tabs: everything at a glance, bank and e-wallet accounts, investing, and spending.
+export const BUDGET_TABS = ['all', 'banking', 'investing', 'expenses'];
+function savedAccounts(text) {
+  try {
+    const saved = JSON.parse(text ?? '{}');
+    return { banking: Number(saved?.banking) || null, investing: Number(saved?.investing) || null };
+  } catch { return { banking: null, investing: null }; }
+}
+
 export function createAppViewModel({ api, storage, onChange = () => {} }) {
   const state = {
     loading: true,
@@ -39,6 +48,8 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     predictions: {},        // the what-if sliders that were moved: { unit code: percent on what is left }
     predicted: null,        // the semester totals with those predictions, from the engine
     resultOrder: storage.get('resultOrder') ?? 'term', // how the finished units are ordered
+    budgetTab: BUDGET_TABS.includes(storage.get('budgetTab')) ? storage.get('budgetTab') : 'all', // the Budget tab that is open
+    budgetAccount: savedAccounts(storage.get('budgetAccount')),  // the account shown on Banking and on Investing: { banking: id, investing: id }
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
     hidden: storage.get('hideGrades') === '1',
@@ -171,6 +182,20 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       storage.set('resultOrder', state.resultOrder);
       changed();
     },
+    setBudgetTab(tab) {
+      state.budgetTab = BUDGET_TABS.includes(tab) ? tab : 'all';
+      storage.set('budgetTab', state.budgetTab);
+      changed();
+    },
+    // Opens one account on its tab. The other accounts stay out of sight until picked.
+    showAccount(group, id) {
+      if (!['banking', 'investing'].includes(group)) return;
+      state.budgetAccount = { ...state.budgetAccount, [group]: id };
+      state.budgetTab = group;
+      storage.set('budgetAccount', JSON.stringify(state.budgetAccount));
+      storage.set('budgetTab', group);
+      changed();
+    },
     setSpendingCategory(category) { state.spendingCategory = category || 'all'; state.showAllSpending = false; changed(); },
     toggleAllSpending() { state.showAllSpending = !state.showAllSpending; changed(); },
 
@@ -300,6 +325,13 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     saveBudgetLimit: (text) => act('budget', () => api.saveBudgetLimit(number(text, 'The limit', { required: false })), 'Limit saved.'),
     addCategory: (f) => act('budget', () => api.addCategory({ name: f.name, limit: number(f.limit, 'The category limit', { required: false }) ?? 0 }), 'Category added.'),
     deleteCategory: (id) => act('budget', () => api.deleteCategory(id), 'Category removed.'),
+    // Essential spending (rent, fees) is never listed as something you could cut.
+    setEssential: (id, essential) => act('budget', () => api.updateCategory(id, { essential }), essential ? 'Marked as essential.' : 'No longer essential.'),
+    saveAdvice: (text) => act('budget', () => {
+      if (!String(text ?? '').trim()) throw new ApiError(400, 'invalid', 'Write some advice first, or remove it.');
+      return api.saveAdvice(text, 'You');
+    }, 'Advice saved.'),
+    clearAdvice: () => act('budget', () => api.saveAdvice(null), 'Advice removed.'),
     addSpending: (f) => act('budget', () => api.addSpending({
       what: f.what, category: f.category, amount: number(f.amount, 'The amount'),
       ...(f.date ? { date: f.date } : {}), ...(f.accountId ? { accountId: Number(f.accountId) } : {})

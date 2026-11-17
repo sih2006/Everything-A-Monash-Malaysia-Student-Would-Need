@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { accountSummary, addDays, budgetSummary, incomeSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, incomeSummary, reducibleSpending, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -216,6 +216,19 @@ test('health: minutes and kinds of the workouts this week', () => {
   ]);
   assert.equal(s.workouts.minutes, 90);
   assert.deepEqual(s.workouts.kinds, [{ kind: 'gym', count: 2, minutes: 60 }, { kind: 'run', count: 1, minutes: 30 }]);
+});
+
+test('could cut: essential categories are left out; places are ranked by total with count, average and per month', () => {
+  const categories = [{ id: 1, name: 'Rent', essential: true }, { id: 2, name: 'Eating out' }, { id: 3, name: 'Shopping' }];
+  const t = (categoryId, what, amount) => ({ categoryId, what, amount, date: '2026-10-01' });
+  const r = reducibleSpending({ categories, months: 3, transactions: [
+    t(1, 'Rent', 2850), t(2, 'Grab', 30), t(2, 'Grab', 33), t(2, 'Burger King', 9.9), t(3, 'Shopee', 120)
+  ] });
+  assert.equal(r.total, 192.9);
+  assert.equal(r.perMonth, 64.3);
+  assert.deepEqual(r.byCategory.map((c) => c.category), ['Shopping', 'Eating out']);
+  assert.deepEqual(r.top[1], { what: 'Grab', category: 'Eating out', total: 63, count: 2, average: 31.5, perMonth: 21 });
+  assert.deepEqual(r.essential, ['Rent']);
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {
