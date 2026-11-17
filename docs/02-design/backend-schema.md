@@ -10,6 +10,9 @@ This document answers: what is stored, how is it laid out, and which addresses d
 erDiagram
   units ||--o{ assessments : has
   budget_categories ||--o{ transactions : has
+  accounts ||--o{ account_moves : has
+  transactions |o--o| account_moves : "paid from"
+  workouts ||--o{ exercises : has
 
   units {
     text code PK "FIT2004"
@@ -17,6 +20,7 @@ erDiagram
     text term "S1 2027"
     real credit "6"
     real target "unit mark aimed for, or empty"
+    int pass_fail "1 = pass or fail only; never counts in GPA, CGPA or WAM"
   }
   assessments {
     int id PK
@@ -40,6 +44,7 @@ erDiagram
     int id PK
     text name UK
     real monthly_limit
+    int essential "1 = rent, fees: never listed as could cut"
   }
   transactions {
     int id PK
@@ -47,6 +52,21 @@ erDiagram
     text what
     real amount "MYR"
     text spent_on "YYYY-MM-DD"
+  }
+  accounts {
+    int id PK
+    text name UK "Maybank"
+    text kind "bank, ewallet, investment, cash"
+  }
+  account_moves {
+    int id PK
+    int account_id FK
+    text kind "set, in, out"
+    real amount
+    text moved_on "YYYY-MM-DD"
+    text note
+    int transaction_id FK "the spending that made it, or empty"
+    int transfer "1 = between your own accounts"
   }
   foods {
     int id PK
@@ -67,12 +87,24 @@ erDiagram
     int steps
     int sleep_minutes
     int resting_hr
+    real weight_kg
+    int water_ml
   }
   workouts {
     int id PK
     text done_on
     text name
     text notes
+    text kind "gym, run, walk, cycle, swim, sport, other"
+    int minutes
+  }
+  exercises {
+    int id PK
+    int workout_id FK
+    text name
+    int sets
+    int reps
+    real weight_kg
   }
   settings {
     text key PK
@@ -85,7 +117,8 @@ Notes:
 - **Nothing worked out is stored.** GPA, verdicts, totals and summaries are calculated when asked for. So they can never be out of step with the marks.
 - **Deleting a unit deletes its assessments.** Deleting a budget category deletes its spending. The database enforces this (`ON DELETE CASCADE`).
 - **Days are text** in the form `YYYY-MM-DD`, worked out in Malaysian time. Text in that form sorts and compares correctly.
-- **`settings` keys:** `academics.currentTerm`, `academics.margin`, `academics.goal`, `budget.limit`, `food.targets`, `health.targets`.
+- **`settings` keys:** `academics.currentTerm`, `academics.margin`, `academics.goal`, `academics.termDates`, `budget.limit`, `budget.advice`, `food.targets`, `health.targets`.
+- **An account's balance is not stored.** It is worked out from its moves, by day and then in the order entered. A `set` move means "it held exactly this much on this day": moves before it stop counting. A move between two of your own accounts is marked `transfer`, so it is never income or spending.
 - **There is one user**, so no table has a user column. Adding more users means adding one to every table (see section 4).
 - **Changes to the layout** are added as a new step at the end of `MIGRATIONS` in `backend/src/db.js`. The database remembers which steps it has run.
 
@@ -123,18 +156,34 @@ A change to grades returns the whole new grades report, so the screen can redraw
 | `DELETE /api/results/:id` | | Removes a finished unit |
 | `PUT /api/academics/settings` | any of `currentTerm`, `margin`, `goal` (`{measure, value, totalCredits}` or `null`) | Saves the goal and settings |
 | `GET /api/academics/whatif?unit=CODE&score=N` | | The final mark and grade for scoring N% on what is left. Saves nothing |
+| `GET /api/academics/predict?u=CODE:N&u=…` | | The semester's GPA, CGPA and WAM if each unit named scores N% on what is left. Saves nothing |
+
+`POST /api/units` and `PATCH /api/units/:code` also take `passFail` (true or false).
 
 ### Budget
 
 | Method and address | Body | What it does |
 |---|---|---|
-| `GET /api/budget?month=YYYY-MM` | | The summary for a month (this month if left out) |
+| `GET /api/budget?month=YYYY-MM` | | The summary for a month (this month if left out). It includes `money` (accounts and total, always as of now), `income` (money in that month), `reducible` (spending outside essential categories over the 3 months up to this one, with the places you pay most) and `advice` |
 | `PUT /api/budget/settings` | `limit` (a number or `null`) | Sets the monthly limit |
-| `POST /api/budget/categories` | `name`, `limit` | Adds a category |
-| `PATCH /api/budget/categories/:id` | `name`, `limit` | Changes a category |
+| `POST /api/budget/categories` | `name`, `limit`, `essential` | Adds a category |
+| `PATCH /api/budget/categories/:id` | any of `name`, `limit`, `essential` (true or false) | Changes a category |
+| `PUT /api/budget/advice` | `text` (or `null` to remove), `by` | Saves the advice shown on the Expenses tab. For now it is written by hand; later the AI helper fills it |
 | `DELETE /api/budget/categories/:id` | | Removes a category and its spending |
-| `POST /api/transactions` | `what`, `amount`, `category` (its name), `date` | Adds spending. The date cannot be in the future |
+| `POST /api/transactions` | `what`, `amount`, `category` (its name), `date`, `accountId` (optional) | Adds spending. The date cannot be in the future. With `accountId`, the account goes down too |
 | `DELETE /api/transactions/:id` | | Removes spending |
+
+### Money accounts
+
+| Method and address | Body | What it does |
+|---|---|---|
+| `POST /api/accounts` | `name`, `kind`, `balance` (optional) | Adds an account |
+| `PATCH /api/accounts/:id` | any of `name`, `kind` | Changes an account |
+| `DELETE /api/accounts/:id` | | Removes an account and its moves. Spending paid from it stays |
+| `PUT /api/accounts/:id/balance` | `balance`, `date` (optional), `note` | "It held exactly this much on this day" |
+| `POST /api/accounts/:id/income` | `amount`, `note`, `date` | Money in |
+| `POST /api/accounts/transfer` | `from`, `to`, `amount`, `date` | Moves money between two of your own accounts. Not spending, not income |
+| `DELETE /api/account-moves/:id` | | Removes a move. A move made by spending is removed by removing the spending |
 
 ### Food
 
@@ -143,6 +192,7 @@ A change to grades returns the whole new grades report, so the screen can redraw
 | `GET /api/food?date=YYYY-MM-DD` | | The summary for a day (today if left out) |
 | `PUT /api/food/settings` | `targetKcal`, `targetProtein` | Sets the daily targets |
 | `POST /api/food/log` | `food`, `kcal`, `protein`, `meal`, `date`, `remember` | Logs a food. `remember: true` also saves it for quick add |
+| `DELETE /api/food/items/:id` | | Forgets a remembered food. What was logged with it stays |
 | `DELETE /api/food/log/:id` | | Removes an entry |
 
 ### Health
@@ -151,9 +201,20 @@ A change to grades returns the whole new grades report, so the screen can redraw
 |---|---|---|
 | `GET /api/health?date=YYYY-MM-DD` | | The week that holds the day |
 | `PUT /api/health/settings` | `stepTarget`, `sleepTargetMinutes`, `workoutTarget` | Sets the targets |
-| `PUT /api/health/days/:day` | any of `steps`, `sleepMinutes`, `restingHr` | Saves a day. Values left out are kept |
-| `POST /api/workouts` | `name`, `date`, `notes` | Adds a workout |
-| `DELETE /api/workouts/:id` | | Removes a workout |
+| `PUT /api/health/settings` (more) | also `waterTarget` (ml), `weightGoalKg`, `heightCm` | Water target, goal weight and height (for BMI) |
+| `PUT /api/health/days/:day` | any of `steps`, `sleepMinutes`, `restingHr`, `weightKg`, `waterMl` | Saves a day. Values left out are kept |
+| `POST /api/workouts` | `name`, `date`, `notes`, `kind`, `minutes` | Adds a workout |
+| `POST /api/workouts/:id/exercises` | `name`, `sets`, `reps`, `weightKg` | Adds an exercise to a workout |
+| `DELETE /api/exercises/:id` | | Removes an exercise |
+| `DELETE /api/workouts/:id` | | Removes a workout and its exercises |
+
+### Map and your data
+
+| Method and address | What it does |
+|---|---|
+| `GET /api/life` | The life tree: years, then studies, money, food and health, down to days |
+| `GET /api/export` | Everything in one JSON file |
+| `POST /api/import` | Puts an exported file back, only into an empty app |
 
 ### The AI helper
 

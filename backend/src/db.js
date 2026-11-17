@@ -96,7 +96,7 @@ const MIGRATIONS = [
   CREATE INDEX workouts_by_day ON workouts(done_on);
   `,
   // Step 2: money accounts (bank, e-wallet, investing). An account's balance is not stored:
-  // it is worked out from its moves, in the order they were entered.
+  // it is worked out from its moves, by day and then in the order entered (see listAccountMoves in store.js).
   `
   CREATE TABLE accounts (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,

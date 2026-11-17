@@ -32,6 +32,17 @@ Each row was built, tested and committed before the next one started.
 | 7 | A cross-site protection found during the security review | 1 more test | `fix(backend): refuse changes that are not sent as JSON` |
 | 8 | Handoff guides and the planning documents | Reading them | several `docs:` commits |
 
+After the sprint, on 17 and 18 November, the work went on in small slices on `feat/next-tasks` and `feat/more-features`:
+
+| # | Slice | Proved by |
+|---|---|---|
+| 9 | Tasks C2 to C10: edit units, other days and months, export and import, token guess limit, benchmarks, accessibility, sorting, demo mode | Tests at each layer, [accessibility report](../proofs/accessibility.md) |
+| 10 | Money accounts, the life tree (Map), semester dates, more grade sorting, more health | Rule, API and ViewModel tests |
+| 11 | Pass/fail units and what-if totals for GPA, CGPA and WAM | Core, API and ViewModel tests |
+| 12 | Money in, height and BMI, Hide money | Rule, API and ViewModel tests |
+| 13 | Budget tabs, essential categories, Could cut, advice; balances applied by date | Rule, API and ViewModel tests, browser check at laptop and phone width |
+| 14 | The owner's real records loaded into the local app only (transcript, bank statements, e-wallet record) | Every statement row was checked against its printed balance; the app's balances match the statements to the cent |
+
 Why this order: each slice only needs the ones above it. The rules were built and proven before anything was put on top of them, so a bug found later could not be in the foundations without a test having missed it.
 
 ## 3. Milestones from here
@@ -48,22 +59,21 @@ gantt
   Decide name, look, hosting       :a4, after a3, 1
   section Agent, no blockers
   Browser tests in CI (C1)         :c1, after a2, 1
-  Missing screen controls (C2-C4)  :c2, after c1, 1
-  Export, token limit (C5, C6)     :c3, after c2, 1
-  Benchmarks, accessibility (C7, C8) :c4, after c3, 1
+  Statement import, sort rules (C16, C17) :c2, after c1, 1
+  Android rules, data, screens (C12-C14) :c3, after c2, 2
   section Needs a decision
-  Real Gemini run (D5)             :d1, after a2, 1
+  Real AI run, advice (D5, D7)     :d1, after a2, 1
   Hosting and login (D3)           :d2, after a4, 2
   Mascot art (D4)                  :d3, after a4, 1
-  Android and Health Connect (D6)  :d4, after d2, 2
+  Health Connect (D6)              :d4, after c3, 2
   section Use
   Two weeks of real daily use      :u1, after a3, 2
 ```
 
 | Milestone | Reached when |
 |---|---|
-| **M1: Reviewed** | The owner has run the app, read ADRs 0002 to 0006 and accepted or changed each one |
-| **M2: On GitHub** | All five branches are merged, CI is green, the board is public |
+| **M1: Reviewed** | The owner has run the app, read ADRs 0002 to 0007 and accepted or changed each one |
+| **M2: On GitHub** | All branches are merged, CI is green, the board is public. (Pushed on 18 November; not merged yet.) |
 | **M3: Trusted numbers** | One real semester gives the same CGPA as Monash's calculator |
 | **M4: Daily use** | The owner has used it for two weeks of the summer semester and listed what to fix |
 | **M5: Online** | The app is reachable from the phone with a login, and the bill is RM 0 |
@@ -85,7 +95,8 @@ The full task list, with who can do each one and when it counts as done, is [nex
 | **An AWS bill.** | Low if the guide is followed | Medium | A budget alert before creating anything. Serverless, pay-per-request parts only. A list of what costs money by surprise. |
 | **Personal data is lost.** One SQLite file, no backup. | Medium over a year | High | Task C5 (export). Until then, copy `backend/data/app.db` somewhere safe now and then. |
 | **Too many looks and features to keep correct.** | Medium | Medium | Decide the look (B2) and remove the rest. Do not add features before M4. |
-| **Stacked branches merge badly.** Four branches sit on top of each other. | Low if merged in order | Medium | Merge in order with merge commits, not squash ([github-setup.md](../handoff/github-setup.md)). |
+| **Real personal data reaches the public repository.** The owner's grades, bank and e-wallet records are now in the local database. | Low | High: the repository is public | `backend/data/` is git-ignored; statement files and the scripts that read them stay outside the repository; commits always name their paths. Check `git status` before every push. |
+| **Stacked branches merge badly.** Seven branches sit on top of each other. | Low if merged in order | Medium | Merge in order with merge commits, not squash ([github-setup.md](../handoff/github-setup.md)). |
 
 ## 5. Costs
 

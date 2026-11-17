@@ -38,6 +38,20 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | BUD-08 | Another month can be viewed. | Should | Built, tested |
 | BUD-09 | Spending is shown week by week. | Could | Built (used by the map), tested |
 
+Added on 17 and 18 November 2026, from what the owner asked for. Written after the code; not reviewed by the owner yet.
+
+| ID | Requirement | Priority | State |
+|---|---|---|---|
+| BUD-10 | The user keeps money accounts (bank, e-wallet, investing, cash) and sees the total, the money to spend and the money invested. | Must | Built, tested |
+| BUD-11 | The user can say what an account held on a day. Moves before that day stop counting; moves after it still count, whatever order they were typed in. | Must | Built, tested |
+| BUD-12 | Spending can be paid from an account, which then goes down. Money moved between two of your own accounts is neither spending nor income. | Must | Built, tested |
+| BUD-13 | The user records money in. The month shows money in by source and what is left after spending. | Must | Built, tested |
+| BUD-14 | Budget is split into tabs: Overview, Banking, Investing and Expenses. Banking and Investing show one account at a time; the others stay hidden until picked. | Should | Built, tested |
+| BUD-15 | A category can be marked essential (such as rent or fees). | Should | Built, tested |
+| BUD-16 | "Could cut" shows spending outside essential categories over the last 3 months: per month, by category, and the places paid most, with how often and the usual amount. | Should | Built, tested. **3 months is Claude's number.** |
+| BUD-17 | The Expenses tab shows advice. For now it is text written by hand; later the AI helper writes it from the numbers. | Could | Built, tested. The AI part is task D7 |
+| BUD-18 | A bank or e-wallet statement can be imported from a file. | Should | **Not built.** Task C16 |
+
 ## Food
 
 | ID | Requirement | Priority | State |
@@ -60,6 +74,9 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | HEA-04 | The user logs a workout by name. Workouts are counted per week, Monday to Sunday. | Must | Built, tested |
 | HEA-05 | Steps, sleep and heart rate are read from Health Connect on Android. | Should | **Not built.** Needs a native Android app ([android-setup.md](../handoff/android-setup.md)) |
 | HEA-06 | A mascot for health. | Could | **Not designed.** The owner has not named one. |
+| HEA-07 | The user logs body weight and sees the 30-day change against a goal weight they set. With a height, the app shows BMI. | Should | Built, tested |
+| HEA-08 | The user logs water against a daily target. | Could | Built, tested |
+| HEA-09 | A workout has a kind and a length, and exercises with sets, reps and weight. The app shows the best lift for each exercise. | Should | Built, tested |
 
 ## The map
 
@@ -69,6 +86,7 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | MAP-02 | The path runs left to right. It can be dragged, zoomed in and out, and moved with the keyboard. | Must | Built. Dragging and zoom buttons checked by hand; pinch on a real phone not checked |
 | MAP-03 | Picking a stop shows its details. "You are here" lists every task as done or still to do, with what each one needs. | Must | Built, tested (presenters) |
 | MAP-04 | The map still makes sense when no target is set: the goal stop says so and points to where to set one. | Must | Built, tested |
+| MAP-05 | A life tree: years down the left, and for each year (past ones too) studies, money, food and health branching to the right, down to semesters, units, months and days. It can fill the whole page. | Should | Built, tested. Added 17 November, after the code |
 
 ## The whole app
 
@@ -87,6 +105,7 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | APP-11 | Money is shown in MYR, dates in Malaysian time. | Must | Built, tested |
 | APP-12 | Movement on screen has a purpose and is turned off when the device asks for less motion. | Should | Built |
 | APP-13 | The user's data can be exported to one file, and loaded back into an empty app. | Should | Built, tested |
+| APP-14 | One press hides every money amount on every screen. The choice is remembered. | Should | Built, tested. Added 18 November, after the code |
 
 ## The AI helper
 
@@ -97,6 +116,7 @@ See the [product backlog](product-backlog.md): 37 stories with acceptance criter
 | ADV-03 | Without a key, every other part of the app works, and the AI features explain how to turn them on. | Must | Built, tested |
 | ADV-04 | The AI never changes data. | Must | Built, tested |
 | ADV-05 | YouTube suggestions for a unit. | Could | **Not built.** In the capability map; the owner has not asked for it since. |
+| ADV-06 | Spending advice from the Could cut numbers. Only totals, categories and shop names are sent, never the names of people paid. | Should | **Not built.** A placeholder written by hand shows the shape (BUD-17). Task D7 |
 
 ## Requirements that are not about features
 
