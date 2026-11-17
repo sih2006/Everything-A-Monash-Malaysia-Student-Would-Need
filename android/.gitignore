@@ -1,0 +1,14 @@
+# Build output and caches
+.gradle/
+build/
+app/build/
+app/.cxx/
+.kotlin/
+
+# Machine-specific: where the Android SDK is on this computer
+local.properties
+
+# Android Studio's own files
+.idea/
+*.iml
+captures/
