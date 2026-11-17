@@ -6,7 +6,7 @@ This file says what is built, what is tested and what is still to do. **Read it 
 
 ## In one paragraph
 
-The app works on a laptop and is in daily use with the owner's real grades and money records (kept only in the local, git-ignored database). Grades, budget, food, health and the map all work, with 273 automated tests passing (103 core, 111 backend, 59 web). A native Android app has been started on its own branch. The branches are on GitHub but not merged, nothing is online, and nothing has run on a real phone. Six decisions were made by Claude alone and wait for the owner's review.
+The app works on a laptop and is in daily use with the owner's real grades and money records (kept only in the local, git-ignored database). Grades, budget, food, health and the map all work, with 279 automated tests passing (103 core, 112 backend, 64 web). A native Android app has been started. Everything is merged into `main` through pull requests #1 to #7, and CI passes on Linux with the memory checkers on. Nothing is online, and nothing has run on a real phone. Six decisions were made by Claude alone and wait for the owner's review.
 
 ## How to run and check it
 
@@ -72,9 +72,7 @@ Be honest about these. Each could fail the first time.
 
 | Thing | Why it has not run | First run happens when |
 |---|---|---|
-| The CI workflow (`.github/workflows/ci.yml`) | It runs on pull requests and on `main`; nothing is merged yet | The first pull request is opened |
-| The build with memory checkers (sanitizers) | Linux only; the laptop is Windows | CI runs |
-| Everything on Linux or macOS | Built and tested on Windows only | CI runs |
+| Everything on macOS | Built on Windows, and on Linux in CI (green since 18 November) | Someone runs it on a Mac |
 | The two AI features against the real Gemini | No API key | The owner adds a key ([gemini-setup.md](gemini-setup.md)) |
 | The backlog-to-issues script, beyond its dry run | Needs a GitHub login | The owner follows [github-setup.md](github-setup.md) |
 | Reaching the app from a second device over Wi-Fi | Only this laptop was used. The token screen itself was checked in a browser on 17 November: a wrong token is refused, the right one opens the app. | The owner tries the phone on Wi-Fi ([android-setup.md](android-setup.md)) |
@@ -97,7 +95,7 @@ Checked by hand on 17 November and working: with the server stopped, the app's o
 
 1. **Review ADRs 0002 to 0007** in [docs/adr/](../adr/). Claude made these choices alone, except the parts of ADR-0007 that were yours.
 2. **Check the CGPA** against Monash's CGPA calculator. GPA and WAM already match your transcript exactly.
-3. **Merge** the branches, in order, through pull requests ([github-setup.md](github-setup.md)). They are pushed.
+3. **Set up the project board** from the backlog ([github-setup.md](github-setup.md)). The branches are merged.
 4. **Answer two questions about your spending:** two shops that charge you often are in "ask" categories in your local app. Say what they are.
 5. **Decide:** the name, the look, hosting. See section B of [next-tasks.md](next-tasks.md).
 6. **Read the drafts.** Every document marked "Draft" in the [planning hub](../README.md) was written by Claude and is not yours until you have changed what is wrong in it.
@@ -115,7 +113,7 @@ Checked by hand on 17 November and working: with the server stopped, the app's o
 
 ## Branches
 
-All are pushed to GitHub on 18 November 2026. None is merged. Each is built on the one before, so merge them in this order.
+All were merged into `main` on 18 November 2026 through pull requests #1 to #7, each with a merge commit and a green CI run. The branches are kept, so each stage can still be looked at.
 
 | Branch | Holds |
 |---|---|
@@ -124,7 +122,7 @@ All are pushed to GitHub on 18 November 2026. None is merged. Each is built on t
 | `chore/backlog-board` | Updated backlog, the board script |
 | `feat/app` | The build sprint: core, backend, web app, CI, documents |
 | `feat/next-tasks` | Tasks C2 to C10, and the updated engineering principles |
-| `feat/more-features` | Money accounts, life tree, more health, pass/fail, what-if totals, budget tabs. **You are here.** |
+| `feat/more-features` | Money accounts, life tree, more health, pass/fail, what-if totals, budget tabs, spending map |
 | `feat/android` | The native Android app (ADR-0007). Built on `feat/next-tasks`, beside `feat/more-features` |
 
 ## Where to go next
