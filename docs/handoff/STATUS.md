@@ -124,7 +124,7 @@ All are pushed to GitHub on 18 November 2026. None is merged. Each is built on t
 | `feat/app` | The build sprint: core, backend, web app, CI, documents |
 | `feat/next-tasks` | Tasks C2 to C10, and the updated engineering principles |
 | `feat/more-features` | Money accounts, life tree, more health, pass/fail, what-if totals, budget tabs. **You are here.** |
-| `feat/android` | The native Android app (ADR-0007). Built on `feat/more-features` at an earlier point |
+| `feat/android` | The native Android app (ADR-0007). Built on `feat/next-tasks`, beside `feat/more-features` |
 
 ## Where to go next
 
