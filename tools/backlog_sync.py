@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Copy the product backlog to GitHub issues.
+"""Copy the product backlog and the PRD to GitHub issues.
 
-The backlog file is the source. For each story in it, this script makes sure
+The two files are the source: the stories in the product backlog (grades) and
+the requirements in the PRD (budget, food, health, map, the whole app, the AI
+helper), each with the version it belongs to. For each one, this script makes sure
 there is one GitHub issue with the right title, text and labels. A milestone is set when the issue is made.
 It is safe to run again and again: it only creates what is missing and only
 changes what is different. It never closes, reopens or deletes an issue.
@@ -25,8 +27,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BACKLOG = ROOT / "docs" / "01-requirements" / "product-backlog.md"
 BACKLOG_PATH = "docs/01-requirements/product-backlog.md"
+PRD = ROOT / "docs" / "01-requirements" / "prd.md"
+PRD_PATH = "docs/01-requirements/prd.md"
 
 MODULES = {"ACA": "academics", "GPA": "gpa", "ENG": "engineering"}
+# Requirements in the PRD. Its non-functional ones (NFR) are rules that always hold, not work items, so they stay off the board.
+PRD_MODULES = {"BUD": "budget", "NUT": "food", "HEA": "health", "MAP": "map", "APP": "app", "ADV": "ai helper"}
 STORY_ID = re.compile(r"^[A-Z]{3}-\d{2}$")
 
 # Label colours, by the first word of the label name.
@@ -69,26 +75,50 @@ def read_stories():
     return stories
 
 
+def read_requirements():
+    """Read every requirement row from the PRD: | ID | Requirement | Priority | Version | State |."""
+    found = []
+    for line in PRD.read_text(encoding="utf-8").splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 5 or not STORY_ID.match(cells[0]) or cells[0][:3] not in PRD_MODULES:
+            continue
+        req_id, text, priority, version, state = cells
+        found.append({"id": req_id, "story": text, "criteria": None, "priority": priority, "size": None,
+                      "release": version, "epic": None, "state": state})
+    return found
+
+
 def short_title(story):
     """Turn 'As a student, I want to add a unit, so that ...' into 'Add a unit'."""
     sentence = story["story"]
     found = re.search(r"I want (?:to )?(.+?),? so that", sentence)
-    text = found.group(1) if found else sentence.rstrip(".")
+    text = found.group(1) if found else re.split(r"(?<=\.)\s", sentence)[0].rstrip(".")
     text = text[0].upper() + text[1:]
     return text if len(text) <= 90 else text[:87].rstrip() + "..."
 
 
 def labels_for(story):
-    return [
-        "priority: " + story["priority"].lower(),
-        "size: " + story["size"],
-        "module: " + MODULES[story["id"][:3]],
-        "epic: " + story["epic"].lower().replace(",", ""),   # GitHub does not allow commas in label names
-    ]
+    labels = ["priority: " + story["priority"].lower(), "module: " + {**MODULES, **PRD_MODULES}[story["id"][:3]]]
+    if story["size"]:
+        labels.append("size: " + story["size"])
+    if story["epic"]:
+        labels.append("epic: " + story["epic"].lower().replace(",", ""))   # GitHub does not allow commas in label names
+    return labels
 
 
 def body_for(story, repo):
     """The text of the issue. Each acceptance criterion becomes a tick box."""
+    if story["criteria"] is None:          # a requirement from the PRD
+        link = f"https://github.com/{repo}/blob/main/{PRD_PATH}"
+        return "\n".join([
+            "**Requirement**", "", story["story"], "",
+            "**Where it stands**", "", story["state"], "",
+            "| Version | Module | Priority |", "|---|---|---|",
+            f"| {story['release']} | {PRD_MODULES[story['id'][:3]]} | {story['priority']} |", "",
+            "---",
+            f"*This issue comes from [the PRD]({link}). To change the requirement, edit that file. "
+            "This text is written again each time the requirement changes there.*",
+        ]) + "\n"
     criteria = re.split(r'(?<=[.?!])\s+(?=[A-Z"])', story["criteria"])
     link = f"https://github.com/{repo}/blob/main/{BACKLOG_PATH}"
     lines = [
@@ -147,13 +177,17 @@ def main():
     stories = read_stories()
     if not stories:
         sys.exit(f"No stories found in {BACKLOG_PATH}. Has the table layout changed?")
+    requirements = read_requirements()
+    if not requirements:
+        sys.exit(f"No requirements found in {PRD_PATH}. Has the table layout changed?")
+    stories += requirements
     ids = [story["id"] for story in stories]
     repeated = sorted({i for i in ids if ids.count(i) > 1})
     if repeated:
         sys.exit("These story IDs appear more than once: " + ", ".join(repeated))
 
     repo = repo_from_git()
-    print(f"{len(stories)} stories found in {BACKLOG_PATH}")
+    print(f"{len(stories) - len(requirements)} stories found in {BACKLOG_PATH}, {len(requirements)} requirements in {PRD_PATH}")
 
     if args.dry_run:
         for story in stories:

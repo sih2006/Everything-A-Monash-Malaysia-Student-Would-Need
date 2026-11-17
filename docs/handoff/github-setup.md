@@ -74,7 +74,7 @@ Then protect `main` so nothing can be merged while tests fail: repository **Sett
 
 ## Part 5: the project board
 
-**Done on 18 November 2026:** the board is [project 1](https://github.com/users/sih2006/projects/1), public and linked to the repository. Only step 6 (auto-add) is still to do by hand. The steps are kept here for a fresh setup.
+**Done on 18 November 2026:** the board is [project 1](https://github.com/users/sih2006/projects/1), public and linked to the repository. `tools/backlog_sync.py` copies both the product backlog and the PRD (each PRD requirement has a Version column), and runs again on `main` whenever either file changes. Only step 6 (auto-add) is still to do by hand. The steps are kept here for a fresh setup.
 
 The backlog can be copied to GitHub issues and shown on a public board.
 

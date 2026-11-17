@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - docs/01-requirements/product-backlog.md
+      - docs/01-requirements/prd.md
       - tools/backlog_sync.py
   workflow_dispatch:
 
