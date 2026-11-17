@@ -166,7 +166,27 @@ export function foodSummary({ date, targets, log, foods }) {
 // `days` have {day, steps, sleepMinutes, restingHr}; `workouts` have {id, date, name}.
 // `targets` has {steps, sleepMinutes, workouts}.
 // `date` is the day being looked at. `today` is the real today: days after it have not happened yet.
-export function healthSummary({ date, today = date, targets, days, workouts }) {
+export const WORKOUT_KINDS = ['gym', 'run', 'walk', 'cycle', 'swim', 'sport', 'other'];
+
+const average = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+
+// Body weight over time. `weights` is every day with a weight, oldest first, up to the day looked at.
+// The change is from the first weight in the 30 days before the latest one. The goal is the user's own.
+export function weightTrend(weights, goalKg = null) {
+  const latest = weights.at(-1) ?? null;
+  if (!latest) return { latest: null, change30: null, goalKg, toGoal: null, points: [] };
+  const start = weights.find((w) => w.day >= addDays(latest.day, -30));
+  const round1 = (x) => Math.round(x * 10) / 10;
+  return {
+    latest: { date: latest.day, kg: latest.weightKg },
+    change30: start && start.day !== latest.day ? round1(latest.weightKg - start.weightKg) : null,
+    goalKg,
+    toGoal: goalKg === null ? null : round1(latest.weightKg - goalKg),   // above the goal when positive
+    points: weights.slice(-30).map((w) => ({ date: w.day, kg: w.weightKg }))
+  };
+}
+
+export function healthSummary({ date, today = date, targets, days, workouts, weights = [], bests = [] }) {
   const { from } = weekRange(date);
   const byDay = new Map(days.map((d) => [d.day, d]));
 
@@ -175,7 +195,8 @@ export function healthSummary({ date, today = date, targets, days, workouts }) {
     const stored = byDay.get(day) ?? {};
     return {
       name, date: day, today: day === date, future: day > today,
-      steps: stored.steps ?? null, sleepMinutes: stored.sleepMinutes ?? null, restingHr: stored.restingHr ?? null
+      steps: stored.steps ?? null, sleepMinutes: stored.sleepMinutes ?? null, restingHr: stored.restingHr ?? null,
+      weightKg: stored.weightKg ?? null, waterMl: stored.waterMl ?? null
     };
   });
 
@@ -183,6 +204,12 @@ export function healthSummary({ date, today = date, targets, days, workouts }) {
   const heartRates = week.filter((d) => d.restingHr !== null).map((d) => d.restingHr);
   const weekWorkouts = workouts.filter((w) => w.date >= from && w.date <= addDays(from, 6));
   const stepDays = week.filter((d) => !d.future && d.steps !== null);
+  const sleeps = week.filter((d) => !d.future && d.sleepMinutes !== null).map((d) => d.sleepMinutes);
+  const waterTarget = targets.waterMl ?? 0;
+  const kinds = WORKOUT_KINDS.map((kind) => {
+    const list = weekWorkouts.filter((w) => (w.kind ?? 'other') === kind);
+    return { kind, count: list.length, minutes: list.reduce((n, w) => n + (w.minutes ?? 0), 0) };
+  }).filter((k) => k.count > 0);
 
   return {
     date, stepTarget: targets.steps, sleepTargetMinutes: targets.sleepMinutes, workoutTarget: targets.workouts,
@@ -194,6 +221,16 @@ export function healthSummary({ date, today = date, targets, days, workouts }) {
     restingHrWeek: heartRates.length ? Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length) : null,
     daysOnTarget: stepDays.filter((d) => targets.steps > 0 && d.steps >= targets.steps).length,
     daysLogged: stepDays.length,
-    workouts: { done: weekWorkouts.length, target: targets.workouts, list: weekWorkouts }
+    workouts: {
+      done: weekWorkouts.length, target: targets.workouts, list: weekWorkouts,
+      minutes: weekWorkouts.reduce((n, w) => n + (w.minutes ?? 0), 0), kinds
+    },
+    stepsAverage: stepDays.length ? Math.round(average(stepDays.map((d) => d.steps))) : null,
+    sleepAverage: sleeps.length ? Math.round(average(sleeps)) : null,
+    waterMl: chosen.waterMl, waterTarget,
+    waterLeft: chosen.waterMl === null || !waterTarget ? null : Math.max(0, waterTarget - chosen.waterMl),
+    weightKg: chosen.weightKg,
+    weight: weightTrend(weights, targets.weightGoalKg ?? null),
+    bests
   };
 }

@@ -7,7 +7,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, accountSummary, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
@@ -408,18 +408,44 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       today: today(),
       targets: store.getSetting('health.targets', { steps: 0, sleepMinutes: 0, workouts: 0 }),
       days: store.listHealthDays(from, to),
-      workouts: store.listWorkouts(from, to)
+      workouts: store.listWorkouts(from, to),
+      weights: store.listHealthDays(addDays(date, -365), date).filter((d) => d.weightKg !== null),
+      bests: store.listExerciseBests(date)
     });
   }
+
+  // Health targets: every one is optional. The goal weight is the user's own choice; the app only shows the distance to it.
+  const healthTargets = (b) => ({
+    steps: check.number(b.steps ?? 0, 'stepTarget', { min: 0, max: 100000, whole: true }),
+    sleepMinutes: check.number(b.sleepMinutes ?? 0, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
+    workouts: check.number(b.workouts ?? 0, 'workoutTarget', { min: 0, max: 21, whole: true }),
+    waterMl: check.number(b.waterMl ?? 0, 'waterTarget', { min: 0, max: 10000, whole: true }),
+    weightGoalKg: check.number(b.weightGoalKg ?? null, 'weightGoalKg', { min: 20, max: 400, nullable: true })
+  });
+  const workoutKind = (value) => {
+    const kind = value ?? 'other';
+    if (!WORKOUT_KINDS.includes(kind)) throw new HttpError(400, 'invalid', `A workout is one of: ${WORKOUT_KINDS.join(', ')}.`, 'kind');
+    return kind;
+  };
+  const exercise = (x) => ({
+    name: check.text(x?.name, 'exerciseName', { max: 60 }),
+    sets: check.number(x?.sets, 'sets', { min: 1, max: 50, whole: true }),
+    reps: check.number(x?.reps, 'reps', { min: 1, max: 500, whole: true }),
+    weightKg: check.number(x?.weightKg ?? null, 'weightKg', { min: 0, max: 1000, nullable: true })
+  });
+  const exerciseList = (value) => {
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value) || value.length > 40) throw new HttpError(400, 'invalid', 'Exercises must be a list of at most 40.', 'exercises');
+    return value.map(exercise);
+  };
 
   route('GET', '/api/health', ({ query }) => healthFor(dayOf(query.get('date') ?? undefined)));
 
   route('PUT', '/api/health/settings', ({ body }) => {
-    store.setSetting('health.targets', {
-      steps: check.number(body.stepTarget ?? 0, 'stepTarget', { min: 0, max: 100000, whole: true }),
-      sleepMinutes: check.number(body.sleepTargetMinutes ?? 0, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
-      workouts: check.number(body.workoutTarget ?? 0, 'workoutTarget', { min: 0, max: 21, whole: true })
-    });
+    store.setSetting('health.targets', healthTargets({
+      steps: body.stepTarget, sleepMinutes: body.sleepTargetMinutes, workouts: body.workoutTarget,
+      waterMl: body.waterTarget, weightGoalKg: body.weightGoalKg
+    }));
     return healthFor(today());
   });
 
@@ -429,14 +455,38 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     if (body.steps !== undefined) values.steps = check.number(body.steps, 'steps', { min: 0, max: 100000, whole: true, nullable: true });
     if (body.sleepMinutes !== undefined) values.sleepMinutes = check.number(body.sleepMinutes, 'sleepMinutes', { min: 0, max: 1440, whole: true, nullable: true });
     if (body.restingHr !== undefined) values.restingHr = check.number(body.restingHr, 'restingHr', { min: 20, max: 250, whole: true, nullable: true });
+    if (body.weightKg !== undefined) values.weightKg = check.number(body.weightKg, 'weightKg', { min: 20, max: 400, nullable: true });
+    if (body.waterMl !== undefined) values.waterMl = check.number(body.waterMl, 'waterMl', { min: 0, max: 10000, whole: true, nullable: true });
     store.saveHealthDay(day, values);
     return healthFor(day);
   });
 
   route('POST', '/api/workouts', ({ body }) => {
     const date = dayOf(body.date);
-    store.insertWorkout({ date, name: check.text(body.name, 'name', { max: 60 }), notes: check.text(body.notes, 'notes', { max: 300, required: false }) });
+    const workout = {
+      date,
+      name: check.text(body.name, 'name', { max: 60 }),
+      notes: check.text(body.notes, 'notes', { max: 300, required: false }),
+      kind: workoutKind(body.kind),
+      minutes: check.number(body.minutes ?? null, 'minutes', { min: 1, max: 600, whole: true, nullable: true }),
+      exercises: exerciseList(body.exercises)
+    };
+    inTransaction(db, () => store.insertWorkout(workout));
     return healthFor(date);
+  });
+
+  route('POST', '/api/workouts/:id/exercises', ({ params, body }) => {
+    const workout = store.getWorkout(check.id(params.id));
+    if (!workout) throw new HttpError(404, 'not_found', 'That workout does not exist.');
+    store.insertExercise(workout.id, exercise(body));
+    return healthFor(workout.date);
+  });
+
+  route('DELETE', '/api/exercises/:id', ({ params }) => {
+    const found = store.getExercise(check.id(params.id));
+    if (!found) throw new HttpError(404, 'not_found', 'That exercise does not exist.');
+    store.deleteExercise(found.id);
+    return healthFor(found.date);
   });
 
   route('DELETE', '/api/workouts/:id', ({ params }) => {
@@ -524,11 +574,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     }
     if (s['health.targets']) {
       const h = s['health.targets'];
-      settings['health.targets'] = {
-        steps: check.number(h.steps, 'stepTarget', { min: 0, max: 100000, whole: true }),
-        sleepMinutes: check.number(h.sleepMinutes, 'sleepTargetMinutes', { min: 0, max: 1440, whole: true }),
-        workouts: check.number(h.workouts, 'workoutTarget', { min: 0, max: 21, whole: true })
-      };
+      settings['health.targets'] = healthTargets(h);
     }
 
     const units = list('units', 500).map((u) => ({
@@ -605,12 +651,17 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       day: day(d.day, 'day'),
       steps: maybe(d.steps, 'steps', { min: 0, max: 100000, whole: true }),
       sleepMinutes: maybe(d.sleepMinutes, 'sleepMinutes', { min: 0, max: 1440, whole: true }),
-      restingHr: maybe(d.restingHr, 'restingHr', { min: 20, max: 250, whole: true })
+      restingHr: maybe(d.restingHr, 'restingHr', { min: 20, max: 250, whole: true }),
+      weightKg: maybe(d.weightKg, 'weightKg', { min: 20, max: 400 }),
+      waterMl: maybe(d.waterMl, 'waterMl', { min: 0, max: 10000, whole: true })
     }));
     const workouts = list('workouts', 20000).map((w) => ({
       date: day(w.date, 'date'),
       name: check.text(w.name, 'name', { max: 60 }),
-      notes: check.text(w.notes, 'notes', { max: 300, required: false })
+      notes: check.text(w.notes, 'notes', { max: 300, required: false }),
+      kind: workoutKind(w.kind),
+      minutes: maybe(w.minutes, 'minutes', { min: 1, max: 600, whole: true }),
+      exercises: exerciseList(w.exercises)
     }));
 
     const accounts = list('accounts', 100).map((a) => ({

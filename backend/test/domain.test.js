@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { accountSummary, addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -194,6 +194,40 @@ test('health: sleep shortfall, average heart rate and days on target', () => {
   assert.equal(s.restingHrWeek, 62);
   assert.equal(s.daysOnTarget, 2);
   assert.equal(s.daysLogged, 3);
+});
+
+test('health: water against its target, and weekly averages that skip empty days', () => {
+  const s = healthSummary({
+    date: '2026-11-20', targets: { ...targets, waterMl: 2500 }, workouts: [],
+    days: [{ day: '2026-11-16', steps: 9000, sleepMinutes: 480 }, { day: '2026-11-18', steps: 6001 }, { day: '2026-11-20', waterMl: 1800, sleepMinutes: 400 }]
+  });
+  assert.equal(s.waterMl, 1800);
+  assert.equal(s.waterLeft, 700);
+  assert.equal(s.stepsAverage, 7501);                      // (9000 + 6001) / 2, rounded
+  assert.equal(s.sleepAverage, 440);
+  assert.equal(health([]).waterLeft, null);                // no target: nothing to judge
+});
+
+test('health: minutes and kinds of the workouts this week', () => {
+  const s = health([], [
+    { id: 1, date: '2026-11-16', name: 'Push', kind: 'gym', minutes: 60 },
+    { id: 2, date: '2026-11-17', name: 'Run', kind: 'run', minutes: 30 },
+    { id: 3, date: '2026-11-18', name: 'Legs', kind: 'gym', minutes: null }
+  ]);
+  assert.equal(s.workouts.minutes, 90);
+  assert.deepEqual(s.workouts.kinds, [{ kind: 'gym', count: 2, minutes: 60 }, { kind: 'run', count: 1, minutes: 30 }]);
+});
+
+test('weight: latest, change over 30 days and distance to the goal the user set', () => {
+  const w = (day, weightKg) => ({ day, weightKg });
+  const t = weightTrend([w('2026-09-01', 75), w('2026-10-22', 73.4), w('2026-11-05', 72.9), w('2026-11-20', 72.1)], 70);
+  assert.deepEqual(t.latest, { date: '2026-11-20', kg: 72.1 });
+  assert.equal(t.change30, -1.3);                          // from 22 Oct, the first weight in the last 30 days
+  assert.equal(t.toGoal, 2.1);
+  assert.equal(t.points.length, 4);
+  assert.equal(weightTrend([w('2026-11-20', 72.1)]).change30, null);   // one weight: no change yet
+  assert.equal(weightTrend([]).latest, null);
+  assert.equal(weightTrend([w('2026-11-20', 68)], 70).toGoal, -2);    // below the goal
 });
 
 test('health: only this week\'s workouts are counted', () => {

@@ -213,10 +213,11 @@ function healthFor(year, input, id) {
           if (d.sleepMinutes !== null && d.sleepMinutes !== undefined) items.push(node({ id: `${id}/${month}/w${w}/${day}/sleep`, level: 'item', area: 'health', title: 'Sleep', value: hm(d.sleepMinutes) }));
           if (d.restingHr !== null && d.restingHr !== undefined) items.push(node({ id: `${id}/${month}/w${w}/${day}/hr`, level: 'item', area: 'health', title: 'Resting heart rate', value: `${d.restingHr} bpm` }));
           if (d.weightKg !== null && d.weightKg !== undefined) items.push(node({ id: `${id}/${month}/w${w}/${day}/weight`, level: 'item', area: 'health', title: 'Body weight', value: `${d.weightKg} kg` }));
+          if (d.waterMl !== null && d.waterMl !== undefined) items.push(node({ id: `${id}/${month}/w${w}/${day}/water`, level: 'item', area: 'health', title: 'Water', value: `${(d.waterMl / 1000).toFixed(1)} L`, done: healthTargets?.waterMl ? clamp01(d.waterMl / healthTargets.waterMl) : null }));
           for (const wo of ws) {
             items.push(node({
               id: `${id}/${month}/w${w}/${day}/workout-${wo.id}`, level: 'item', area: 'health', title: wo.name,
-              value: wo.minutes ? `${wo.minutes} min` : 'Workout', note: wo.kind ?? '',
+              value: wo.minutes ? `${wo.minutes} min` : 'Workout', note: wo.kind && wo.kind !== 'other' ? wo.kind[0].toUpperCase() + wo.kind.slice(1) : '',
               children: (wo.exercises ?? []).map((x) => node({ id: `${id}/${month}/w${w}/${day}/workout-${wo.id}/${x.id}`, level: 'item', area: 'health', title: x.name, value: `${x.sets} × ${x.reps}${x.weightKg ? ` at ${x.weightKg} kg` : ''}` }))
             }));
           }

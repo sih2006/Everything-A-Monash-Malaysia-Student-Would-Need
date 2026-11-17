@@ -380,6 +380,49 @@ describe('food and health', () => {
     assert.equal((await app.call('GET', '/api/food?date=2026-11-21')).status, 400);
   });
 
+  test('health: body weight, water, a workout with exercises, and best lifts', async () => {
+    await app.call('PUT', '/api/health/settings', { stepTarget: 8000, waterTarget: 2500, weightGoalKg: 70 });
+    await app.call('PUT', '/api/health/days/2026-11-02', { weightKg: 73.5 });
+    const day = await app.call('PUT', '/api/health/days/2026-11-19', { weightKg: 72.8, waterMl: 2000 });
+    assert.equal(day.body.waterLeft, 500);
+    assert.deepEqual(day.body.weight.latest, { date: '2026-11-19', kg: 72.8 });
+    assert.equal(day.body.weight.change30, -0.7);
+    assert.equal(day.body.weight.toGoal, 2.8);
+
+    const made = await app.call('POST', '/api/workouts', {
+      name: 'Push day', date: '2026-11-19', kind: 'gym', minutes: 60,
+      exercises: [{ name: 'Bench press', sets: 4, reps: 6, weightKg: 60 }, { name: 'Push-ups', sets: 3, reps: 15 }]
+    });
+    assert.equal(made.status, 200);
+    const workout = made.body.workouts.list.find((w) => w.name === 'Push day');
+    assert.equal(workout.kind, 'gym');
+    assert.equal(workout.exercises.length, 2);
+    assert.equal(workout.exercises[1].weightKg, null);       // a body-weight exercise has no kg
+
+    const added = await app.call('POST', `/api/workouts/${workout.id}/exercises`, { name: 'bench press', sets: 2, reps: 3, weightKg: 65 });
+    assert.deepEqual(added.body.bests.map((b) => [b.name.toLowerCase(), b.weightKg, b.times]), [['bench press', 65, 2]]);
+    const third = added.body.workouts.list.find((w) => w.id === workout.id).exercises[2];
+    const removed = await app.call('DELETE', `/api/exercises/${third.id}`);
+    assert.equal(removed.body.bests[0].weightKg, 60);
+    assert.equal((await app.call('DELETE', `/api/exercises/${third.id}`)).status, 404);
+
+    // Deleting the workout takes its exercises with it.
+    await app.call('DELETE', `/api/workouts/${workout.id}`);
+    assert.deepEqual((await app.call('GET', '/api/health?date=2026-11-19')).body.bests, []);
+  });
+
+  test('health: bad workouts, exercises and weights are refused', async () => {
+    const bad = (body) => app.call('POST', '/api/workouts', { name: 'X', ...body });
+    assert.equal((await bad({ kind: 'dancing' })).status, 400);
+    assert.equal((await bad({ minutes: 0 })).status, 400);
+    assert.equal((await bad({ exercises: [{ name: 'Squat', sets: 0, reps: 5 }] })).status, 400);
+    assert.equal((await bad({ exercises: 'squats' })).status, 400);
+    assert.equal((await app.call('POST', '/api/workouts/9999/exercises', { name: 'Squat', sets: 3, reps: 5 })).status, 404);
+    assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { weightKg: 5 })).status, 400);
+    assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { waterMl: 250.5 })).status, 400);
+    assert.equal((await app.call('PUT', '/api/health/settings', { weightGoalKg: 1000 })).status, 400);
+  });
+
   test('health: impossible values and future days are refused', async () => {
     assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { steps: -1 })).status, 400);
     assert.equal((await app.call('PUT', '/api/health/days/2026-11-20', { steps: 12.5 })).status, 400);

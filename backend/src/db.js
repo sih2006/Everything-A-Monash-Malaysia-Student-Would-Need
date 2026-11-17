@@ -119,6 +119,24 @@ const MIGRATIONS = [
   );
   CREATE INDEX account_moves_by_account ON account_moves(account_id, id);
   CREATE INDEX account_moves_by_transaction ON account_moves(transaction_id);
+  `,
+  // Step 3: more health. Body weight and water for a day, the kind and length of a workout,
+  // and the exercises done in it (sets, reps and the weight lifted).
+  `
+  ALTER TABLE health_days ADD COLUMN weight_kg REAL;
+  ALTER TABLE health_days ADD COLUMN water_ml INTEGER;
+  ALTER TABLE workouts ADD COLUMN kind TEXT NOT NULL DEFAULT 'other';
+  ALTER TABLE workouts ADD COLUMN minutes INTEGER;
+
+  CREATE TABLE exercises (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    sets       INTEGER NOT NULL,
+    reps       INTEGER NOT NULL,
+    weight_kg  REAL
+  );
+  CREATE INDEX exercises_by_workout ON exercises(workout_id, id);
   `
 ];
 

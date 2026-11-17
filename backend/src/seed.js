@@ -93,16 +93,35 @@ export function loadDemo(store, today) {
   store.insertFoodLog({ date: today, meal: 'Snack', food: 'Banana', kcal: 100, protein: 1 });
 
   // ----- health: this week, up to today -----
-  store.setSetting('health.targets', { steps: 8000, sleepMinutes: 450, workouts: 4 });
+  store.setSetting('health.targets', { steps: 8000, sleepMinutes: 450, workouts: 4, waterMl: 2500, weightGoalKg: 70 });
   const { from } = weekRange(today);
   const days = [[7810, 425, 63], [9240, 400, 62], [5130, 450, 64], [8460, 350, 63], [6420, 370, 62], [7200, 480, 61], [4100, 510, 62]];
+  const water = [2100, 2600, 1800, 2500, 2300, 2700, 1500];
   days.forEach(([steps, sleepMinutes, restingHr], index) => {
     const day = addDays(from, index);
-    if (day <= today) store.saveHealthDay(day, { steps, sleepMinutes, restingHr });
+    if (day <= today) store.saveHealthDay(day, { steps, sleepMinutes, restingHr, waterMl: water[index] });
   });
-  ['Pull day', 'Leg day', 'Push day'].forEach((name, index) => {
+  // Body weight about twice a week for the last two months, slowly going down.
+  for (let back = 60; back >= 0; back -= 3) {
+    store.saveHealthDay(addDays(today, -back), { weightKg: Math.round((72.4 - (60 - back) * 0.03 + (back % 2) * 0.2) * 10) / 10 });
+  }
+  const sessions = [
+    { name: 'Pull day', kind: 'gym', minutes: 70, exercises: [
+      { name: 'Deadlift', sets: 3, reps: 5, weightKg: 100 }, { name: 'Lat pulldown', sets: 3, reps: 10, weightKg: 50 }, { name: 'Barbell row', sets: 3, reps: 8, weightKg: 55 }] },
+    { name: 'Leg day', kind: 'gym', minutes: 65, exercises: [
+      { name: 'Squat', sets: 4, reps: 6, weightKg: 85 }, { name: 'Leg press', sets: 3, reps: 12, weightKg: 140 }] },
+    { name: 'Evening run', kind: 'run', minutes: 30, exercises: [] },
+    { name: 'Push day', kind: 'gym', minutes: 60, exercises: [
+      { name: 'Bench press', sets: 4, reps: 6, weightKg: 62.5 }, { name: 'Overhead press', sets: 3, reps: 8, weightKg: 37.5 }] }
+  ];
+  // Last week too, a little lighter, so the best lifts have a history.
+  sessions.forEach((w, index) => {
+    const before = addDays(from, index * 2 - 7);
+    store.insertWorkout({ ...w, date: before, notes: '', exercises: w.exercises.map((x) => ({ ...x, weightKg: x.weightKg - 2.5 })) });
+  });
+  sessions.forEach((w, index) => {
     const day = addDays(from, index * 2);
-    if (day <= today) store.insertWorkout({ date: day, name, notes: '' });
+    if (day <= today) store.insertWorkout({ ...w, date: day, notes: '' });
   });
 }
 

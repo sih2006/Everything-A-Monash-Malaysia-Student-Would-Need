@@ -100,17 +100,41 @@ export function createStore(db) {
     deleteFoodLog: (id) => db.prepare('DELETE FROM food_log WHERE id = ?').run(id).changes,
 
     // ----- health -----
-    listHealthDays: (from, to) => db.prepare('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr FROM health_days WHERE day BETWEEN ? AND ? ORDER BY day').all(from, to),
+    listHealthDays: (from, to) => db.prepare('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr, weight_kg AS weightKg, water_ml AS waterMl FROM health_days WHERE day BETWEEN ? AND ? ORDER BY day').all(from, to),
     // Saves one day. Only the values that were given are changed.
     saveHealthDay(day, v) {
       db.prepare('INSERT INTO health_days (day) VALUES (?) ON CONFLICT(day) DO NOTHING').run(day);
       if (v.steps !== undefined) db.prepare('UPDATE health_days SET steps = ? WHERE day = ?').run(v.steps, day);
       if (v.sleepMinutes !== undefined) db.prepare('UPDATE health_days SET sleep_minutes = ? WHERE day = ?').run(v.sleepMinutes, day);
       if (v.restingHr !== undefined) db.prepare('UPDATE health_days SET resting_hr = ? WHERE day = ?').run(v.restingHr, day);
+      if (v.weightKg !== undefined) db.prepare('UPDATE health_days SET weight_kg = ? WHERE day = ?').run(v.weightKg, day);
+      if (v.waterMl !== undefined) db.prepare('UPDATE health_days SET water_ml = ? WHERE day = ?').run(v.waterMl, day);
     },
-    listWorkouts: (from, to) => db.prepare('SELECT id, done_on AS date, name, notes FROM workouts WHERE done_on BETWEEN ? AND ? ORDER BY done_on DESC, id DESC').all(from, to),
-    insertWorkout: (w) => Number(db.prepare('INSERT INTO workouts (done_on, name, notes) VALUES (?, ?, ?)').run(w.date, w.name, w.notes ?? '').lastInsertRowid),
+    // Each workout comes with its exercises, read in one query for the whole range.
+    listWorkouts(from, to) {
+      const workouts = db.prepare('SELECT id, done_on AS date, name, notes, kind, minutes FROM workouts WHERE done_on BETWEEN ? AND ? ORDER BY done_on DESC, id DESC').all(from, to);
+      const exercises = db.prepare(`SELECT e.id, e.workout_id AS workoutId, e.name, e.sets, e.reps, e.weight_kg AS weightKg
+        FROM exercises e JOIN workouts w ON w.id = e.workout_id WHERE w.done_on BETWEEN ? AND ? ORDER BY e.id`).all(from, to);
+      const byWorkout = new Map(workouts.map((w) => [w.id, (w.exercises = [])]));
+      for (const { workoutId, ...x } of exercises) byWorkout.get(workoutId)?.push(x);
+      return workouts;
+    },
+    getWorkout: (id) => db.prepare('SELECT id, done_on AS date, name FROM workouts WHERE id = ?').get(id),
+    insertWorkout(w) {
+      const id = Number(db.prepare('INSERT INTO workouts (done_on, name, notes, kind, minutes) VALUES (?, ?, ?, ?, ?)')
+        .run(w.date, w.name, w.notes ?? '', w.kind ?? 'other', w.minutes ?? null).lastInsertRowid);
+      for (const x of w.exercises ?? []) this.insertExercise(id, x);
+      return id;
+    },
     deleteWorkout: (id) => db.prepare('DELETE FROM workouts WHERE id = ?').run(id).changes,
+    insertExercise: (workoutId, x) => Number(db.prepare('INSERT INTO exercises (workout_id, name, sets, reps, weight_kg) VALUES (?, ?, ?, ?, ?)')
+      .run(workoutId, x.name, x.sets, x.reps, x.weightKg ?? null).lastInsertRowid),
+    getExercise: (id) => db.prepare('SELECT e.id, w.done_on AS date FROM exercises e JOIN workouts w ON w.id = e.workout_id WHERE e.id = ?').get(id),
+    deleteExercise: (id) => db.prepare('DELETE FROM exercises WHERE id = ?').run(id).changes,
+    // The heaviest weight lifted for each exercise up to a day. Names are matched without caring about capitals.
+    listExerciseBests: (upTo) => db.prepare(`SELECT MIN(e.name) AS name, MAX(e.weight_kg) AS weightKg, COUNT(*) AS times
+        FROM exercises e JOIN workouts w ON w.id = e.workout_id
+        WHERE w.done_on <= ? AND e.weight_kg IS NOT NULL GROUP BY lower(e.name) ORDER BY lower(e.name)`).all(upTo),
 
     // ----- everything -----
 
@@ -127,8 +151,8 @@ export function createStore(db) {
         transactions: all('SELECT id, category_id AS categoryId, what, amount, spent_on AS date FROM transactions ORDER BY spent_on, id'),
         foods: all('SELECT name, kcal, protein FROM foods ORDER BY name'),
         foodLog: all('SELECT eaten_on AS date, meal, food, kcal, protein FROM food_log ORDER BY eaten_on, id'),
-        healthDays: all('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr FROM health_days ORDER BY day'),
-        workouts: all('SELECT done_on AS date, name, notes FROM workouts ORDER BY done_on, id'),
+        healthDays: all('SELECT day, steps, sleep_minutes AS sleepMinutes, resting_hr AS restingHr, weight_kg AS weightKg, water_ml AS waterMl FROM health_days ORDER BY day'),
+        workouts: this.listWorkouts('0000-01-01', '9999-12-31').reverse().map(({ id, exercises, ...w }) => ({ ...w, exercises: exercises.map(({ id: _, ...x }) => x) })),
         accounts: all('SELECT id, name, kind FROM accounts ORDER BY id'),
         accountMoves: all('SELECT account_id AS accountId, kind, amount, moved_on AS date, note, transaction_id AS transactionId FROM account_moves ORDER BY id')
       };
@@ -171,7 +195,7 @@ export function createStore(db) {
     },
     // Deletes every row the user has entered. The user asked for this; there is no undo.
     wipe() {
-      for (const table of ['account_moves', 'accounts', 'assessments', 'units', 'results', 'transactions', 'budget_categories', 'food_log', 'foods', 'health_days', 'workouts', 'settings']) {
+      for (const table of ['account_moves', 'accounts', 'assessments', 'units', 'results', 'transactions', 'budget_categories', 'food_log', 'foods', 'health_days', 'exercises', 'workouts', 'settings']) {
         db.exec(`DELETE FROM ${table}`);
       }
     }
