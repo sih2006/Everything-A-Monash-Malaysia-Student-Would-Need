@@ -127,8 +127,8 @@ Two runs on the owner's Windows laptop (Release build), 17 November 2026. The fu
 ## Memory safety
 
 - Each structure follows the rule of five: copying makes a full separate copy, moving hands the memory over, and the destructor frees everything.
-- The test runner replaces `new` and `delete` with versions that count. A test that does not give back everything it took fails. All 72 tests pass this.
-- In CI the tests also run under the address and undefined-behaviour sanitizers (`-DTRACKER_SANITIZE=ON`). That build has not run yet.
+- The test runner replaces `new` and `delete` with versions that count. A test that does not give back everything it took fails. All 75 white-box tests pass this.
+- In CI the tests also run under the address and undefined-behaviour sanitizers (`-DTRACKER_SANITIZE=ON`). It passes in CI on Linux for every pull request.
 
 ## The text format
 

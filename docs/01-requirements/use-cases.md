@@ -1,6 +1,6 @@
 # Use cases
 
-**Status:** Draft. Written by Claude on 16 November 2026 from the app as built.
+**Status:** Draft, 16 November 2026, updated 18 November, from the app as built.
 
 This document answers: who does what with the system?
 
@@ -33,32 +33,41 @@ flowchart LR
       uc9(Import from a screenshot)
       uc10(Ask for a study plan)
     end
-    subgraph other [Budget, food, health]
+    subgraph money [Money]
+      uc19(Keep money accounts)
       uc11(Record spending)
+      uc20(Record money in)
+      uc21(See what could be cut)
+      uc14(Set limits and targets)
+    end
+    subgraph body [Food and health]
       uc12(Log food)
       uc13(Enter health numbers)
-      uc14(Set limits and targets)
+      uc22(Log a workout)
     end
     subgraph all [Across the app]
       uc15(See the home summary)
-      uc16(Follow the map to a goal)
-      uc17(Hide grades)
+      uc16(Follow the map)
+      uc17(Hide grades or money)
+      uc23(Download or load my data)
       uc18(Delete all data)
     end
   end
 
   student --- uc1 & uc2 & uc3 & uc4 & uc5 & uc6 & uc7 & uc8
   student --- uc9 & uc10
-  student --- uc11 & uc12 & uc13 & uc14
-  student --- uc15 & uc16 & uc17 & uc18
+  student --- uc19 & uc11 & uc20 & uc21 & uc14
+  student --- uc12 & uc13 & uc22
+  student --- uc15 & uc16 & uc17 & uc23 & uc18
   uc9 --- gemini
   uc10 --- gemini
   uc2 -.->|includes| uc4
   uc3 -.->|includes| uc4
   uc7 -.->|extends: offers a default| uc3
+  uc11 -.->|extends: paid from an account| uc19
 ```
 
-Mermaid has no use-case diagram of its own, so this one is drawn as a flowchart. A draw.io version in `docs/diagrams/` is still to do, as the diagram conventions ask.
+Mermaid has no use-case diagram of its own, so this one is drawn as a flowchart.
 
 ## The main use cases, step by step
 
@@ -134,45 +143,74 @@ Mermaid has no use-case diagram of its own, so this one is drawn as a flowchart.
 
 | | |
 |---|---|
-| **Goal** | The month's total and pace are up to date |
+| **Goal** | The month's total, pace and accounts are up to date |
 | **Before** | At least one category exists |
-| **Requirements** | BUD-03 to BUD-06 |
+| **Requirements** | BUD-03 to BUD-06, BUD-12 |
 
 **Main path**
 
-1. The student types what it was, the amount, and picks a category.
-2. The app checks the amount is above 0.
-3. The app saves it with today's date.
-4. The app shows the new total, what is left, the daily amount, and the pace verdict.
+1. On Budget, the student opens the **Expenses** tab.
+2. The student types what it was and the amount, and picks a category and the day.
+3. The student picks the account it was paid from, or none.
+4. The app checks the amount is above 0 and the day is not in the future, and saves it.
+5. The app shows the new total, what is left, the daily amount and the pace verdict. The account's balance goes down.
 
 **Other paths**
 
-- 2a. The amount is not a number: the app says so before anything is sent.
-- 4a. The category is now over its limit: it is flagged, and it appears on the home screen's attention list.
+- 4a. The amount is not a number: the app says so before anything is sent.
+- 5a. The category is now over its limit: it is flagged, and it appears on the home screen's attention list.
 
-### UC-16: Follow the map to a goal
+### UC-19: Keep money accounts
 
 | | |
 |---|---|
-| **Goal** | The student sees how today's tasks lead to the goal |
-| **Requirements** | MAP-01 to MAP-04, GPA-08 |
+| **Goal** | The app's balances match the real accounts |
+| **Requirements** | BUD-10 to BUD-14 |
 
 **Main path**
 
-1. The student opens the map. It shows the studies path, centred on "you are here".
-2. Under the map, the app lists each unit's tasks: done ones with their marks, and ones still to do with what they need.
-3. The student drags the map to the right to see the semesters still to come and the goal.
-4. The student picks a stop. The app shows its details.
-5. The student switches to the budget, food or health path.
+1. On the **Overview** tab, the student adds an account: a name, a kind (bank, e-wallet, investing, cash) and what it holds now.
+2. On **Banking** or **Investing**, the student picks one account. The others stay hidden.
+3. The student adds money in, or moves money between two of their own accounts.
+4. The app updates the balance and the total. A move between accounts is neither spending nor income.
 
 **Other paths**
 
-- 1a. No final goal is set: the last stop says so and points to where to set one.
-- 1b. Grades are hidden: marks and targets on the map are masked.
+- 3a. The real balance is different: the student sets it by hand, for today or an earlier day. Moves before that day stop counting; moves after it still count.
 
-### UC-17: Hide grades
+### UC-21: See what could be cut
 
-1. The student presses "Hide grades".
+| | |
+|---|---|
+| **Goal** | The student sees which spending is worth reducing |
+| **Requirements** | BUD-15 to BUD-17, BUD-19 |
+
+1. On the **Expenses** tab, the student marks categories such as rent and fees as essential.
+2. The app shows everything else over the last 3 months: per month, by category, as a map of blocks, and the places paid most.
+3. The app shows the advice saved for this page (a placeholder until v0.6).
+
+### UC-16: Follow the map
+
+| | |
+|---|---|
+| **Goal** | The student sees their life so far and how today's tasks lead to the goal |
+| **Requirements** | MAP-01 to MAP-05, GPA-08 |
+
+**Main path**
+
+1. The student opens the map. It shows the life tree: the years down the left.
+2. The student presses **Open to today**. This year, its four areas, this month, this week and today open to the right.
+3. The student picks a node. It opens further and its details show below.
+4. The student switches to a path (studies, budget, food or health), centred on "you are here", and drags right to see what is still to come and the goal.
+
+**Other paths**
+
+- 4a. No final goal is set: the last stop says so and points to where to set one.
+- 1a. Grades or money are hidden: those numbers are masked on the map too.
+
+### UC-17: Hide grades or money
+
+1. The student presses "Hide grades". ("Hide money" does the same for every amount in RM.)
 2. Every mark, grade, target, GPA, CGPA and WAM is replaced by dots, on every screen.
 3. The forms that would show a mark are removed.
 4. The choice is remembered until the student presses "Show grades".
@@ -188,10 +226,12 @@ Mermaid has no use-case diagram of its own, so this one is drawn as a flowchart.
 
 ## Use cases that are planned but not built
 
-| Use case | Waits for |
+| Use case | Version |
 |---|---|
-| Sign in | A hosting decision |
-| Read steps, sleep and heart rate from the phone | A native Android app |
-| Look up a unit in the handbook | An interview with the owner |
-| See what a goal such as a master's needs | Researched entry requirements |
-| Use the app with no signal and sync later | Hosting and a sync design |
+| Get spending advice written by the AI | 0.6 |
+| Look up a unit in the handbook | 0.6 |
+| See what a goal such as a master's needs | 0.6 |
+| Import a bank statement | 0.7 |
+| Sign in | 0.7 |
+| Use the app with no signal and sync later | 0.7 |
+| Read steps, sleep and heart rate from the phone | 0.8 |

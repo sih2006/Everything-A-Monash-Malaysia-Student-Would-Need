@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Decided by Claude during the one-day build sprint on 16 November 2026. The owner has not reviewed it yet. It replaces the unconfirmed assumption that the screens would use Expo and React Native.
+Proposed. Taken during the one-day build sprint on 16 November 2026. Waiting for the owner's review. It replaces the unconfirmed assumption that the screens would use Expo and React Native.
 
 ## Date
 
@@ -58,7 +58,7 @@ What mattered:
 
 ## Consequences
 
-- The web app starts with no install and has 27 tests that run in Node in about a tenth of a second.
+- The web app starts with no install, and its 64 tests run in Node in well under a second.
 - A screen is redrawn in full when its data changes. That is simple and fast at this size, but it means text typed into a form is lost if the screen redraws. The app avoids this by not redrawing when a command fails.
 - There is no type checking. A wrong field name shows up only when the code runs. Tests on the presenters and commands are the guard.
 - Health Connect cannot be read from a web page. Steps, sleep and heart rate are typed in until the Android shell exists.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Decided by Claude during the build sprint on 16 November 2026, from Monash's own pages. The owner has not reviewed it yet, and should check it against their own results (task A4 in [next-tasks.md](../handoff/next-tasks.md)).
+Proposed. Taken during the build sprint on 16 November 2026, from Monash's own pages. Waiting for the owner's review. GPA and WAM now match the owner's real transcript exactly; CGPA still needs checking against Monash's calculator (task A4 in [next-tasks.md](../handoff/next-tasks.md)).
 
 ## Date
 

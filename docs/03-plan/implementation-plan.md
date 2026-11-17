@@ -1,8 +1,8 @@
 # Implementation plan
 
-**Status:** Draft. Written by Claude on 16 November 2026, **after** most of the work it describes. The original process called for this plan to be approved before any code. On 16 November the owner chose to build first. This document records what was built and in what order, and plans what is left.
+**Status:** Draft, 16 November 2026, updated 18 November. Written after most of the work it describes: the original process called for this plan to be approved before any code, but on 16 November the owner chose to build first.
 
-This document answers: in what order is the work done, what counts as done, what could go wrong, and what does it cost?
+This document answers: how is the work done, what counts as done, what could go wrong, and what does it cost? **What** comes next, version by version, is in the [roadmap](roadmap.md); the open tasks are in [next-tasks.md](../handoff/next-tasks.md).
 
 ## 1. Definition of done
 
@@ -32,7 +32,7 @@ Each row was built, tested and committed before the next one started.
 | 7 | A cross-site protection found during the security review | 1 more test | `fix(backend): refuse changes that are not sent as JSON` |
 | 8 | Handoff guides and the planning documents | Reading them | several `docs:` commits |
 
-After the sprint, on 17 and 18 November, the work went on in small slices on `feat/next-tasks` and `feat/more-features`:
+After the sprint, the work went on in small slices, each merged through a pull request:
 
 | # | Slice | Proved by |
 |---|---|---|
@@ -45,58 +45,26 @@ After the sprint, on 17 and 18 November, the work went on in small slices on `fe
 
 Why this order: each slice only needs the ones above it. The rules were built and proven before anything was put on top of them, so a bug found later could not be in the foundations without a test having missed it.
 
-## 3. Milestones from here
+## 3. How work is done from here
 
-```mermaid
-gantt
-  title What is left, in order (no dates: the owner sets the pace)
-  dateFormat X
-  axisFormat %s
-  section Owner
-  Try the app, read the ADRs       :a1, 0, 1
-  Push, merge, see CI green        :a2, after a1, 1
-  Check numbers against Monash     :a3, after a2, 1
-  Decide name, look, hosting       :a4, after a3, 1
-  section Agent, no blockers
-  Browser tests in CI (C1)         :c1, after a2, 1
-  Statement import, sort rules (C16, C17) :c2, after c1, 1
-  Android rules, data, screens (C12-C14) :c3, after c2, 2
-  section Needs a decision
-  Real AI run, advice (D5, D7)     :d1, after a2, 1
-  Hosting and login (D3)           :d2, after a4, 2
-  Mascot art (D4)                  :d3, after a4, 1
-  Health Connect (D6)              :d4, after c3, 2
-  section Use
-  Two weeks of real daily use      :u1, after a3, 2
-```
-
-| Milestone | Reached when |
-|---|---|
-| **M1: Reviewed** | The owner has run the app, read ADRs 0002 to 0007 and accepted or changed each one |
-| **M2: On GitHub** | All branches are merged, CI is green, the board is public. (Merged and green on 18 November; the board is still to do.) |
-| **M3: Trusted numbers** | One real semester gives the same CGPA as Monash's calculator |
-| **M4: Daily use** | The owner has used it for two weeks of the summer semester and listed what to fix |
-| **M5: Online** | The app is reachable from the phone with a login, and the bill is RM 0 |
-| **M6: On the phone properly** | Installed from the home screen, with mascot art and an icon |
-| **M7: Health Connect** | Steps arrive without typing |
-
-The full task list, with who can do each one and when it counts as done, is [next-tasks.md](../handoff/next-tasks.md). The versions these milestones lead to (0.1 to 1.0) are in the [roadmap](roadmap.md).
+1. Each version of the [roadmap](roadmap.md) starts with an interview of the owner where its scope is not clear yet. The answers become requirements in the [PRD](../01-requirements/prd.md), each with its version.
+2. `tools/backlog_sync.py` copies the requirements to the [project board](https://github.com/users/sih2006/projects/1), one issue each, under the version's milestone.
+3. Each piece of work is one branch and one pull request. CI must pass before it is merged.
+4. A version is finished when its theme works and its issues are closed. It is then tagged (`v0.4.0`) and released on GitHub with notes on what is in it.
 
 ## 4. Risks
 
 | Risk | How likely | How bad | What reduces it |
 |---|---|---|---|
 | **A grade rule is wrong.** The scales came from Monash's pages through a search tool, not from the pages directly, and one value (NH on the Malaysia scale) is a guess. | Medium | High: every number depends on it | The scales are data in one file. Task A4 checks against Monash's own calculator before the numbers are trusted. |
-| **CI fails on Linux.** Everything was built and run on Windows only. | Medium | Low: it blocks merging, nothing is lost | The code avoids anything Windows-only. The first push will show. Fix before merging the rest. |
-| **The owner cannot explain the code**, because an AI wrote it in a day. | High | High: it defeats the purpose of the project | Small files with a comment on why each exists. The MVVM guide's worked example. Task A1 and A5. Closing the board's issues one by one while reading the matching code. |
-| **The decisions were not the owner's.** Five ADRs were written by Claude alone. | Certain | Medium | They are marked "Proposed". Nothing is merged until the owner reviews them. Each lists the options turned down, so changing one is a real choice. |
+| **The owner cannot explain the code**, because an AI wrote it in a day. | High | High: it defeats the purpose of the project | Small files with a comment on why each exists. The MVVM guide's worked example (task A5). Explanations as each version is built. Closing the board's issues one by one while reading the matching code. |
+| **The decisions were not the owner's.** Six ADRs were proposed during the build without the owner's input. | Certain | Medium | They are marked "Proposed" until the owner reviews them (task A2). Each lists the options turned down, so changing one is a real choice. |
 | **The real Gemini API behaves differently from the fake one.** | Medium | Low: the feature is optional | All Gemini code is in one file. The first real run is task D5. |
 | **`node:sqlite` changes.** It is still marked experimental in Node 24. | Low | Low | Only two files use it. The Node version is stated in `package.json`. |
 | **An AWS bill.** | Low if the guide is followed | Medium | A budget alert before creating anything. Serverless, pay-per-request parts only. A list of what costs money by surprise. |
-| **Personal data is lost.** One SQLite file, no backup. | Medium over a year | High | Task C5 (export). Until then, copy `backend/data/app.db` somewhere safe now and then. |
-| **Too many looks and features to keep correct.** | Medium | Medium | Decide the look (B2) and remove the rest. Do not add features before M4. |
-| **Real personal data reaches the public repository.** The owner's grades, bank and e-wallet records are now in the local database. | Low | High: the repository is public | `backend/data/` is git-ignored; statement files and the scripts that read them stay outside the repository; commits always name their paths. Check `git status` before every push. |
-| **Stacked branches merge badly.** Seven branches sit on top of each other. | Low if merged in order | Medium | Merge in order with merge commits, not squash ([github-setup.md](../handoff/github-setup.md)). |
+| **Personal data is lost.** One SQLite file, no automatic backup. | Medium over a year | High | **Download all my data** on Home exports everything to one file. Do it now and then until hosting brings backups (v0.7). |
+| **Too many looks and features to keep correct.** | Medium | Medium | Decide the look (B2) and remove the rest. Use the app daily and let that decide what the next version fixes. |
+| **Real personal data reaches the public repository.** The owner's grades, bank and e-wallet records are in the local database. | Low | High: the repository is public | `backend/data/` is git-ignored; statement files and the scripts that read them stay outside the repository; tests use made-up numbers; commits name their paths. Before every push, search the unpushed changes for real values. |
 
 ## 5. Costs
 
@@ -110,11 +78,11 @@ The full task list, with who can do each one and when it counts as done, is [nex
 
 ## 6. What not to do next
 
-- **Do not add features before the owner has used what exists.** The backlog's later epics each start with an interview.
+- **Do not add features the owner has not asked for.** Each later version starts with an interview.
 - **Do not move to the cloud to make the project look bigger.** Do it when using the app on the phone away from home is a real need.
 - **Do not polish all four looks.** Pick one.
 - **Do not let a second copy of a rule appear** outside the core, however small.
 
 ## 7. After release
 
-As the planning hub says: two weeks of real daily use, then a retrospective (what went well, what did not, what to change), then a short case study for the portfolio. The case study has good material already: the two grade scales that the first assumption got wrong, and the four bugs the tests found.
+At 1.0: two weeks of real daily use, then a retrospective (what went well, what did not, what to change), then a short case study for the portfolio. Good material already: the two grade scales that the first assumption got wrong, the bugs the tests found ([test plan](test-plan.md#6-bugs-found-and-how)), and a balance bug found by loading real bank statements.

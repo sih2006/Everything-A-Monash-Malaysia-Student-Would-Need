@@ -5,7 +5,7 @@ This document lists the principles and practices this project follows, where eac
 - **Applied**: visible in the repository now, with a link to the evidence.
 - **Planned**: the intended approach, confirmed or changed in the document named next to it.
 
-No application code exists yet, so code-level principles are Planned, and the class and interface names below are provisional until the UML design set. When a Planned entry is put into practice, its status changes to Applied with a link to the commit, pull request or file that shows it.
+When a Planned entry is put into practice, its status changes to Applied with a link to the commit, pull request or file that shows it. The app now exists (versions 0.1 to 0.3), so most entries are Applied.
 
 **Status of this document:** In review.
 
@@ -20,9 +20,9 @@ No application code exists yet, so code-level principles are Planned, and the cl
 > | Grades use HD 4, D 3, C 2, P 1, N 0 | Two scales, both different from that ([ADR-0004](adr/0004-grade-scales-and-rules.md)) |
 > | `GradingScheme`, `MoodRule`, `AdviceProvider`, `HealthSource` interfaces | Only the grade scale is swappable (as data). The AI helper is swappable by handing a different object to the app. The others were not needed and were not built. |
 >
-> The principles themselves still hold, and most are now **Applied** with evidence: layered design, MVVM, pure functions for rules, repository, dependency injection, a composition root, checks at the edge, the test pyramid, black-box test design, least data to the AI, secrets out of the repository. Where each one shows in the code is listed in the [technical design](02-design/trd.md) and the [UML set](02-design/uml.md#7-patterns-used-and-where).
+> The principles themselves still hold, and most are now **Applied** with evidence: layered design, MVVM, pure functions for rules, repository, dependency injection, a composition root, checks at the edge, the test pyramid, black-box test design, least data to the AI, secrets out of the repository. Where each one shows in the code is listed in the [technical design](02-design/trd.md) and the [UML set](02-design/uml.md#8-patterns-used-and-where).
 >
-> On 17 November 2026 every entry below was updated to say what was built, with links. Where the text of a principle still describes the old plan (TypeScript, AWS), its status line says what changed.
+> On 17 and 18 November 2026 every entry below was updated to say what was built, with links. Where the text of a principle still describes the old plan (TypeScript, AWS), its status line says what changed.
 
 ## Contents
 
@@ -44,7 +44,7 @@ No application code exists yet, so code-level principles are Planned, and the cl
 
 ### Spec before code
 Write down what to build, for whom, and how to tell it is done, before writing any code.
-- **Here:** a 13-document planning stage, listed in the [planning hub](README.md). No application code is written until the implementation plan is approved.
+- **Here:** a 13-document planning stage, listed in the [planning hub](README.md). The plan was to write no code until it was approved; on 16 November 2026 the owner chose to build first, and the documents were then brought up to date with the code.
 - **Why:** misunderstandings are cheapest to fix on paper, and every later test needs a written requirement to check against.
 - **Status:** Applied ([planning hub](README.md)).
 
@@ -70,7 +70,7 @@ Every requirement gets a stable ID that tests, issues and commits refer back to.
 A short record for each significant decision: the context, the options considered, the decision and its consequences.
 - **Here:** `docs/adr/`, starting with ADR-0001 on the stack (Expo vs Kotlin Multiplatform vs Flutter). Later ADRs cover AWS vs Supabase, web hosting and state management.
 - **Why:** records why, including the rejected options, so a decision can be revisited with its context instead of being argued again from memory.
-- **Status:** Applied ([docs/adr/](adr/): six records). Numbers 0002 to 0006 were made by Claude alone and are marked Proposed. The comparison named above (Expo vs Kotlin Multiplatform vs Flutter) is in ADR-0001 and ADR-0003.
+- **Status:** Applied ([docs/adr/](adr/): seven records). Numbers 0002 to 0006, and part of 0007, were taken during the build without the owner and are marked Proposed. The comparison named above (Expo vs Kotlin Multiplatform vs Flutter) is in ADR-0001 and ADR-0003.
 
 ### Docs as code, kept alive
 Documentation lives in the repository as Markdown, is reviewed in pull requests like code, and is updated with a change log when reality changes.
@@ -229,7 +229,7 @@ Many fast unit tests, fewer integration tests, and a handful of end-to-end tests
 Write a failing test, make it pass, then tidy the code (red, green, refactor).
 - **Here:** mandatory for `gpa` and `mood-engine`, where correctness is the whole point.
 - **Why:** the tests become a precise, executable statement of the rules, and refactoring is safe.
-- **Status:** Partly applied. The core has 72 white-box tests, each with hand-worked numbers. They were written in the same sitting as the code, not always strictly before it.
+- **Status:** Partly applied. The core has 75 white-box tests, each with hand-worked numbers. They were written in the same sitting as the code, not always strictly before it.
 
 ### Black-box test design
 Test cases come from the requirements alone, without looking at the code:
@@ -246,7 +246,7 @@ One set of tests runs against every implementation of an interface (see the Lisk
 Two weeks of real daily use, checked against the PRD's success criteria, before the first release. *Planned (test plan).*
 
 ### Continuous integration quality gates
-Every pull request runs the tests, and cannot be merged while any of them fail. *Written ([ci.yml](../.github/workflows/ci.yml)), not yet run: nothing is pushed. There is no linter or type checker, because the project has no packages.*
+Every pull request runs the tests, and cannot be merged while any of them fail. *Applied: [ci.yml](../.github/workflows/ci.yml) runs every suite on Linux, with the memory checkers on, on every pull request and every push to `main` ([runs](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/actions)). Blocking a merge on a red run needs the owner to protect `main` (task A7). There is no linter or type checker, because the project has no packages.*
 
 ## 8. Security and privacy
 
@@ -264,13 +264,13 @@ Every pull request runs the tests, and cannot be merged while any of them fail. 
 
 ## 9. Workflow and version control
 
-**Trunk-based development.** `main` is always in a good state. Work happens on short-lived branches that merge through pull requests. *Applied: this document is the first change to arrive through a pull request.*
+**Trunk-based development.** `main` is always in a good state. Work happens on short-lived branches that merge through pull requests. *Applied: every change since the first one has arrived through a pull request with a green CI run ([pull requests](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/pulls?q=is%3Apr)).*
 
 **Atomic, conventional commits.** One logical change per commit, with a typed message (`feat`, `fix`, `docs`, `chore`) that explains why. *Applied ([commit history](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/commits/main)).*
 
 **Review before merge.** Every change is reviewed before it reaches `main`: correctness first, then a separate check for over-engineering. *Applied for docs. For code, the tests are the review so far; the owner's own review of the build sprint is still to do.*
 
-**Semantic versioning and a changelog.** Releases are tagged `vMAJOR.MINOR.PATCH` and come with a human-written changelog. *Planned (first release).*
+**Semantic versioning and a changelog.** Releases are tagged `vMAJOR.MINOR.PATCH` and come with a human-written changelog. *Applied: v0.1.0, v0.2.0 and v0.3.0, each with release notes ([releases](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases)). Each version's theme is in the [roadmap](03-plan/roadmap.md).*
 
 **Clean repository from day one.** A `.gitignore` before the first code, and vendored tooling marked so GitHub's language statistics reflect the app itself. *Applied ([.gitignore](../.gitignore), [.gitattributes](../.gitattributes)).*
 
@@ -278,7 +278,7 @@ Every pull request runs the tests, and cannot be merged while any of them fail. 
 
 **Accessibility (WCAG 2.2 AA).** Text contrast of at least 4.5:1, touch targets of at least 48 dp (Android's guideline), labels for screen readers, and never colour alone: a mascot's mood is also shown in words. *Applied and checked on 42 pages ([accessibility.md](proofs/accessibility.md)). Not checked with a real screen reader.*
 
-**One design system.** Colours, type and spacing are defined once as design tokens (in `DESIGN.md` and a Claude Design system) and referenced everywhere, which keeps screens consistent and makes dark mode straightforward. *Applied ([DESIGN.md](../DESIGN.md)): four looks change only tokens.*
+**One design system.** Colours, type and spacing are defined once as design tokens (in `DESIGN.md` and `web/css/styles.css`) and referenced everywhere, which keeps screens consistent and makes dark mode straightforward. *Applied ([DESIGN.md](../DESIGN.md)): four looks change only tokens.*
 
 **Mobile-first, responsive.** Designed for the phone first, then expanded for the laptop browser. *Applied: checked at 390 px and 1360 px with no sideways scroll.*
 
@@ -296,13 +296,13 @@ Every pull request runs the tests, and cannot be merged while any of them fail. 
 
 ## 12. AI-assisted development
 
-**The author owns every decision.** The AI interviews, drafts and reviews; the author decides, edits and approves. A document is approved only when its author can explain every decision in it without notes. *Applied ([CLAUDE.md](../CLAUDE.md), [planning hub](README.md#how-each-document-gets-made)).*
+**The author owns every decision.** The AI interviews, drafts and reviews; the author decides, edits and approves. A document is approved only when its author can explain every decision in it without notes. *Applied ([CLAUDE.md](../CLAUDE.md), [planning hub](README.md#how-these-documents-were-made)).*
 
-**Vetted, pinned AI tooling.** Every Claude Code skill was read before it was added, is pinned to a commit, and has its source and licence recorded. Hooks that would run code automatically were left out. *Applied ([skill sources](../.claude/skills/SOURCES.md)).*
+**Vetted, pinned AI tooling.** Every skill added to the coding assistant was read before it was added, is pinned to a commit, and has its source and licence recorded. Hooks that would run code automatically were left out. *Applied ([skill sources](../.claude/skills/SOURCES.md)).*
 
 **Shared context for the AI.** `CLAUDE.md` gives every AI session the same project context, rules and skill routing, so its output is consistent from one session to the next. *Applied ([CLAUDE.md](../CLAUDE.md)).*
 
-**Transparent credit.** Commits where the AI contributed carry a `Co-Authored-By` trailer, and AI output goes through the same review as any other change. *Applied ([commit history](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/commits/main)).*
+**Open about AI use, once.** The project is built with an AI coding assistant, and this section says so plainly. Individual documents, commits and pull requests do not each carry an AI stamp: every change, whoever drafted it, goes through the same tests, the same review and the owner's decision. *Applied (owner's decision, 18 November 2026).*
 
 ## 13. When principles conflict
 

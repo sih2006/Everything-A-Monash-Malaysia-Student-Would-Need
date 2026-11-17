@@ -35,3 +35,6 @@ tracker-data.tsv
 
 # graphify's code graph: rebuilt locally with `graphify update .`
 graphify-out/
+
+# Python byte-code
+__pycache__/

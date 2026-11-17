@@ -38,6 +38,40 @@ flowchart LR
   advisor --> nutrition
 ```
 
+## As built (version 0.3)
+
+The table and graph above are the approved plan. This is what exists now. Solid boxes are built, dashed ones are not.
+
+```mermaid
+flowchart LR
+  subgraph core [C++ core]
+    academics[academics] --> gpa[gpa]
+  end
+  subgraph backend [Backend rules, domain.js]
+    budget[budget]
+    nutrition[nutrition]
+    health[health<br/>typed in, no Health Connect]
+  end
+  moodEngine[mood-engine<br/>a few lines in each summary]
+  advisor[advisor<br/>Gemini, needs a key]
+  mascots[mascots<br/>empty spaces for the art]
+  identity[identity]
+  sync[sync]
+  budget --> moodEngine
+  nutrition --> moodEngine
+  health --> moodEngine
+  academics --> moodEngine
+  mascots --> moodEngine
+  advisor --> academics
+  advisor -.-> budget
+  sync -.-> identity
+
+  classDef notBuilt stroke-dasharray: 5 5
+  class identity,sync notBuilt
+```
+
+`identity` and `sync` wait for hosting (v0.7). The advisor reads the grades summary today; the dotted line to budget is the spending advice planned for v0.6. Which version brings each missing part is in the [roadmap](../03-plan/roadmap.md).
+
 ## Build order
 
 1. `gpa` and `mood-engine`: pure logic, built test-first.
@@ -80,5 +114,6 @@ Timetable, assignment deadlines, and reminders or notifications. To be decided i
 |---|---|
 | 2026-10-02 | First version approved. |
 | 2026-11-15 | Assumption 3 changed: the `gpa` and `academics` core is written in C++ instead of Expo and TypeScript, starting as a laptop terminal program. See ADR-0001. |
-| 2026-11-17 | The app was built in a one-day sprint, and several assumptions no longer hold. Assumption 5 (AWS): not built; the backend runs locally with SQLite (ADR-0002, ADR-0005). Assumption 4 (offline-first): not built. Assumption 7 (one 4-point scale): replaced by two scales, standard GPA and Malaysia CGPA (ADR-0004). Modules as built: `gpa` and `academics` are the C++ core; `budget`, `nutrition` and `health` are rules in the backend; `mood-engine` is a few lines in each summary, not a module of its own; `mascots` is empty spaces waiting for art; `identity` and `sync` do not exist; `advisor` is the optional Gemini helper. The module table above has not been redrawn. |
 | 2026-11-15 | Assumption 8 reworded: the user still sets every target and goal, but the app gives the verdict on progress and may offer default targets worked out from the user's final goal. |
+| 2026-11-17 | The app was built in a one-day sprint, and several assumptions no longer hold. Assumption 5 (AWS): not built; the backend runs locally with SQLite (ADR-0002, ADR-0005). Assumption 4 (offline-first): not built. Assumption 7 (one 4-point scale): replaced by two scales, standard GPA and Malaysia CGPA (ADR-0004). Modules as built: `gpa` and `academics` are the C++ core; `budget`, `nutrition` and `health` are rules in the backend; `mood-engine` is a few lines in each summary, not a module of its own; `mascots` is empty spaces waiting for art; `identity` and `sync` do not exist; `advisor` is the optional Gemini helper. The module table above has not been redrawn. |
+| 2026-11-18 | Added the "As built" graph next to the approved plan, instead of redrawing the approved table. |
