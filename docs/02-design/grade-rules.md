@@ -145,6 +145,10 @@ Checked on 16 November 2026. Monash's pages refuse automatic reading, so they we
 - [Grading Schema Procedure](https://publicpolicydms.monash.edu/Monash/documents/1935755): that CGPA is used in Malaysia in place of the standard GPA.
 - [CGPA vs GPA, Monash Malaysia](https://www.monash.edu.my/news-and-events/trending/cgpa-vs-gpa-differences-explained): background.
 
+## Units graded pass or fail only
+
+Some units (for example a unit made only of pass tasks) are graded pass or fail, with no mark. Such a unit is marked "pass or fail only". It is **never** counted in GPA, CGPA or WAM, finished or in progress. Its verdict only says whether it is passed (50 or more) or heading for a pass. In the engine's text format it is an optional 6th field, `passfail`, on the unit line.
+
 ## Checked against a real transcript
 
 On 17 November 2026 the rules were run on the owner's official transcript: 12 finished units over three semesters, including one hurdle fail (NH). The GPA and the WAM came out **exactly** as printed on the transcript, to three decimal places. The transcript does not print a CGPA, so the CGPA still needs checking against Monash's CGPA calculator. The marks themselves are kept out of this repository on purpose.
