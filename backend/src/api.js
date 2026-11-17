@@ -20,7 +20,7 @@ const SMALL = 64 * 1024;            // size limit for normal requests
 const PICTURE = 8 * 1024 * 1024;    // size limit for a screenshot, or a file of exported data
 const EXPORT_FORMAT = 'student-companion-export';
 
-export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now() }) {
+export function createApp({ db, store, engine, gemini, webDir, today = () => todayIn(), token = '', log = () => {}, now = () => Date.now(), demo = false }) {
   const router = createRouter();
   const route = (method, pattern, handler, limit = SMALL) => router.add(method, pattern, { handler, limit });
 
@@ -109,6 +109,10 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     if (body.term !== undefined) fields.term = check.text(body.term, 'term', { max: 40, required: false });
     if (body.credit !== undefined) fields.credit = check.number(body.credit, 'credit', { min: 0.5, max: 48 });
     if (body.target !== undefined) fields.target = check.number(body.target, 'target', { min: 1, max: 100, nullable: true });
+    if (body.passFail !== undefined) {
+      if (typeof body.passFail !== 'boolean') throw new HttpError(400, 'invalid', 'Pass or fail must be true or false.', 'passFail');
+      fields.passFail = body.passFail ? 1 : 0;
+    }
     return changeAcademics(() => store.updateUnit(code, fields));
   });
 
@@ -496,7 +500,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
 
   // ================= everything at once =================
 
-  route('GET', '/api/status', () => ({ ok: true, version: '0.1.0', today: today(), engine: engine.available(), ai: gemini.configured, empty: store.isEmpty() }));
+  route('GET', '/api/status', () => ({ ok: true, version: '0.1.0', today: today(), engine: engine.available(), ai: gemini.configured, empty: store.isEmpty(), demo }));
 
   // One call for the home screen. If the engine is not built, the other three parts still load.
   route('GET', '/api/overview', () => {
@@ -506,7 +510,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       academicsError = error.message;
     }
     const day = today();
-    return { today: day, academics, academicsError, budget: budgetFor(day.slice(0, 7)), food: foodFor(day), health: healthFor(day), ai: gemini.configured, empty: store.isEmpty() };
+    return { today: day, academics, academicsError, budget: budgetFor(day.slice(0, 7)), food: foodFor(day), health: healthFor(day), ai: gemini.configured, empty: store.isEmpty(), demo };
   });
 
   // ================= the life tree =================
@@ -583,7 +587,8 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
       name: check.text(u.name, 'name', { required: false }),
       term: check.text(u.term, 'term', { max: 40, required: false }),
       credit: check.number(u.credit, 'credit', { min: 0.5, max: 48 }),
-      target: maybe(u.target, 'target', { min: 1, max: 100 })
+      target: maybe(u.target, 'target', { min: 1, max: 100 }),
+      passFail: u.passFail === true
     }));
     const codes = new Set(units.map((u) => u.code));
     if (codes.size !== units.length) throw new HttpError(400, 'invalid', 'The file has the same unit twice.');

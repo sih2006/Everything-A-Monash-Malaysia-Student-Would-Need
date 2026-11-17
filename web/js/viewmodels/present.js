@@ -35,7 +35,7 @@ export function presentUnit(unit, hidden = false) {
   }
 
   return {
-    code: unit.code, name: unit.name, credit: unit.credit, term: unit.term,
+    code: unit.code, name: unit.name, credit: unit.credit, term: unit.term, passFail: unit.passFail === true,
     hasTarget: Boolean(unit.target),
     // While grades are hidden nothing can be edited, so no raw mark is handed to the screen at all.
     canEdit: !hidden,

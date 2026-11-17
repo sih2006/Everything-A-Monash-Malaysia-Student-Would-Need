@@ -28,6 +28,7 @@ const app = createApp({
   gemini: createGemini({ apiKey: config.geminiKey, model: config.geminiModel }),
   webDir: config.webDir,
   token: config.token,
+  demo,
   log: (entry) => console.log(JSON.stringify({ time: new Date().toISOString(), ...entry }))
 });
 

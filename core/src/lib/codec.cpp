@@ -78,10 +78,13 @@ std::string apply_line(const ds::DynArray<std::string>& f, Tracker& t, LoadRepor
         return t.set_goal(f[1], a, b);
     }
     if (kind == "unit") {
-        if (f.size() != 6) return "a unit line needs 5 fields";
+        // A 6th field "passfail" marks a unit graded pass or fail only. Older files have 5 fields.
+        if (f.size() != 6 && f.size() != 7) return "a unit line needs 5 fields, or 6 for a pass or fail unit";
+        if (f.size() == 7 && f[6] != "passfail") return "the 6th field of a unit line can only be passfail";
         if (!number_at(f, 3, a, problem)) return problem;
         std::string bad = t.add_unit(f[1], f[2], a, f[5]);
         if (!bad.empty()) return bad;
+        if (f.size() == 7) t.set_pass_fail(f[1], true);
         if (f[4] != "-") {
             if (!number_at(f, 4, b, problem)) return problem;
             return t.set_target(f[1], b);
@@ -155,7 +158,8 @@ std::string save_text(const Tracker& t) {
     for (const std::string& code : codes) {
         const Unit& u = *t.find_unit(code);
         out += "unit\t" + u.code + "\t" + u.name + "\t" + number_text(u.credit) + "\t" +
-               (u.has_target ? number_text(u.target) : std::string("-")) + "\t" + u.term + "\n";
+               (u.has_target ? number_text(u.target) : std::string("-")) + "\t" + u.term +
+               (u.pass_fail ? "\tpassfail" : "") + "\n";
         for (const Assessment& a : u.assessments) {
             out += "assess\t" + u.code + "\t" + a.id + "\t" + a.name + "\t" + number_text(a.weight) + "\t" +
                    (a.done ? number_text(a.score) : std::string("-")) + "\t" + number_text(a.max) + "\t" +

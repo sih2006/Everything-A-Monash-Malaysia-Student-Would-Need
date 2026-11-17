@@ -134,7 +134,7 @@ Overview overview_of(const Tracker& t) {
     for (const std::string& code : codes) {
         const Unit& u = *t.find_unit(code);
         Standing s = standing_for(u, t.margin, fallback);
-        if (!s.has_projected) continue;
+        if (!s.has_projected || u.pass_fail) continue;    // pass or fail units never count
         o.current.add(u.code, u.credit, s.projected, s.projected_grade);
         o.projected.add(u.code, u.credit, s.projected, s.projected_grade);
     }
@@ -173,6 +173,7 @@ std::string engine_report(const Tracker& t, const LoadReport& load) {
         json.text("name", u.name);
         json.text("term", u.term);
         json.number("credit", u.credit);
+        json.boolean("passFail", u.pass_fail);
         json.number("totalWeight", u.total_weight());
         if (u.has_target) {
             json.begin_object("target");

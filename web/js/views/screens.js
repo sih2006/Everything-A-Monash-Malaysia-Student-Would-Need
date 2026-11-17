@@ -87,7 +87,7 @@ function unitCard(u, state) {
     <article class="card unit">
       <div class="card-head">
         <h2>${esc(u.code)}</h2>
-        <span class="note">Target: <strong>${esc(u.targetText)}</strong></span>
+        ${u.passFail ? chip({ text: 'Pass or fail only', tone: '' }) : `<span class="note">Target: <strong>${esc(u.targetText)}</strong></span>`}
       </div>
       ${u.name ? `<p class="note">${esc(u.name)}</p>` : ''}
       ${u.chips.length ? `<div class="row">${u.chips.map(chip).join('')}</div>` : ''}
@@ -159,6 +159,7 @@ function unitCard(u, state) {
           ${field('Name', 'name', `maxlength="80" value="${esc(u.name)}"`)}
           ${field('Credit points', 'credit', `required inputmode="decimal" value="${plain(u.credit)}"`)}
           ${field('Semester', 'term', `maxlength="40" value="${esc(u.term)}"`)}
+          <div class="field tick"><label><input type="checkbox" name="passFail" ${u.passFail ? 'checked' : ''}> Pass or fail only (does not count in GPA, CGPA or WAM)</label></div>
           <button class="btn quiet" type="submit">Save details</button>
         </form>
         <p class="note">The unit code cannot be changed. To fix a wrong code, add the unit again and remove this one.</p>

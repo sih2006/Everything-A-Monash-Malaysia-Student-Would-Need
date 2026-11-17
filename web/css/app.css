@@ -99,6 +99,10 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .mapbox.full .here { display: none; }   /* full page shows only the map */
 body.map-full { overflow: hidden; }
 
+/* ---------- example data ---------- */
+
+.banner.demo { position: sticky; top: 0; z-index: 30; margin-bottom: var(--s3); }
+
 /* ---------- workouts ---------- */
 
 .workouts { display: grid; gap: var(--s2); margin-block: var(--s2); }

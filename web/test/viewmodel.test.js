@@ -385,11 +385,13 @@ test('health: an exercise needs sets and reps; the weight may be left empty', as
   assert.equal(vm.state.error.message, 'Sets cannot be empty.');
 });
 
-test('unit details: name, semester and credit points are sent; credit points must be a number', async () => {
+test('unit details: name, semester, credit points and pass or fail are sent; credit points must be a number', async () => {
   const { vm, calls } = setup();
   await vm.load();
   await vm.saveUnitDetails('FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: '12' });
-  assert.deepEqual(calls.at(-1), ['changeUnit', 'FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12 }]);
+  assert.deepEqual(calls.at(-1), ['changeUnit', 'FIT2004', { name: 'Algorithms', term: 'S2 2027', credit: 12, passFail: false }]);
+  await vm.saveUnitDetails('FIT2107', { name: 'Software quality', term: 'S2 2026', credit: '6', passFail: 'on' });
+  assert.equal(calls.at(-1)[2].passFail, true);              // the ticked box marks it pass or fail only
   assert.equal(await vm.saveUnitDetails('FIT2004', { name: 'x', term: '', credit: '' }), false);
   assert.equal(vm.state.error.message, 'Credit points cannot be empty.');
 });

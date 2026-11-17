@@ -154,6 +154,37 @@ TEST(engine_report_has_the_worked_out_numbers) {
     CHECK(contains(json, "\"measure\":\"cgpa\""));
 }
 
+TEST(a_pass_or_fail_unit_is_saved_and_never_counted) {
+    Tracker t;
+    const std::string text =
+        "unit\tFIT2004\tAlgorithms\t6\t-\tS2 2026\n"
+        "assess\tFIT2004\ta1\tAssignment 1\t50\t80\t100\t-\n"
+        "unit\tFIT2107\tSoftware quality\t6\t-\tS2 2026\tpassfail\n"
+        "assess\tFIT2107\tp1\tPass tasks\t100\t40\t100\t-\n";
+    LoadReport load = load_text(text, t);
+    CHECK(load.errors.empty());
+    CHECK(t.find_unit("FIT2107")->pass_fail);
+    CHECK(!t.find_unit("FIT2004")->pass_fail);
+    CHECK(contains(save_text(t), "\tS2 2026\tpassfail\n"));
+    Tracker again;
+    CHECK(load_text(save_text(t), again).errors.empty());
+    CHECK(again.find_unit("FIT2107")->pass_fail);
+
+    // Only FIT2004 counts: heading for 80, an HD. FIT2107's 40 would be an N and pull everything down.
+    Overview o = overview_of(t);
+    CHECK(o.current.units == 1);
+    std::string json = engine_report(t, load);
+    CHECK(contains(json, "\"passFail\":true"));
+    CHECK(contains(json, "heading for a fail. It does not change your GPA, CGPA or WAM."));
+}
+
+TEST(a_unit_line_with_a_wrong_6th_field_is_refused) {
+    Tracker t;
+    LoadReport load = load_text("unit\tFIT2107\tQuality\t6\t-\tS2 2026\tmaybe\n", t);
+    CHECK(load.errors.size() == 1);
+    CHECK(t.unit_count() == 0);
+}
+
 TEST(engine_report_lists_units_that_need_attention) {
     Tracker t;
     LoadReport load = load_text(

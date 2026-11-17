@@ -63,8 +63,13 @@ function draw(state, info = {}) {
   const open = [...view.querySelectorAll('details[open][data-key]')].map((d) => d.dataset.key);
   const navigated = drawnTab !== state.tab;
 
-  view.innerHTML = (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state)) +
-    (state.overview.empty ? '' : '<p class="foot">Kept on this computer only.</p>');
+  // Example data must never be mistaken for the user's own: say so on every screen.
+  const demo = state.overview.demo
+    ? `<section class="banner warn demo" role="note"><h2>Example data, not yours</h2>
+        <p>This server was started with <code>--demo</code>. Everything here is made up and is lost when it stops. Your own data is in the app started without <code>--demo</code>.</p></section>`
+    : '';
+  view.innerHTML = demo + (state.tab === 'map' ? mapView(state, mapSelected) : (SCREENS[state.tab] ?? homeView)(state)) +
+    (state.overview.empty ? '' : `<p class="foot">${state.overview.demo ? 'Example data, kept in memory only.' : 'Kept on this computer only.'}</p>`);
   for (const key of open) view.querySelector(`details[data-key="${CSS.escape(key)}"]`)?.setAttribute('open', '');
 
   if (state.tab === 'map' && state.mapKind === 'life') {

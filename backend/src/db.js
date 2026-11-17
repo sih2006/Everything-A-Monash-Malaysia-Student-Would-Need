@@ -137,6 +137,10 @@ const MIGRATIONS = [
     weight_kg  REAL
   );
   CREATE INDEX exercises_by_workout ON exercises(workout_id, id);
+  `,
+  // Step 4: units graded pass or fail only. They never count in GPA, CGPA or WAM.
+  `
+  ALTER TABLE units ADD COLUMN pass_fail INTEGER NOT NULL DEFAULT 0;
   `
 ];
 

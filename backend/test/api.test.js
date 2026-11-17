@@ -181,6 +181,22 @@ describe('academics', () => {
     await app.call('PATCH', '/api/units/FIT2004', { credit: 6 });
   });
 
+  test('a unit can be marked pass or fail only; then it never counts in GPA, CGPA or WAM', async () => {
+    const before = (await app.call('GET', '/api/academics')).body.current;
+    await app.call('POST', '/api/units', { code: 'FIT2107', name: 'Software quality', term: 'S2 2026' });
+    await app.call('POST', '/api/units/FIT2107/assessments', { name: 'Pass tasks', weight: 100, score: 40, max: 100 });
+    const counted = (await app.call('GET', '/api/academics')).body.current;
+    assert.notDeepEqual(counted, before);                                 // a 40 (N) counts while it is a normal unit
+    const { status, body } = await app.call('PATCH', '/api/units/FIT2107', { passFail: true });
+    assert.equal(status, 200);
+    const unit = body.units.find((u) => u.code === 'FIT2107');
+    assert.equal(unit.passFail, true);
+    assert.match(unit.standing.verdict, /does not change your GPA/);
+    assert.deepEqual(body.current, before);                               // back to what it was without FIT2107
+    assert.equal((await app.call('PATCH', '/api/units/FIT2107', { passFail: 'yes' })).status, 400);
+    await app.call('DELETE', '/api/units/FIT2107');
+  });
+
   test('deleting a unit removes its assessments too', async () => {
     await app.call('POST', '/api/units', { code: 'TMP1000' });
     await app.call('POST', '/api/units/TMP1000/assessments', { name: 'Quiz', weight: 10 });
@@ -438,7 +454,7 @@ describe('the whole app', () => {
 
   test('status says what is ready', async () => {
     const { body } = await app.call('GET', '/api/status');
-    assert.deepEqual(body, { ok: true, version: '0.1.0', today: TODAY, engine: true, ai: false, empty: true });
+    assert.deepEqual(body, { ok: true, version: '0.1.0', today: TODAY, engine: true, ai: false, empty: true, demo: false });
   });
 
   test('example data loads once, fills every part, and can be deleted again', async () => {

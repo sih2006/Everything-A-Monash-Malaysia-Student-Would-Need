@@ -6,7 +6,7 @@
 
 // Columns that an update is allowed to change, per table. Anything else is ignored.
 const EDITABLE = {
-  units: { name: 'name', term: 'term', credit: 'credit', target: 'target' },
+  units: { name: 'name', term: 'term', credit: 'credit', target: 'target', passFail: 'pass_fail' },
   assessments: { name: 'name', weight: 'weight', score: 'score', max: 'max', hurdle: 'hurdle' },
   budget_categories: { name: 'name', limit: 'monthly_limit' }
 };
@@ -37,7 +37,7 @@ export function createStore(db) {
     },
 
     // ----- academics -----
-    listUnits: () => db.prepare('SELECT code, name, term, credit, target FROM units ORDER BY code').all(),
+    listUnits: () => db.prepare('SELECT code, name, term, credit, target, pass_fail AS passFail FROM units ORDER BY code').all().map((u) => ({ ...u, passFail: u.passFail === 1 })),
     getUnit: (code) => db.prepare('SELECT code, name, term, credit, target FROM units WHERE code = ?').get(code),
     insertUnit: (u) => db.prepare('INSERT INTO units (code, name, term, credit) VALUES (?, ?, ?, ?)').run(u.code, u.name, u.term, u.credit),
     updateUnit: (code, fields) => update('units', 'code', code, fields),
@@ -144,7 +144,7 @@ export function createStore(db) {
       const all = (sql) => db.prepare(sql).all();
       const data = {
         settings: Object.fromEntries(all('SELECT key, value FROM settings ORDER BY key').map((r) => [r.key, JSON.parse(r.value)])),
-        units: all('SELECT code, name, term, credit, target FROM units ORDER BY code'),
+        units: this.listUnits(),
         assessments: all('SELECT unit_code AS unitCode, name, weight, score, max, hurdle FROM assessments ORDER BY unit_code, id'),
         results: all('SELECT code, name, credit, mark, grade, term FROM results ORDER BY id'),
         categories: all('SELECT id, name, monthly_limit AS "limit" FROM budget_categories ORDER BY id'),
@@ -173,6 +173,7 @@ export function createStore(db) {
       for (const u of data.units) {
         this.insertUnit(u);
         if (u.target !== null) this.updateUnit(u.code, { target: u.target });
+        if (u.passFail) this.updateUnit(u.code, { passFail: 1 });
       }
       for (const a of data.assessments) this.insertAssessment(a);
       for (const r of data.results) this.insertResult(r);
