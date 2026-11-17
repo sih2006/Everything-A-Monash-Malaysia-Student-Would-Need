@@ -1,2 +1,6 @@
 # Keep vendored AI tooling out of GitHub language stats
 .claude/** linguist-vendored
+
+# Shell scripts must keep Unix line endings, or they fail on Linux and macOS
+android/gradlew text eol=lf
+*.sh text eol=lf
