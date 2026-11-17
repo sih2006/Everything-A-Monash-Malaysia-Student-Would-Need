@@ -146,6 +146,7 @@ export function presentGrades(report, hidden = false, order = 'code') {
     stats: [stat('CGPA, Malaysia scale', 'cgpa', f2), stat('GPA, standard scale', 'gpa', f2), stat('WAM', 'wam', f1)],
     goal: report.goal ? goalBanner(report.goal, hidden) : null,
     goalValues: hidden ? null : report.settings.goal,
+    termDates: report.settings.termDates ?? null,
     canEdit: !hidden,
     // CGPA for each finished semester, then where this semester is heading.
     trend: hidden ? [] : [
@@ -332,7 +333,7 @@ function healthMap(h) {
   };
 }
 
-export const MAP_KINDS = [['studies', 'Studies'], ['budget', 'Budget'], ['food', 'Food'], ['health', 'Health']];
+export const MAP_KINDS = [['life', 'Life'], ['studies', 'Studies path'], ['budget', 'Budget'], ['food', 'Food'], ['health', 'Health']];
 
 export function presentMap(kind, overview, hidden = false) {
   if (kind === 'studies') {

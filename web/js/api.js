@@ -43,6 +43,7 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
 
   return {
     overview: () => get('/api/overview'),
+    life: () => get('/api/life'),
     loadDemo: () => post('/api/demo'),
     deleteEverything: () => remove('/api/data', { confirm: 'delete everything' }),
     exportData: () => get('/api/export'),

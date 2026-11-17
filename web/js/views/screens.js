@@ -223,6 +223,13 @@ export function gradesView(state) {
         </form>
         ${goal ? '<button type="button" class="link danger" data-action="clearGoal">Remove the goal</button>' : ''}
         <p class="note">The app works out what you need each semester from this goal, and offers it as the default target.</p>`, !g.goal && !g.empty)}
+      ${fold('term-dates', g.termDates ? `Semester dates: ${dayText(g.termDates.start)} to ${dayText(g.termDates.end)}` : 'Set the semester dates', `
+        <form class="form" data-action="saveTermDates">
+          ${field('First day', 'start', `type="date" required value="${g.termDates?.start ?? ''}"`)}
+          ${field('Last day, exams included', 'end', `type="date" required value="${g.termDates?.end ?? ''}"`)}
+          <button class="btn primary" type="submit">Save dates</button>
+        </form>
+        <p class="note">With these, the map shows how much of the semester has gone next to how much of each unit is marked.</p>`)}
     </section>`}
 
     ${g.trend.length >= 2 ? `<section class="card"><h2>CGPA by semester</h2>${trendChart(g.trend, g.trendGoal, f2)}</section>` : ''}

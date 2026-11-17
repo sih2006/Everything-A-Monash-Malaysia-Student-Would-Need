@@ -8,6 +8,7 @@
 import { createApi } from './api.js';
 import { clamp, esc, f1 } from './format.js';
 import { createAppViewModel } from './viewmodels/appViewModel.js';
+import { layoutLife } from './viewmodels/lifeTree.js';
 import { presentMap } from './viewmodels/present.js';
 import { createMapCamera, mapView, placeStops, stopDetail } from './views/mapView.js';
 import { budgetView, foodView, gradesView, healthView, homeView } from './views/screens.js';
@@ -26,6 +27,7 @@ const status = $('#status');
 const camera = createMapCamera();
 let mapSelected = -1;
 let drawnTab = null;        // the screen now on the page
+let lifeDrawn = false;      // the life tree is on the page, so the view should not jump back to today
 
 const api = createApi({ getToken: () => storage.get('apiToken') ?? '' });
 const vm = createAppViewModel({ api, storage, onChange: draw });
@@ -65,7 +67,16 @@ function draw(state, info = {}) {
     (state.overview.empty ? '' : '<p class="foot">Kept on this computer only.</p>');
   for (const key of open) view.querySelector(`details[data-key="${CSS.escape(key)}"]`)?.setAttribute('open', '');
 
-  if (state.tab === 'map') camera.mount(placeStops(presentMap(state.mapKind, state.overview, state.hidden).stops), navigated);
+  if (state.tab === 'map' && state.mapKind === 'life') {
+    if (state.life) {
+      camera.mount(layoutLife(state.life, state.lifeOpen, state.hidden).nodes, navigated || !lifeDrawn);
+      lifeDrawn = true;
+    }
+  } else if (state.tab === 'map') {
+    camera.mount(placeStops(presentMap(state.mapKind, state.overview, state.hidden).stops), navigated);
+  }
+  if (state.tab !== 'map' || state.mapKind !== 'life') lifeDrawn = false;
+  document.body.classList.toggle('map-full', state.tab === 'map' && state.mapFull);
   if (state.imported) $('#import-review')?.scrollIntoView({ block: 'start' });
 
   document.querySelectorAll('.nav a').forEach((a) => {
@@ -134,7 +145,10 @@ const COMMANDS = {
   deleteEverything: (f) => vm.deleteEverything(f.confirm),
   showPeriod: (f, d) => vm.showPeriod(d.slice, Number(d.step)),
   showCurrent: (f, d) => vm.showCurrent(d.slice),
-  setMapKind: (f, d) => { mapSelected = -1; camera.reset(); vm.setMapKind(d.kind); },
+  setMapKind: (f, d) => { mapSelected = -1; camera.reset(); lifeDrawn = false; vm.setMapKind(d.kind); },
+  lifeOpenToday: () => { vm.lifeOpenToday(); camera.goTo(camera.findMe(), true); },
+  lifeOpenAll: () => { vm.lifeOpenAll(); camera.showAll(true); },
+  lifeCloseAll: () => { vm.lifeCloseAll(); camera.showAll(true); },
 
   addUnit: (f) => vm.addUnit(f),
   deleteUnit: (f, d) => vm.deleteUnit(d.code),
@@ -148,6 +162,7 @@ const COMMANDS = {
   deleteResult: (f, d) => vm.deleteResult(d.id),
   saveGoal: (f) => vm.saveGoal(f),
   clearGoal: () => vm.clearGoal(),
+  saveTermDates: (f) => vm.saveTermDates(f),
   askPlan: () => vm.askPlan(),
   readScreenshot: async (f, d) => vm.readScreenshot(d.code, await readPicture(f.picture)),
   cancelImport: () => vm.cancelImport(),
@@ -217,9 +232,20 @@ view.addEventListener('click', (e) => {
     camera.goTo(mapSelected, true);
     return;
   }
+  const lifeNode = e.target.closest('[data-node]');
+  if (lifeNode) {                          // a node of the life tree: open or close it, keeping it still on screen
+    const id = lifeNode.dataset.node;
+    const before = camera.stopById(id);
+    const where = before && { x: before.x, y: before.y };
+    vm.toggleLifeNode(id);
+    camera.follow(where, camera.stopById(id));
+    $(`[data-node="${CSS.escape(id)}"]`, view)?.focus({ preventScroll: true });
+    return;
+  }
   const zoom = e.target.closest('[data-zoom]');
   if (zoom) {
     const how = zoom.dataset.zoom;
+    if (how === 'full') { vm.toggleMapFull(); camera.apply(false); return; }
     if (how === 'fit') camera.showAll(true);
     else if (how === 'here') $(`.mstop[data-stop="${camera.findMe()}"]`, view)?.click();
     else camera.zoomBy(how === 'in' ? 1.3 : 1 / 1.3);
@@ -230,6 +256,11 @@ view.addEventListener('click', (e) => {
 });
 
 status.addEventListener('click', (e) => { if (e.target.closest('[data-dismiss]')) vm.dismiss(); });
+
+// Escape leaves the full-page map.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && vm.state.mapFull) { vm.toggleMapFull(); camera.apply(false); }
+});
 
 // The what-if slider asks the backend and shows the answer. Nothing is saved.
 let whatIfTimer = null;

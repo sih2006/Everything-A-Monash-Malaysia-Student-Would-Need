@@ -12,8 +12,13 @@ import { addDays, weekRange } from './domain.js';
 
 export function loadDemo(store, today) {
   // ----- academics -----
-  store.setSetting('academics.currentTerm', 'S1 2027');
+  // The made-up semesters follow today's date: this semester is in this year, the finished ones in the year before.
+  const year = Number(today.slice(0, 4));
+  const thisTerm = `S2 ${year}`, lastYear1 = `S1 ${year - 1}`, lastYear2 = `S2 ${year - 1}`;
+  store.setSetting('academics.currentTerm', thisTerm);
   store.setSetting('academics.margin', 10);
+  // A made-up semester that started six weeks ago and has six weeks left.
+  store.setSetting('academics.termDates', { start: addDays(today, -42), end: addDays(today, 42) });
   store.setSetting('academics.goal', { measure: 'cgpa', value: 3.5, totalCredits: 144 });
 
   const units = [
@@ -27,7 +32,7 @@ export function loadDemo(store, today) {
       assessments: [['Weekly assignments', 20, 58], ['Mid-semester test', 20, 45], ['Final exam', 60, null, 40]] }
   ];
   for (const u of units) {
-    store.insertUnit({ code: u.code, name: u.name, term: 'S1 2027', credit: 6 });
+    store.insertUnit({ code: u.code, name: u.name, term: thisTerm, credit: 6 });
     store.updateUnit(u.code, { target: u.target });
     for (const [name, weight, score, hurdle] of u.assessments) {
       store.insertAssessment({ unitCode: u.code, name, weight, score, max: 100, hurdle: hurdle ?? null });
@@ -35,10 +40,10 @@ export function loadDemo(store, today) {
   }
 
   const results = [
-    ['FIT1045', 'Introduction to programming', 78, 'S1 2026'], ['FIT1047', 'Computer systems and networks', 72, 'S1 2026'],
-    ['FIT1049', 'IT professional practice', 71, 'S1 2026'], ['MAT1841', 'Continuous mathematics', 64, 'S1 2026'],
-    ['FIT1008', 'Fundamentals of algorithms', 81, 'S2 2026'], ['FIT1050', 'Web fundamentals', 75, 'S2 2026'],
-    ['FIT1055', 'Professional practice and ethics', 72, 'S2 2026'], ['FIT1058', 'Foundations of computing', 66, 'S2 2026']
+    ['FIT1045', 'Introduction to programming', 78, lastYear1], ['FIT1047', 'Computer systems and networks', 72, lastYear1],
+    ['FIT1049', 'IT professional practice', 71, lastYear1], ['MAT1841', 'Continuous mathematics', 64, lastYear1],
+    ['FIT1008', 'Fundamentals of algorithms', 81, lastYear2], ['FIT1050', 'Web fundamentals', 75, lastYear2],
+    ['FIT1055', 'Professional practice and ethics', 72, lastYear2], ['FIT1058', 'Foundations of computing', 66, lastYear2]
   ];
   for (const [code, name, mark, term] of results) store.insertResult({ code, name, credit: 6, mark, grade: null, term });
 

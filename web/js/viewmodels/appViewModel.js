@@ -9,6 +9,7 @@
 
 import { ApiError } from '../api.js';
 import { addDays, addMonths, typedNumber } from '../format.js';
+import { openAll, openToToday, startOpen } from './lifeTree.js';
 
 const TABS = ['home', 'map', 'grades', 'budget', 'food', 'health', 'more'];
 
@@ -28,7 +29,12 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     notice: null,          // a short "it worked" message
     busy: false,
     tab: 'home',
-    mapKind: 'studies',
+    mapKind: 'life',
+    life: null,             // the life tree from the backend, loaded when the map opens
+    lifeError: null,
+    lifeOpen: new Set(),    // ids of the tree nodes that are open
+    lifeSelected: null,     // the node whose details show under the tree
+    mapFull: false,         // the map fills the whole page
     unitOrder: storage.get('unitOrder') ?? 'code',   // how the units on Grades are ordered
     spendingCategory: 'all',                          // which spending the Budget list shows
     showAllSpending: false,
@@ -95,6 +101,18 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     state.overview[slice] = answered === current ? result : await fetchPeriod(slice);
   }
 
+  async function loadLife() {
+    try {
+      state.life = await api.life();
+      state.lifeError = null;
+      if (state.lifeOpen.size === 0) state.lifeOpen = startOpen(state.life);
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error;
+      state.lifeError = error.message;
+    }
+    changed();
+  }
+
   async function load() {
     try {
       state.overview = await api.overview();
@@ -104,21 +122,41 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     }
     state.loading = false;
     changed();
+    // Opened straight onto the map: fetch the tree too.
+    if (!state.loadError && state.tab === 'map' && state.mapKind === 'life') await loadLife();
   }
   const reload = (work, notice) => act(null, async () => { await work(); state.overview = await api.overview(); }, notice);
 
   return {
     state,
     load,
+    loadLife,
 
     // ----- moving around and personal settings -----
     setTab(tab) {
       state.tab = TABS.includes(tab) ? tab : 'home';
       state.error = null;
       state.notice = null;
+      if (state.tab !== 'map') state.mapFull = false;
+      changed();
+      // The tree is built from everything, so it is fetched again each time the map opens.
+      if (state.tab === 'map' && state.mapKind === 'life') loadLife();
+    },
+    setMapKind(kind) {
+      state.mapKind = kind;
+      changed();
+      if (kind === 'life') loadLife();
+    },
+    toggleLifeNode(id) {
+      if (state.lifeOpen.has(id)) state.lifeOpen.delete(id);
+      else state.lifeOpen.add(id);
+      state.lifeSelected = id;
       changed();
     },
-    setMapKind(kind) { state.mapKind = kind; changed(); },
+    lifeOpenToday() { if (state.life) { state.lifeOpen = openToToday(state.life, state.lifeOpen); changed(); } },
+    lifeOpenAll() { if (state.life) { state.lifeOpen = openAll(state.life, 'month'); changed(); } },
+    lifeCloseAll() { if (state.life) { state.lifeOpen = new Set([state.life.id]); state.lifeSelected = null; changed(); } },
+    toggleMapFull() { state.mapFull = !state.mapFull; changed(); },
     setUnitOrder(order) {
       state.unitOrder = ['code', 'attention', 'need'].includes(order) ? order : 'code';
       storage.set('unitOrder', state.unitOrder);
@@ -192,6 +230,11 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     addResult: (f) => act('academics', () => api.addResult({ code: f.code, name: f.name, term: f.term, grade: f.grade, credit: number(f.credit, 'Credit points', { required: false }) ?? 6, mark: number(f.mark, 'The final mark') }), 'Finished unit added.'),
     deleteResult: (id) => act('academics', () => api.deleteResult(id), 'Finished unit removed.'),
     saveGoal: (f) => act('academics', () => api.saveAcademicsSettings({ goal: { measure: f.measure, value: number(f.value, 'The goal'), totalCredits: number(f.totalCredits, 'Credit points in your course') } }), 'Goal saved.'),
+    // The first and last day of the current semester, for "how much time is left".
+    saveTermDates: (f) => act('academics', () => {
+      if (!f.start || !f.end) throw new ApiError(400, 'invalid', 'Pick both the first and the last day.');
+      return api.saveAcademicsSettings({ termDates: { start: f.start, end: f.end } });
+    }, 'Semester dates saved.'),
     clearGoal: () => act('academics', () => api.saveAcademicsSettings({ goal: null }), 'Goal removed.'),
 
     // A question, not a change: nothing is saved and the screen is not redrawn.

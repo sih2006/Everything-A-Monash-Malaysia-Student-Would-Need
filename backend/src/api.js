@@ -10,6 +10,7 @@ import { inTransaction } from './db.js';
 import { ACCOUNT_KINDS, accountSummary, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
+import { lifeTree } from './life.js';
 import { loadDemo } from './seed.js';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -52,7 +53,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     // The engine only knows positions; give the screens the database ids they need for edits.
     for (const term of report.terms) for (const unit of term.units) unit.id = state.results[unit.index].id;
     for (const unit of report.units) for (const a of unit.assessments) a.id = Number(a.id);
-    report.settings = { currentTerm: state.currentTerm, margin: state.margin, goal: state.goal };
+    report.settings = { currentTerm: state.currentTerm, margin: state.margin, goal: state.goal, termDates: store.getSetting('academics.termDates', null) };
     return report;
   }
 
@@ -78,6 +79,13 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   };
 
   route('GET', '/api/academics', () => academicsReport());
+
+  function termDates(value) {
+    const { start, end } = value ?? {};
+    if (!isDay(start) || !isDay(end)) throw new HttpError(400, 'invalid', 'Semester dates look like 2026-07-27.', 'termDates');
+    if (start > end) throw new HttpError(400, 'invalid', 'The semester must end after it starts.', 'termDates');
+    return { start, end };
+  }
 
   route('POST', '/api/units', ({ body }) => {
     const unit = {
@@ -164,6 +172,9 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
   });
 
   route('PUT', '/api/academics/settings', ({ body }) => changeAcademics(() => {
+    // The current semester's first and last day, so screens can show how much of it has gone.
+    if (body.termDates === null) store.setSetting('academics.termDates', null);
+    else if (body.termDates !== undefined) store.setSetting('academics.termDates', termDates(body.termDates));
     if (body.currentTerm !== undefined) store.setSetting('academics.currentTerm', check.text(body.currentTerm, 'currentTerm', { max: 40, required: false }));
     if (body.margin !== undefined) store.setSetting('academics.margin', check.number(body.margin, 'margin', { min: 0, max: 100 }));
     if (body.goal === null) store.setSetting('academics.goal', null);
@@ -448,6 +459,26 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     return { today: day, academics, academicsError, budget: budgetFor(day.slice(0, 7)), food: foodFor(day), health: healthFor(day), ai: gemini.configured, empty: store.isEmpty() };
   });
 
+  // ================= the life tree =================
+
+  // Everything ever recorded, as one tree. If the grade engine is not built, the tree is drawn without Studies.
+  route('GET', '/api/life', () => {
+    let report = null;
+    try { report = academicsReport(); } catch (error) { if (!(error instanceof HttpError)) throw error; }
+    return lifeTree({
+      today: today(),
+      report,
+      termDates: store.getSetting('academics.termDates', null),
+      transactions: store.listTransactions('0000-01-01', '9999-12-31').reverse(),
+      limit: store.getSetting('budget.limit', null) ?? (store.listCategories().reduce((sum, c) => sum + c.limit, 0) || null),
+      foodLog: store.listFoodLogAll(),
+      foodTargets: store.getSetting('food.targets', null),
+      healthDays: store.listHealthDays('0000-01-01', '9999-12-31'),
+      workouts: store.listWorkouts('0000-01-01', '9999-12-31').reverse(),
+      healthTargets: store.getSetting('health.targets', null)
+    });
+  });
+
   // ================= export and import =================
 
   route('GET', '/api/export', () => ({ format: EXPORT_FORMAT, version: 1, exportedOn: today(), ...store.exportAll() }));
@@ -473,6 +504,7 @@ export function createApp({ db, store, engine, gemini, webDir, today = () => tod
     const s = file.settings ?? {};
     if (typeof s !== 'object' || Array.isArray(s)) throw new HttpError(400, 'invalid', 'The settings in the file are damaged.');
     if (s['academics.currentTerm'] !== undefined) settings['academics.currentTerm'] = check.text(s['academics.currentTerm'], 'currentTerm', { max: 40, required: false });
+    if (s['academics.termDates']) settings['academics.termDates'] = termDates(s['academics.termDates']);
     if (s['academics.margin'] !== undefined) settings['academics.margin'] = check.number(s['academics.margin'], 'margin', { min: 0, max: 100 });
     if (s['academics.goal']) {
       const g = s['academics.goal'];

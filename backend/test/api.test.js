@@ -416,6 +416,22 @@ describe('the whole app', () => {
     assert.equal((await app.call('GET', '/api/status')).body.empty, true);
   });
 
+  test('the life tree holds every year, and the current semester shows how much time has gone', async () => {
+    await app.call('POST', '/api/demo');
+    await app.call('PUT', '/api/academics/settings', { termDates: { start: '2026-07-27', end: '2026-11-27' } });
+    const { status, body } = await app.call('GET', '/api/life');
+    assert.equal(status, 200);
+    assert.deepEqual(body.children.map((y) => y.title), ['2025', '2026']);
+    const year = body.children[1];
+    assert.deepEqual(year.children.map((a) => a.title), ['Studies', 'Money', 'Food', 'Health']);
+    const term = year.children[0].children.find((t) => t.now);
+    assert.equal(term.title, 'S2 2026');
+    assert.ok(term.time > 0.9 && term.time < 1);
+    assert.equal((await app.call('PUT', '/api/academics/settings', { termDates: { start: '2026-12-01', end: '2026-11-01' } })).status, 400);
+    assert.equal((await app.call('PUT', '/api/academics/settings', { termDates: { start: 'soon', end: '2026-11-01' } })).status, 400);
+    await app.call('DELETE', '/api/data', { confirm: 'delete everything' });
+  });
+
   test('unknown addresses, wrong methods and broken requests get clear errors', async () => {
     assert.equal((await app.call('GET', '/api/nothing')).status, 404);
     assert.equal((await app.call('DELETE', '/api/status')).status, 405);

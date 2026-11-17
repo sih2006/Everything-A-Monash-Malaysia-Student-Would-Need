@@ -58,6 +58,42 @@ form.import { display: flex; flex-direction: column; gap: var(--s3); }
 .period strong { font-family: var(--display); font-size: 1.25rem; min-width: 9em; text-align: center; font-synthesis: none; }
 .period .btn { padding: 0 var(--s4); }
 
+/* ---------- the life tree ---------- */
+
+.mapview.life { height: min(72vh, 640px); }
+.lnode {
+  position: absolute; width: 230px; padding: 0; margin: 0;
+  display: flex; align-items: center; gap: 10px;
+  background: none; border: 0; cursor: pointer; color: var(--ink); text-align: left;
+  animation: pop 420ms var(--ease) backwards;
+}
+.rings { width: 64px; height: 64px; flex: none; border-radius: 50%; background: var(--surface); transition: box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease); }
+.lnode:hover .rings { transform: scale(1.06); }
+.lnode.is-picked .rings { box-shadow: 0 0 0 4px var(--surface), 0 0 0 7px var(--mango); }
+.ring-track { fill: none; stroke: var(--track); stroke-width: 6; }
+.ring-track.thin { stroke-width: 4; }
+.ring-done { fill: none; stroke: var(--mark); stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray var(--slow) var(--ease); }
+.ring-done.warn { stroke: var(--mark-warn); }
+.ring-time { fill: none; stroke: var(--mango); stroke-width: 4; stroke-linecap: round; }
+.rings text { font-size: 14px; font-weight: 700; fill: var(--ink); text-anchor: middle; font-family: var(--body); }
+.ltext { display: flex; flex-direction: column; line-height: 1.25; background: var(--surface); padding: 4px 10px; border-radius: 12px; min-width: 0; }
+.ltext strong { font-family: var(--display); font-size: 1rem; font-synthesis: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltext span { font-size: 0.83rem; }
+.ltext small { font-size: 0.75rem; font-weight: 700; color: var(--accent); }
+.lv-root .rings, .lv-year .rings { background: var(--tint-map); }
+.route path.branch { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+.life .route path.walked { stroke-dasharray: none; animation: none; }
+
+/* The map can fill the whole page. Escape or the button leaves it. */
+.mapbox.full {
+  position: fixed; inset: 0; z-index: 40; margin: 0;
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3); background: var(--bg);
+}
+.mapbox.full .mapview { flex: 1 1 auto; height: auto; min-height: 0; }
+.mapbox.full .here { max-height: 28vh; overflow: auto; flex: none; }
+body.map-full { overflow: hidden; }
+
 /* ---------- money accounts ---------- */
 
 .banner.money h2 { font-size: 1.6rem; }
