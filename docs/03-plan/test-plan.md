@@ -85,15 +85,15 @@ Every story in release 0.1 is listed. "Pass" means the automated tests for it pa
 | GPA-06 | A target for GPA, WAM or CGPA | black-box ×1; `goal_*` | Pass |
 | GPA-07 | Default targets from a final goal | black-box ×2; `goal_cgpa_need_and_default_target`; API "a final goal gives the average needed" | Pass |
 | GPA-08 | The path to the goal | black-box ×1; presenter "each map runs done, now, ahead, goal" | Pass |
-| ENG-01 | Builds with one documented command | `python tools/check.py` | Pass on Windows. **Linux untested until CI runs** |
+| ENG-01 | Builds with one documented command | `python tools/check.py` | Pass on Windows, and on Linux in CI |
 | ENG-02 | Hand-built structures with documented complexity | the tables at the top of each file in `core/include/ds/`, and [core/README.md](../../core/README.md) | Done |
 | ENG-03 | White-box tests | 72 tests | Pass |
 | ENG-04 | Black-box tests named by story | 31 tests | Pass |
-| ENG-05 | Memory checked automatically | the leak counter (every run); sanitizers (CI) | Leak counter passes. **Sanitizers have not run yet** |
-| ENG-06 | CI on every push | `.github/workflows/ci.yml` | Written. **Has not run yet**: nothing is pushed |
+| ENG-05 | Memory checked automatically | the leak counter (every run); sanitizers (CI) | Pass: leak counter on every run, sanitizers in CI on Linux |
+| ENG-06 | CI on every push | `.github/workflows/ci.yml` | Pass: runs on every pull request and push to main, green since 18 November |
 | ENG-07 | Benchmarks | `core/bench/bench.cpp`; results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) | Done. `DynArray` holds its claim in real time; the linked structures count the right steps but slow down 2 to 4 times at a million items, because of memory caching |
 | ENG-08 | README | [README.md](../../README.md), [core/README.md](../../core/README.md) | Done |
-| ENG-09 | Backlog on a public board | `tools/backlog_sync.py`, dry run only | **Needs the owner's GitHub login** |
+| ENG-09 | Backlog on a public board | `tools/backlog_sync.py` | Done: [public board](https://github.com/users/sih2006/projects/1) with 37 issues |
 
 Release 0.2 (screenshot import):
 
@@ -102,7 +102,7 @@ Release 0.2 (screenshot import):
 | ACA-20 Read a screenshot | API "a screenshot is read into a list" | Pass **with a fake AI service only** |
 | ACA-21 Check before saving | ViewModel "a screenshot import saves only the rows the user kept" | Pass with a fake API |
 | ACA-22 Failures leave data untouched | API "a used-up limit, an outage and a strange answer" | Pass with a fake AI service |
-| ENG-20 The key is never in the repository | CI secret check; API "the key stays in the header" | Written; CI part has not run |
+| ENG-20 The key is never in the repository | CI secret check; API "the key stays in the header" | Pass |
 
 ## 4. Tests beyond the backlog
 

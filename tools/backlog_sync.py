@@ -83,7 +83,7 @@ def labels_for(story):
         "priority: " + story["priority"].lower(),
         "size: " + story["size"],
         "module: " + MODULES[story["id"][:3]],
-        "epic: " + story["epic"].lower(),
+        "epic: " + story["epic"].lower().replace(",", ""),   # GitHub does not allow commas in label names
     ]
 
 
@@ -169,10 +169,14 @@ def main():
         kind = label.split(":")[0]
         gh("label", "create", label, "--color", COLOURS[kind], "--description", DESCRIPTIONS[kind], "--force")
 
-    # 2. One milestone for each release.
-    have = set(json.loads(gh("api", f"repos/{repo}/milestones?state=all&per_page=100", "--jq", "[.[].title]")))
+    # 2. One milestone for each release. The roadmap's milestones are named "v0.1 Terminal grade tracker" and so on;
+    #    a release uses its "v0.1 ..." milestone when there is one, or gets a plain "Release 0.1" milestone.
+    have = json.loads(gh("api", f"repos/{repo}/milestones?state=all&per_page=100", "--jq", "[.[].title]"))
+    milestone_for = {}
     for release in sorted({story["release"] for story in stories}):
-        if f"Release {release}" not in have:
+        named = next((t for t in have if t.startswith(f"v{release} ")), None)
+        milestone_for[release] = named or f"Release {release}"
+        if milestone_for[release] not in have:
             gh("api", f"repos/{repo}/milestones", "-f", f"title=Release {release}")
             print(f"  made milestone Release {release}")
 
@@ -191,7 +195,7 @@ def main():
         title = f"{story['id']}: {short_title(story)}"
         body = body_for(story, repo)
         labels = labels_for(story)
-        milestone = f"Release {story['release']}"
+        milestone = milestone_for[story["release"]]
         issue = by_id.get(story["id"])
 
         if issue is None:
