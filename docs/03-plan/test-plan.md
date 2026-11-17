@@ -91,7 +91,7 @@ Every story in release 0.1 is listed. "Pass" means the automated tests for it pa
 | ENG-04 | Black-box tests named by story | 31 tests | Pass |
 | ENG-05 | Memory checked automatically | the leak counter (every run); sanitizers (CI) | Leak counter passes. **Sanitizers have not run yet** |
 | ENG-06 | CI on every push | `.github/workflows/ci.yml` | Written. **Has not run yet**: nothing is pushed |
-| ENG-07 | Benchmarks | none | **Not done** (task C7) |
+| ENG-07 | Benchmarks | `core/bench/bench.cpp`; results in [core/README.md](../../core/README.md#measured-do-the-costs-hold) | Done. `DynArray` holds its claim in real time; the linked structures count the right steps but slow down 2 to 4 times at a million items, because of memory caching |
 | ENG-08 | README | [README.md](../../README.md), [core/README.md](../../core/README.md) | Done |
 | ENG-09 | Backlog on a public board | `tools/backlog_sync.py`, dry run only | **Needs the owner's GitHub login** |
 

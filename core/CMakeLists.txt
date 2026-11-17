@@ -38,6 +38,10 @@ file(GLOB TRACKER_TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
 add_executable(tracker_tests ${TRACKER_TEST_SOURCES})
 target_link_libraries(tracker_tests PRIVATE tracker_lib)
 
+# Benchmarks. Not run by the tests: build and run them by hand (see core/bench/bench.cpp).
+add_executable(tracker_bench bench/bench.cpp)
+target_include_directories(tracker_bench PRIVATE include)
+
 # On Windows with MinGW, build the programs with the C++ library inside them.
 # - tracker.exe then runs anywhere, without needing extra DLL files next to it.
 # - The leak check in the tests counts every allocation, and it can only do
@@ -45,6 +49,7 @@ target_link_libraries(tracker_tests PRIVATE tracker_lib)
 if(MINGW)
   target_link_options(tracker PRIVATE -static)
   target_link_options(tracker_tests PRIVATE -static)
+  target_link_options(tracker_bench PRIVATE -static)
 endif()
 
 enable_testing()
