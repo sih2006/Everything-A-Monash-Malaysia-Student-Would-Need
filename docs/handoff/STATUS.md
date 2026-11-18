@@ -59,7 +59,7 @@ python tools/check.py                build and run every test
 
 The owner's real data (the transcript, bank statements, the e-wallet record, height, weight, the advice) is only in `backend/data/app.db`. None of it is in the repository, and the scripts that read the statements stay outside it too. Tests use made-up numbers.
 
-### v0.5 in progress: food
+### v0.4 in progress: food
 
 | Part | What it does | Tests |
 |---|---|---|

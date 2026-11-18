@@ -67,16 +67,16 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | NUT-03 | The app shows eaten, left, and whether the day is on or over target. Exactly on target is not over. | Must | 0.2 | Built, tested |
 | NUT-04 | A food can be remembered and logged again with one press, and removed from that list. | Should | 0.2 | Built, tested |
 | NUT-05 | A log entry can be removed. | Must | 0.2 | Built, tested |
-| NUT-06 | A lookup of Malaysian foods with their calories. | Could | 0.5 | **Not built.** The capability map names it. Foods are typed in once instead. |
-| NUT-08 | The owner's usual meals are ready for quick add (Burger King value meal and fries, kebab and shawarma, nasi lemak, nasi goreng ayam, ayam gepuk, chicken tandoori, fast food, eggs, a protein shake with milk, cheesy garlic bread), with no noodles, oats, Milo or teh tarik. Their numbers are rough estimates and say so; a meal the user saves with their own numbers replaces it. | Should | 0.5 | Built, tested |
-| NUT-09 | Every meal the user logs is saved to their meals by default, so it is one press next time. | Should | 0.5 | Built, tested |
-| NUT-10 | Progress shows today, this week and this month: average calories and protein, days logged, and days on target when targets are set. Days with nothing logged are not counted. | Should | 0.5 | Built, tested |
-| NUT-11 | Advice on how the eating is going and what to do next. For now written by hand; later the AI helper writes it from food, workouts and health. | Should | 0.5 | Built, tested. The AI part is v0.6 |
-| NUT-12 | A photo of a meal, or its nutrition label, is read by the AI helper into food, calories and protein. The user checks every row before anything is logged. | Should | 0.5 | Built. Tested with a fake AI service only; the real run is v0.6 |
-| NUT-13 | The user records the equipment they have (air fryer, rice cooker and so on) and the ingredients they usually keep. | Should | 0.5 | Built, tested |
-| NUT-14 | "What to eat today": quick home-cooked recipes only (20 minutes or less, halal, no takeout, no noodles or oats), shown for the meal chosen (breakfast, lunch, dinner or snack; it starts on the meal for the time of day), with calories, protein, time, equipment and an estimated cost per ingredient, ranked by what is left of the day's targets, with protein first after a workout; recipes the kitchen cannot make are set aside, and missing ingredients are listed with their cost. | Should | 0.5 | Built, tested. Costs are estimates |
-| NUT-15 | Preferences: foods the user does not eat (left out where they are only a side; recipes that need them are not suggested; common meals named after them are hidden) and what counts most when suggesting (high protein, cheapest or quickest). | Should | 0.5 | Built, tested |
-| NUT-16 | Daily calories and protein can be worked out from the user's own goal weight, a number of weeks, age, sex and activity, with a verdict on the pace (realistic, aggressive or too fast) and a safe floor. The app only suggests; the user decides whether to use them. | Should | 0.5 | Built, tested. Estimates, not medical advice |
+| NUT-06 | A lookup of Malaysian foods with their calories. | Could | 0.4 | **Not built.** The capability map names it. Foods are typed in once instead. |
+| NUT-08 | The owner's usual meals are ready for quick add (Burger King value meal and fries, kebab and shawarma, nasi lemak, nasi goreng ayam, ayam gepuk, chicken tandoori, fast food, eggs, a protein shake with milk, cheesy garlic bread), with no noodles, oats, Milo or teh tarik. Their numbers are rough estimates and say so; a meal the user saves with their own numbers replaces it. | Should | 0.4 | Built, tested |
+| NUT-09 | Every meal the user logs is saved to their meals by default, so it is one press next time. | Should | 0.4 | Built, tested |
+| NUT-10 | Progress shows today, this week and this month: average calories and protein, days logged, and days on target when targets are set. Days with nothing logged are not counted. | Should | 0.4 | Built, tested |
+| NUT-11 | Advice on how the eating is going and what to do next. For now written by hand; later the AI helper writes it from food, workouts and health. | Should | 0.4 | Built, tested. The AI part is v0.6 |
+| NUT-12 | A photo of a meal, or its nutrition label, is read by the AI helper into food, calories and protein. The user checks every row before anything is logged. | Should | 0.4 | Built. Tested with a fake AI service only; the real run is v0.6 |
+| NUT-13 | The user records the equipment they have (air fryer, rice cooker and so on) and the ingredients they usually keep. | Should | 0.4 | Built, tested |
+| NUT-14 | "What to eat today": quick home-cooked recipes only (20 minutes or less, halal, no takeout, no noodles or oats), shown for the meal chosen (breakfast, lunch, dinner or snack; it starts on the meal for the time of day), with calories, protein, time, equipment and an estimated cost per ingredient, ranked by what is left of the day's targets, with protein first after a workout; recipes the kitchen cannot make are set aside, and missing ingredients are listed with their cost. | Should | 0.4 | Built, tested. Costs are estimates |
+| NUT-15 | Preferences: foods the user does not eat (left out where they are only a side; recipes that need them are not suggested; common meals named after them are hidden) and what counts most when suggesting (high protein, cheapest or quickest). | Should | 0.4 | Built, tested |
+| NUT-16 | Daily calories and protein can be worked out from the user's own goal weight, a number of weeks, age, sex and activity, with a verdict on the pace (realistic, aggressive or too fast) and a safe floor. The app only suggests; the user decides whether to use them. | Should | 0.4 | Built, tested. Estimates, not medical advice |
 , and food can be logged on it. | Should | 0.2 | Built, tested |
 
 ## Health
@@ -88,7 +88,7 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | HEA-03 | The app shows today against the targets, and the week as two charts. "Nothing logged" is shown as no data, not as zero. | Must | 0.2 | Built, tested |
 | HEA-04 | The user logs a workout by name. Workouts are counted per week, Monday to Sunday. | Must | 0.2 | Built, tested |
 | HEA-05 | Steps, sleep and heart rate are read from Health Connect on Android. | Should | 0.8 | **Not built.** Needs a native Android app ([android-setup.md](../handoff/android-setup.md)) |
-| HEA-06 | A mascot for health. | Could | 0.4 | **Not designed.** The owner has not named one. |
+| HEA-06 | A mascot for health. | Could | 0.5 | **Not designed.** The owner has not named one. |
 | HEA-07 | The user logs body weight and sees the 30-day change against a goal weight they set. With a height, the app shows BMI. | Should | 0.3 | Built, tested |
 | HEA-08 | The user logs water against a daily target. | Could | 0.3 | Built, tested |
 | HEA-09 | A workout has a kind and a length, and exercises with sets, reps and weight. The app shows the best lift for each exercise. | Should | 0.3 | Built, tested |

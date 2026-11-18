@@ -19,9 +19,9 @@ The **Version** column says which version of the [roadmap](../03-plan/roadmap.md
 | A5 | **Do the worked example** in [mvvm-guide.md](mvvm-guide.md) yourself: show notes on workouts. It is small on purpose and takes you through every layer once. | any time | The note shows on the Health screen and the new test passes |
 | A6 | **Turn on auto-add on the board:** on the [project board](https://github.com/users/sih2006/projects/1), open **Workflows**, then **Auto-add to project**, pick this repository, filter `is:issue`, turn it on. GitHub does not let a script do this. | now | A new issue appears on the board by itself |
 | A7 | **Protect `main`:** in the repository **Settings**, **Branches**, add a rule for `main` with **Require status checks to pass** and the check named `test`. | now | A pull request with a failing test cannot be merged |
-| A8 | **The health interview** for v0.4: what "complete" health means to you, and the health mascot. | 0.4 | New HEA requirements are in the PRD and on the board |
-| A9 | **Fill in your kitchen and correct the common meals.** Tick your equipment and ingredients on Food, Kitchen. When you next eat a common meal (Burger King and so on), log it with the real numbers from the receipt or app, once; your version then replaces the estimate. | 0.5 | What to eat matches your kitchen, and your usual meals have real numbers |
-| A10 | **Set your food targets** on Food, Today. The app never picks them for you. | 0.5 | Progress gives a verdict for each day, week and month |
+| A8 | **The health interview** for v0.5: what "complete" health means to you, and the health mascot. | 0.5 | New HEA requirements are in the PRD and on the board |
+| A9 | **Fill in your kitchen and correct the common meals.** Tick your equipment and ingredients on Food, Kitchen. When you next eat a common meal (Burger King and so on), log it with the real numbers from the receipt or app, once; your version then replaces the estimate. | 0.4 | What to eat matches your kitchen, and your usual meals have real numbers |
+| A10 | **Set your food targets** on Food, Today. The app never picks them for you. | 0.4 | Progress gives a verdict for each day, week and month |
 
 ## B. Decisions only the owner can make
 
