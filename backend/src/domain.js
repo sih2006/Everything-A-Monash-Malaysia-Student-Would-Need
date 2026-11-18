@@ -192,6 +192,23 @@ export function spendingSpans({ categories, transactions, month }) {
   return spans;
 }
 
+// Regular expenses to suggest for one-press adding: the same place at the same amount at least twice in the
+// spending given (the caller passes the last 90 days). Ones already saved are left out, also when the saved
+// name only contains the bank's name ("Burger King: Chick'n Crisp meal" saved, "Burger King" spent). Most frequent first.
+export function suggestRegulars(transactions, saved = []) {
+  const isSaved = (g) => saved.some((r) => r.amount === g.amount && (r.name.toLowerCase().includes(g.name.toLowerCase()) || g.name.toLowerCase().includes(r.name.toLowerCase())));
+  const groups = new Map();
+  for (const t of transactions) {
+    const key = `${t.what.toLowerCase()}|${t.amount}`;
+    const g = groups.get(key) ?? { name: t.what, amount: t.amount, category: t.category, account: t.account ?? null, count: 0, last: t.date };
+    g.count += 1;
+    if (t.date >= g.last) { g.last = t.date; g.category = t.category; g.account = t.account ?? null; }
+    groups.set(key, g);
+  }
+  return [...groups.values()].filter((g) => g.count >= 2 && !isSaved(g))
+    .sort((a, b) => b.count - a.count || b.amount - a.amount).slice(0, 8);
+}
+
 // Money that came in during a month: every "in" move except moves between your own accounts.
 // Grouped by where it came from (the note), biggest first. Net is what is left after the month's spending.
 export function incomeSummary(moves, month, spent) {

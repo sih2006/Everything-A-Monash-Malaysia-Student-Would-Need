@@ -154,6 +154,9 @@ const readPicture = (file) => new Promise((resolve, reject) => {
 const COMMANDS = {
   setBudgetTab: (f, d) => vm.setBudgetTab(d.tab),
   setExpenseSpan: (f, d) => vm.setExpenseSpan(d.span),
+  spendRegular: (f, d) => vm.spendRegular(Number(d.id)),
+  saveSuggestedRegular: (f, d) => vm.saveSuggestedRegular(Number(d.index)),
+  removeRegular: (f, d) => vm.removeRegular(Number(d.id)),
   showAccount: (f, d) => vm.showAccount(d.group, Number(d.id)),
   setEssential: (f, d) => vm.setEssential(Number(d.id), d.essential === 'true'),
   saveAdvice: (f) => vm.saveAdvice(f.text),

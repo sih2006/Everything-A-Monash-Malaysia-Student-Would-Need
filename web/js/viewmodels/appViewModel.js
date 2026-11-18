@@ -13,7 +13,7 @@ import { isFoodTab } from './food.js';
 // The currencies amounts can be shown in. Ringgit first: it is what everything is stored and typed in.
 export const SHOW_IN = ['MYR', 'USD', 'OMR', 'CZK', 'CAD', 'IDR'];
 import { ApiError } from '../api.js';
-import { addDays, addMonths, typedNumber } from '../format.js';
+import { addDays, addMonths, lastDayOf, typedNumber } from '../format.js';
 import { openAll, openToToday, startOpen } from './lifeTree.js';
 
 const TABS = ['home', 'map', 'grades', 'budget', 'food', 'health', 'more'];
@@ -366,6 +366,27 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     saveBudgetLimit: (text) => act('budget', () => api.saveBudgetLimit(number(text, 'The limit', { required: false })), 'Limit saved.'),
     addCategory: (f) => act('budget', () => api.addCategory({ name: f.name, limit: number(f.limit, 'The category limit', { required: false }) ?? 0 }), 'Category added.'),
     deleteCategory: (id) => act('budget', () => api.deleteCategory(id), 'Category removed.'),
+    // ----- regular expenses: one press records the spending, on today or the last day of the month shown -----
+    spendRegular(id) {
+      const b = shown('budget');
+      const regular = (b.regulars ?? []).find((r) => r.id === id);
+      if (!regular) return Promise.resolve(false);
+      const account = b.money.accounts.find((a) => a.name === regular.account);
+      const date = state.views.budget ? lastDayOf(b.month) : state.overview.today;
+      return act('budget', () => api.addSpending({ what: regular.name, amount: regular.amount, category: regular.category, date, ...(account ? { accountId: account.id } : {}) }),
+        `${regular.name} added.`);
+    },
+    addRegular: (f) => act('budget', () => api.addRegular({
+      name: f.name, amount: number(f.amount, 'The amount'), category: f.category, ...(f.accountId ? { accountId: Number(f.accountId) } : {})
+    }), 'Regular expense saved.'),
+    saveSuggestedRegular(index) {
+      const b = shown('budget');
+      const s = (b.suggestedRegulars ?? [])[index];
+      if (!s) return Promise.resolve(false);
+      const account = b.money.accounts.find((a) => a.name === s.account);
+      return act('budget', () => api.addRegular({ name: s.name, amount: s.amount, category: s.category, ...(account ? { accountId: account.id } : {}) }), `${s.name} saved as a regular expense.`);
+    },
+    removeRegular: (id) => act('budget', () => api.removeRegular(id), 'Regular expense removed.'),
     // Essential spending (rent, fees) is never listed as something you could cut.
     setEssential: (id, essential) => act('budget', () => api.updateCategory(id, { essential }), essential ? 'Marked as essential.' : 'No longer essential.'),
     saveAdvice: (text) => act('budget', () => {

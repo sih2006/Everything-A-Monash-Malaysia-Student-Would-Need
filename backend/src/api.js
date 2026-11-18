@@ -7,7 +7,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodPeriods, foodSummary, suggestMeals, targetsFromGoal, ACTIVITY, FOOD_PRIORITIES, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodPeriods, foodSummary, suggestRegulars, suggestMeals, targetsFromGoal, ACTIVITY, FOOD_PRIORITIES, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
@@ -239,6 +239,9 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
       spans,
       byMonth: monthlySpending(upToMonth),
       advice: store.getSetting('budget.advice', null),
+      // Regular expenses for one-press adding, and ones suggested from the last 90 days of spending.
+      regulars: store.getSetting('budget.regulars', []),
+      suggestedRegulars: suggestRegulars(store.listTransactions(addDays(today(), -90), today()), store.getSetting('budget.regulars', [])),
       // Balances are always as they are now, whichever month is being looked at.
       money: accountSummary(store.listAccounts(), moves)
     };
@@ -295,6 +298,33 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     if (other && other.id !== check.id(params.id)) throw new HttpError(409, 'exists', `There is already a category called ${fields.name}.`, 'name');
     if (Object.keys(fields).length && !store.updateCategory(check.id(params.id), fields)) throw new HttpError(404, 'not_found', 'That category does not exist.');
     return budgetFor(today().slice(0, 7));
+  });
+
+  // Regular expenses: a name, an amount, a category and the account it is usually paid from.
+  const regularFrom = (body) => {
+    const category = store.getCategoryByName(check.text(body.category, 'category', { max: 30 }));
+    if (!category) throw new HttpError(400, 'invalid', 'Pick one of your categories.', 'category');
+    // The account is kept by name, so it survives a backup being loaded (accounts get new ids then).
+    const account = body.accountId === undefined || body.accountId === null || body.accountId === '' ? null : mustFindAccount(check.id(body.accountId)).name;
+    return {
+      name: check.text(body.name, 'name', { max: 60 }),
+      amount: Math.round(check.number(body.amount, 'amount', { min: 0.01, max: 1e6 }) * 100) / 100,
+      category: category.name, account
+    };
+  };
+  route('POST', '/api/budget/regulars', ({ body }) => {
+    const list = store.getSetting('budget.regulars', []);
+    if (list.length >= 30) throw new HttpError(400, 'invalid', 'You can keep up to 30 regular expenses. Remove one first.');
+    const id = list.reduce((max, r) => Math.max(max, r.id), 0) + 1;
+    store.setSetting('budget.regulars', [...list, { id, ...regularFrom(body) }]);
+    return budgetNow();
+  });
+  route('DELETE', '/api/budget/regulars/:id', ({ params }) => {
+    const id = check.id(params.id);
+    const list = store.getSetting('budget.regulars', []);
+    if (!list.some((r) => r.id === id)) throw new HttpError(404, 'not_found', 'That regular expense does not exist.');
+    store.setSetting('budget.regulars', list.filter((r) => r.id !== id));
+    return budgetNow();
   });
 
   // Advice shown on the Expenses tab. For now it is written by hand (by Claude); later the AI helper fills it.
@@ -767,6 +797,15 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     };
     if (s['budget.advice']) settings['budget.advice'] = advice(s['budget.advice'], 'budget advice');
     if (s['food.advice']) settings['food.advice'] = advice(s['food.advice'], 'food advice');
+    if (Array.isArray(s['budget.regulars'])) {
+      settings['budget.regulars'] = s['budget.regulars'].slice(0, 30).map((r, n) => ({
+        id: n + 1,
+        name: check.text(r.name, 'name', { max: 60 }),
+        amount: Math.round(check.number(r.amount, 'amount', { min: 0.01, max: 1e6 }) * 100) / 100,
+        category: check.text(r.category, 'category', { max: 30 }),
+        account: check.text(r.account, 'account', { max: 30, required: false }) || null
+      }));
+    }
     if (s['food.preferences'] && typeof s['food.preferences'] === 'object') {
       const fp = s['food.preferences'];
       settings['food.preferences'] = {

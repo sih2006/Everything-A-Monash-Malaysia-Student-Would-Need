@@ -73,6 +73,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     // budget
     saveBudgetLimit: (limit) => put('/api/budget/settings', { limit }),
     addCategory: (category) => post('/api/budget/categories', category),
+    addRegular: (regular) => post('/api/budget/regulars', regular),
+    removeRegular: (id) => remove(`/api/budget/regulars/${id}`),
     updateCategory: (id, fields) => patch(`/api/budget/categories/${id}`, fields),
     currency: () => get('/api/currency'),
     refreshRates: () => post('/api/currency/refresh'),

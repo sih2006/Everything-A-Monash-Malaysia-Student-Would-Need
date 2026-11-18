@@ -657,3 +657,14 @@ test('preferences: a comma list becomes a clean list; goal targets are only save
   assert.deepEqual(sent[2], ['targets', { targetKcal: 1800, targetProtein: 160 }]);
   assert.equal(vm.state.goalPlan, null);
 });
+
+test('a regular expense is one press: it is added with its own amount, category and account', async () => {
+  const sent = [];
+  const regulars = [{ id: 1, name: 'Rent', amount: 1200, category: 'Rent and electricity', account: 'Maybank' }];
+  const { vm } = setup({ addSpending: (e) => { sent.push(e); return Promise.resolve(overview().budget); } });
+  await vm.load();
+  vm.state.overview.budget = { ...vm.state.overview.budget, regulars, money: { accounts: [{ id: 7, name: 'Maybank' }] } };
+  await vm.spendRegular(1);
+  assert.deepEqual(sent[0], { what: 'Rent', amount: 1200, category: 'Rent and electricity', date: vm.state.overview.today, accountId: 7 });
+  assert.equal(await vm.spendRegular(99), false);
+});

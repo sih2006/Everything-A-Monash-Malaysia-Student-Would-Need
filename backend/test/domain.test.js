@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EQUIPMENT, MAX_MINUTES, MEAL_TIMES, RECIPES } from '../src/recipes.js';
 
-import { accountSummary, addDays, budgetSummary, foodPeriods, suggestMeals, targetsFromGoal, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, foodPeriods, suggestRegulars, suggestMeals, targetsFromGoal, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -223,7 +223,7 @@ test('could cut: essential categories are left out; places are ranked by total w
   const categories = [{ id: 1, name: 'Rent', essential: true }, { id: 2, name: 'Eating out' }, { id: 3, name: 'Shopping' }];
   const t = (categoryId, what, amount) => ({ categoryId, what, amount, date: '2026-10-01' });
   const r = reducibleSpending({ categories, months: 3, transactions: [
-    t(1, 'Rent', 2850), t(2, 'Grab', 30), t(2, 'Grab', 33), t(2, 'Burger King', 9.9), t(3, 'Shopee', 120)
+    t(1, 'Rent', 1200), t(2, 'Grab', 30), t(2, 'Grab', 33), t(2, 'Burger King', 9.9), t(3, 'Shopee', 120)
   ] });
   assert.equal(r.total, 192.9);
   assert.equal(r.perMonth, 64.3);
@@ -356,6 +356,19 @@ test('targets from a weight goal: worked out, judged, and never below a safe flo
   const fast = targetsFromGoal({ weightKg: 90, heightCm: 180, goalKg: 80, age: 20, sex: 'male', activity: 'light', weeks: 8 });
   assert.deepEqual([fast.weekly, fast.pace, fast.calories, fast.floorUsed, fast.steadyWeeks], [1.25, 'aggressive', 1500, true, 15]);
   assert.equal(targetsFromGoal({ weightKg: 90, heightCm: 180, goalKg: 80, age: 20, sex: 'male', activity: 'light', weeks: 5 }).pace, 'too fast');
+});
+
+test('regular expenses: the same place at the same amount twice or more is suggested, unless already saved', () => {
+  const t = (date, what, amount, category = 'Eating out', account = 'Maybank') => ({ date, what, amount, category, account });
+  const spending = [t('2026-03-09', 'Burger place', 12.5), t('2026-03-13', 'Burger place', 12.5), t('2026-03-17', 'burger place', 12.5),
+    t('2026-03-10', 'Rice shop', 21.4), t('2026-03-03', 'Rice shop', 21.4), t('2026-03-05', 'Delivery', 22.1), t('2026-03-06', 'Delivery', 24.5)];
+  const s = suggestRegulars(spending);
+  assert.deepEqual(s.map((r) => [r.name, r.amount, r.count]), [['Burger place', 12.5, 3], ['Rice shop', 21.4, 2]]);   // Delivery differs in amount each time
+  assert.equal(s[1].last, '2026-03-10');
+  assert.deepEqual(suggestRegulars(spending, [{ name: 'Burger place', amount: 12.5 }]).map((r) => r.name), ['Rice shop']);
+  // A saved name that only contains the bank's name still counts as saved; a different amount does not.
+  assert.deepEqual(suggestRegulars(spending, [{ name: 'Burger place: chicken meal and fries', amount: 12.5 }]).map((r) => r.name), ['Rice shop']);
+  assert.deepEqual(suggestRegulars(spending, [{ name: 'Burger place', amount: 8.5 }]).map((r) => r.name), ['Burger place', 'Rice shop']);
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {

@@ -532,6 +532,40 @@ function adviceCard(advice, { save = 'saveAdvice', clear = 'clearAdvice', id = '
     </section>`;
 }
 
+// Regular expenses: one press each. Suggestions come from the same place at the same amount at least twice.
+function regularsCard(b) {
+  const regulars = b.regulars ?? [];
+  const suggested = b.suggestedRegulars ?? [];
+  const rm2 = (n) => rm(n);
+  return `
+    <section class="card regulars">
+      <h2>Quick add</h2>
+      ${regulars.length ? `<div class="quick">
+        ${regulars.map((r) => `
+          <button type="button" data-action="spendRegular" data-id="${r.id}">
+            <strong>${esc(r.name)}</strong><span>${rm2(r.amount)} · ${esc(r.category)}${r.account ? ` · ${esc(r.account)}` : ''}</span>
+          </button>`).join('')}
+      </div>` : '<p class="note">Save the things you pay for again and again, such as rent or your usual meal, and each is one press here.</p>'}
+      ${suggested.length ? `
+      <h3 class="label">Suggested from your spending</h3>
+      <ul class="list">
+        ${suggested.map((s, n) => `<li><span>${esc(s.name)} <span class="dim">· ${rm2(s.amount)} · ${s.count} times in 90 days · ${esc(s.category)}</span></span>
+          <span class="end"><button type="button" class="link" data-action="saveSuggestedRegular" data-index="${n}">Save</button></span></li>`).join('')}
+      </ul>` : ''}
+      ${fold('add-regular', 'Add a regular expense', `
+        <form class="form" data-action="addRegular">
+          ${field('Name', 'name', 'required maxlength="60" placeholder="Rent"')}
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          ${select('Category', 'category', b.categories.map((c) => [c.name, c.name]))}
+          ${b.money.accounts.length ? select('Paid from', 'accountId', [['', 'Not from an account'], ...b.money.accounts.map((a) => [String(a.id), a.name])]) : ''}
+          <button class="btn primary" type="submit">Save</button>
+        </form>`)}
+      ${regulars.length ? fold('manage-regulars', 'Change your regular expenses', `
+        <ul class="list">${regulars.map((r) => `<li><span>${esc(r.name)} <span class="dim">· ${rm2(r.amount)}</span></span><span class="end">${remove('removeRegular', `data-id="${r.id}"`, `Remove ${r.name}`)}</span></li>`).join('')}</ul>
+        <p class="note">To change one, remove it and save it again. Removing it does not change any spending already added.</p>`) : ''}
+    </section>`;
+}
+
 // Looking back over a period that ends with the month shown: totals, the map, what could be cut,
 // advice, and what was spent each month on what.
 function lookingBack(b, state) {
@@ -598,6 +632,8 @@ function expensesTab(b, state, isCurrent, spendDay) {
       ${bar(b.spentPercent, b.tone, b.monthPercent)}
       <p>The triangle points at today.</p>
     </section>` : ''}
+
+    ${regularsCard(b)}
 
     ${lookingBack(b, state)}
 

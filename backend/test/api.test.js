@@ -352,15 +352,15 @@ describe('money accounts', () => {
     const after = await app.call('POST', '/api/budget/categories', { name: 'Treats', limit: 0 });
     const treats = after.body.categories.find((c) => c.name === 'Treats');
     assert.equal(after.body.categories.find((c) => c.name === 'Housing').essential, true);
-    await app.call('POST', '/api/transactions', { category: 'Housing', what: 'Rent', amount: 2850, date: '2026-11-02' });
+    await app.call('POST', '/api/transactions', { category: 'Housing', what: 'Rent', amount: 1200, date: '2026-11-02' });
     await app.call('POST', '/api/transactions', { category: 'Treats', what: 'Bubble tea', amount: 12, date: '2026-11-03' });
     const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
     assert.ok(month.reducible.top.some((p) => p.what === 'Bubble tea'));
     assert.deepEqual(Object.keys(month.spans), ['month', '3m', 'year', 'all']);
     assert.equal(month.spans.month.spent, month.spent);                             // everything this month, rent included ...
-    assert.equal(month.spans.month.spent - month.spans.month.total, 2850);          // ... but rent is not something to cut
+    assert.equal(month.spans.month.spent - month.spans.month.total, 1200);          // ... but rent is not something to cut
     const november = month.byMonth.at(-1);
-    assert.deepEqual([november.month, november.total, november.byCategory.Housing, november.byCategory.Treats], ['2026-11', month.spent, 2850, 12]);
+    assert.deepEqual([november.month, november.total, november.byCategory.Housing, november.byCategory.Treats], ['2026-11', month.spent, 1200, 12]);
     assert.ok(!month.reducible.top.some((p) => p.what === 'Rent'));                  // essential: never "could cut"
     assert.equal((await app.call('PATCH', `/api/budget/categories/${treats.id}`, { essential: 'yes' })).status, 400);
     const saved = (await app.call('PUT', '/api/budget/advice', { text: 'Line one.\nLine two.', by: 'Claude' })).body;
@@ -377,6 +377,24 @@ describe('money accounts', () => {
     const after = (await app.call('GET', '/api/budget')).body;
     assert.equal(after.money.accounts.find((a) => a.id === id).balance, 115);
     await app.call('DELETE', `/api/accounts/${id}`);
+  });
+
+  test('regular expenses: saved, checked, suggested from repeats, and removed', async () => {
+    const made = (await app.call('POST', '/api/budget/categories', { name: 'Takeaway', limit: 0 })).body;
+    assert.ok(made.categories.some((c) => c.name === 'Takeaway'));
+    await app.call('POST', '/api/transactions', { category: 'Takeaway', what: 'Chicken meal', amount: 12.5, date: '2026-11-10' });
+    await app.call('POST', '/api/transactions', { category: 'Takeaway', what: 'Chicken meal', amount: 12.5, date: '2026-11-17' });
+    const before = (await app.call('GET', '/api/budget')).body;
+    assert.ok(before.suggestedRegulars.some((r) => r.name === 'Chicken meal' && r.count === 2));
+    const saved = (await app.call('POST', '/api/budget/regulars', { name: 'Chicken meal', amount: 12.5, category: 'Takeaway' })).body;
+    const regular = saved.regulars.find((r) => r.name === 'Chicken meal');
+    assert.deepEqual([regular.amount, regular.category, regular.account], [12.5, 'Takeaway', null]);
+    assert.ok(!saved.suggestedRegulars.some((r) => r.name === 'Chicken meal'));             // saved: no longer suggested
+    assert.equal((await app.call('POST', '/api/budget/regulars', { name: 'Rent', amount: 1200, category: 'Nowhere' })).status, 400);
+    assert.equal((await app.call('POST', '/api/budget/regulars', { name: 'Rent', amount: -5, category: 'Takeaway' })).status, 400);
+    const after = (await app.call('DELETE', `/api/budget/regulars/${regular.id}`)).body;
+    assert.ok(!after.regulars.some((r) => r.id === regular.id));
+    assert.equal((await app.call('DELETE', `/api/budget/regulars/${regular.id}`)).status, 404);
   });
 
   test('accounts are checked', async () => {
