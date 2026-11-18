@@ -37,7 +37,7 @@ flowchart TB
 | **Map** | Life or a path. The life tree (years down the left, areas branching right) or the path of stops to a goal. Details of the chosen node or stop. |
 | **Grades** | CGPA, GPA and WAM (they follow the what-if sliders). Final goal. CGPA by semester. One card per unit, in the order you choose. Add a unit. Study plan from the AI helper. Finished units. |
 | **Budget** | Your money (total). Four tabs: **Overview** (every account, this month in short, a currency converter and the exchange rates), **Banking** and **Investing** (one account at a time), **Expenses** (the month and its limit; looking back over this month, 3 months, a year or all time with where your money goes, could cut, advice and month by month; categories, add spending, the list). |
-| **Food** | Four tabs: **Today** (calories and protein, quick add with your meals and common meals, log food, read a photo or label, logged today, targets), **Progress** (today, this week, this month, advice), **What to eat** (what is left, quick home-cooked recipes with costs), **Kitchen** (equipment and ingredients). |
+| **Food** | Four tabs: **Today** (calories and protein, quick add with your meals and common meals, log food, read a photo or label, logged today, targets), **Progress** (today, this week, this month, advice), **What to eat** (what is left, quick home-cooked recipes with costs, for breakfast, lunch, dinner or snack), **Kitchen** (equipment and ingredients). |
 | **Health** | Today's steps, sleep, heart rate and water. Steps and sleep this week. Body weight with BMI. Workouts and best lifts. Targets. |
 
 Budget, Food and Health each have **Previous** and **Next**, to look at another month or day.
