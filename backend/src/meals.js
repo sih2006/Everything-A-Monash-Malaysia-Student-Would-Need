@@ -5,9 +5,9 @@
 // their own numbers; their saved meal then replaces the estimate.
 
 export const PRESET_MEALS = [
-  // Burger King: the value meal, and sometimes extra fries
+  // Burger King: the owner's usual order is the RM 9.90 value meal plus large fries (RM 15.90 in all)
   { name: "Burger King Chick'n Crisp meal (fries, drink)", kcal: 1050, protein: 20, group: 'Burger King' },
-  { name: 'Burger King extra medium fries', kcal: 380, protein: 4, group: 'Burger King' },
+  { name: 'Burger King extra large fries', kcal: 470, protein: 5, group: 'Burger King' },
   // Kebab shop
   { name: 'Chicken shawarma wrap', kcal: 550, protein: 30, group: 'Kebab and shawarma' },
   { name: 'Chicken kebab wrap', kcal: 650, protein: 35, group: 'Kebab and shawarma' },
