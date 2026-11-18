@@ -40,7 +40,7 @@ The terminal program: `core/build/tracker` (on Windows: `core\build\tracker.exe`
 python tools/check.py
 ```
 
-This builds the core and runs all 317 tests: 106 for the C++ core (75 white-box with a leak check on each, 31 black-box), 131 for the backend and 80 for the web app. CI runs the same command on Linux for every pull request. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt).
+This builds the core and runs all 320 tests: 106 for the C++ core (75 white-box with a leak check on each, 31 black-box), 133 for the backend and 81 for the web app. CI runs the same command on Linux for every pull request. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt).
 
 ## How it is built
 

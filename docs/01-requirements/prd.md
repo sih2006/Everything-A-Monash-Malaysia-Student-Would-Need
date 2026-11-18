@@ -55,7 +55,8 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | BUD-21 | A month-by-month table of what was spent on each category, for the period chosen. | Should | 0.3 | Built, tested |
 | BUD-22 | A converter shows an amount in ringgit, US dollars, Omani rials, Czech koruna, Canadian dollars and Indonesian rupiah ([ADR-0008](../adr/0008-exchange-rates.md)). | Should | 0.3 | Built, tested |
 | BUD-23 | Every amount in the app can be shown in one of those currencies, at a live rate fetched once a day or a rate typed by hand. Amounts are still typed and stored in ringgit. | Should | 0.3 | Built, tested |
-| BUD-19 | A spending map on the Expenses tab: one block per category outside the essential ones, sized by the average month, with the places inside it. A legend, a hover tip on every block and a table view. | Should | 0.3 | Built, tested. Checked in light, dark and at phone width |
+| BUD-24 | Regular expenses (such as rent, or a usual meal) are saved with a name, an amount, a category and an account, and each is one press to add on the Expenses tab. The same place at the same amount twice or more in 90 days is suggested; nothing is saved without the user. | Should | 0.3 | Built, tested |
+ one block per category outside the essential ones, sized by the average month, with the places inside it. A legend, a hover tip on every block and a table view. | Should | 0.3 | Built, tested. Checked in light, dark and at phone width |
 
 ## Food
 
