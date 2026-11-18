@@ -294,6 +294,43 @@ export function foodPeriods({ day, targets, log }) {
   return { day: sum(day, day, 1), week: sum(week.from, week.to, 7), month: sum(month.from, month.to, month.days) };
 }
 
+// What to eat today. Recipes are ranked by how well they fit what is left of the day's targets, with protein
+// counting more after a workout or when protein is still short, and fewer things to buy counting a little.
+// A recipe that needs equipment the user does not have is moved to `needsEquipment`, unless the kitchen
+// has not been filled in yet (then nothing is moved, and each recipe says what it needs).
+// `quick` picks ready meals (the user's own first, then the common ones) that fit what is left.
+export function suggestMeals({ recipes, meals = [], kitchen, left, targets, workedOut = false }) {
+  const kitchenKnown = kitchen.equipment.length > 0 || kitchen.pantry.length > 0;
+  const has = new Set(kitchen.pantry.map((x) => x.toLowerCase()));
+  const tools = new Set(kitchen.equipment);
+  const hasTargets = targets.kcal > 0;
+  const proteinShort = targets.protein > 0 && left.protein > 0;
+  const proteinWeight = workedOut || proteinShort ? 2 : 1;
+  const fits = (kcal) => !hasTargets || kcal <= Math.max(0, left.kcal);
+  const ranked = recipes.map((r) => {
+    const missing = r.ingredients.filter((x) => !has.has(x.item.toLowerCase()));
+    const cost = round2(r.ingredients.reduce((sum, x) => sum + x.cost, 0));
+    const toBuy = round2(missing.reduce((sum, x) => sum + x.cost, 0));
+    const lacks = r.equipment.filter((e) => !tools.has(e));
+    const score = (r.protein / r.kcal) * 100 * proteinWeight + (fits(r.kcal) ? 10 : -20) - toBuy;
+    const why = [];
+    if (hasTargets) why.push(fits(r.kcal) ? `fits the ${Math.max(0, Math.round(left.kcal))} kcal left` : `more than the ${Math.max(0, Math.round(left.kcal))} kcal left`);
+    if (workedOut && r.protein >= 30) why.push('high protein after your workout');
+    else if (proteinShort && r.protein >= 30) why.push(`helps with the ${Math.round(left.protein)} g protein still to go`);
+    why.push(missing.length === 0 ? 'you have everything' : `about RM ${toBuy.toFixed(2)} to buy`);
+    return { ...r, fits: fits(r.kcal), cost, toBuy, missing, lacks, why, score: round2(score) };
+  }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const quick = meals.filter((m) => fits(m.kcal)).map((m) => ({ ...m, perKcal: m.protein / Math.max(1, m.kcal) }))
+    .sort((a, b) => (b.mine === true) - (a.mine === true) || b.perKcal - a.perKcal).slice(0, 6)
+    .map(({ perKcal, ...m }) => m);
+  return {
+    kitchenKnown, workedOut, left, hasTargets,
+    recipes: kitchenKnown ? ranked.filter((r) => r.lacks.length === 0) : ranked,
+    needsEquipment: kitchenKnown ? ranked.filter((r) => r.lacks.length > 0) : [],
+    quick
+  };
+}
+
 // ---------- health ----------
 
 // `days` have {day, steps, sleepMinutes, restingHr}; `workouts` have {id, date, name}.

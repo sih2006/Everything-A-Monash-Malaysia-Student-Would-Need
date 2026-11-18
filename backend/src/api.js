@@ -7,12 +7,13 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodPeriods, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodPeriods, foodSummary, suggestMeals, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
 import { CURRENCIES, RATES_SOURCE, RatesUnavailable } from './rates.js';
 import { PRESET_MEALS } from './meals.js';
+import { EQUIPMENT, INGREDIENTS, RECIPES } from './recipes.js';
 import { loadDemo } from './seed.js';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -413,9 +414,21 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
       // Common meals for quick add, except any the user has saved with their own numbers.
       presets: PRESET_MEALS.filter((m) => !yours.has(m.name.toLowerCase())),
       advice: store.getSetting('food.advice', null),
-      ai: gemini.configured
+      ai: gemini.configured,
+      plan: foodPlan(date, targets, foods)
     };
   };
+  // What to eat: the kitchen, recipes ranked for what is left of the day, and quick meals that fit.
+  function foodPlan(date, targets, foods) {
+    const kitchen = store.getSetting('food.kitchen', { equipment: [], pantry: [] });
+    const eaten = store.listFoodLog(date).reduce((t, e) => ({ kcal: t.kcal + e.kcal, protein: t.protein + e.protein }), { kcal: 0, protein: 0 });
+    const left = { kcal: targets.kcal - eaten.kcal, protein: Math.max(0, targets.protein - eaten.protein) };
+    const workedOut = store.listWorkouts(date, date).length > 0;
+    const yours = new Set(foods.map((f) => f.name.toLowerCase()));
+    const meals = [...foods.map((f) => ({ name: f.name, kcal: f.kcal, protein: f.protein, mine: true, id: f.id })),
+      ...PRESET_MEALS.filter((m) => !yours.has(m.name.toLowerCase())).map((m) => ({ name: m.name, kcal: m.kcal, protein: m.protein }))];
+    return { ...suggestMeals({ recipes: RECIPES, meals, kitchen, left, targets, workedOut }), kitchen, equipment: EQUIPMENT, ingredients: INGREDIENTS };
+  }
 
   route('GET', '/api/food', ({ query }) => foodFor(dayOf(query.get('date') ?? undefined)));
 
@@ -440,6 +453,16 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     store.insertFoodLog(entry);
     if (body.remember === true) store.insertFood({ name: entry.food, kcal: entry.kcal, protein: entry.protein });
     return foodFor(entry.date);
+  });
+
+  // The kitchen: the equipment the user has and the ingredients they keep. Only known names are kept.
+  route('PUT', '/api/food/kitchen', ({ body }) => {
+    const pick = (value, known, name) => {
+      if (!Array.isArray(value)) throw new HttpError(400, 'invalid', `${name} must be a list.`, name);
+      return known.filter((k) => value.includes(k));
+    };
+    store.setSetting('food.kitchen', { equipment: pick(body.equipment, EQUIPMENT, 'equipment'), pantry: pick(body.pantry, INGREDIENTS, 'pantry') });
+    return foodFor(today());
   });
 
   // Advice shown on the Food screen. For now it is written by hand; later the AI helper fills it (v0.6).
@@ -705,6 +728,27 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     if (s['health.targets']) {
       const h = s['health.targets'];
       settings['health.targets'] = healthTargets(h);
+    }
+    // Written advice, the kitchen and rates typed by hand are the user's own too, so a backup keeps them.
+    // (The saved live rates are not restored: they are fetched again.)
+    const advice = (a, name) => {
+      if (!a || typeof a !== 'object') throw new HttpError(400, 'invalid', `The ${name} in the file is damaged.`);
+      return {
+        text: check.text(String(a.text ?? '').replace(/\r?\n/g, ' \u2028 '), name, { max: 6000 }).replace(/ \u2028 /g, '\n'),
+        by: check.text(a.by, 'by', { max: 60, required: false }) || 'You',
+        on: isDay(a.on) ? a.on : today()
+      };
+    };
+    if (s['budget.advice']) settings['budget.advice'] = advice(s['budget.advice'], 'budget advice');
+    if (s['food.advice']) settings['food.advice'] = advice(s['food.advice'], 'food advice');
+    if (s['food.kitchen']) {
+      const k = s['food.kitchen'];
+      const listed = (value) => (Array.isArray(value) ? value : []);
+      settings['food.kitchen'] = { equipment: EQUIPMENT.filter((e) => listed(k.equipment).includes(e)), pantry: INGREDIENTS.filter((x) => listed(k.pantry).includes(x)) };
+    }
+    if (s['currency.manual'] && typeof s['currency.manual'] === 'object') {
+      settings['currency.manual'] = Object.fromEntries(Object.keys(CURRENCIES).filter((code) => s['currency.manual'][code] !== undefined)
+        .map((code) => [code, check.number(s['currency.manual'][code], 'myrPerUnit', { min: 0.000001, max: 1e6 })]));
     }
 
     const units = list('units', 500).map((u) => ({

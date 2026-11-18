@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { accountSummary, addDays, budgetSummary, foodPeriods, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, foodPeriods, suggestMeals, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -280,6 +280,32 @@ test('food periods: today, the week and the month, counting only days with somet
   assert.deepEqual([p.month.logged, p.month.length, p.month.kcal], [4, 30, 8300]);
   // With no targets set, there is no verdict, only the numbers.
   assert.equal(foodPeriods({ day: '2026-11-18', targets: { kcal: 0, protein: 0 }, log }).week.daysOnTarget, null);
+});
+
+test('what to eat: recipes that fit what is left come first, protein counts more after a workout, missing things are costed', () => {
+  const ing = (item, cost) => ({ item, amount: '1', cost });
+  const recipes = [
+    { id: 'a', name: 'Chicken and rice', kcal: 600, protein: 45, equipment: ['Air fryer'], ingredients: [ing('Chicken', 4), ing('Rice', 0.4)] },
+    { id: 'b', name: 'Oats', kcal: 450, protein: 15, equipment: [], ingredients: [ing('Oats', 0.5), ing('Milk', 1.5)] },
+    { id: 'c', name: 'Big pasta', kcal: 1100, protein: 40, equipment: ['Stove'], ingredients: [ing('Pasta', 1)] }
+  ];
+  const kitchen = { equipment: ['Air fryer'], pantry: ['rice', 'Oats'] };
+  const s = suggestMeals({ recipes, kitchen, left: { kcal: 800, protein: 60 }, targets: { kcal: 2200, protein: 140 }, workedOut: true,
+    meals: [{ name: 'Shake', kcal: 130, protein: 25 }, { name: 'Whopper', kcal: 900, protein: 30 }, { name: 'My wrap', kcal: 400, protein: 20, mine: true }] });
+  assert.deepEqual(s.recipes.map((r) => r.id), ['a', 'b']);                     // 'c' needs a stove the kitchen does not have
+  assert.deepEqual(s.needsEquipment.map((r) => [r.id, r.lacks]), [['c', ['Stove']]]);
+  assert.deepEqual(s.recipes[0].missing.map((x) => x.item), ['Chicken']);        // the pantry match ignores capitals
+  assert.deepEqual([s.recipes[0].cost, s.recipes[0].toBuy], [4.4, 4]);
+  assert.deepEqual(s.recipes[0].why, ['fits the 800 kcal left', 'high protein after your workout', 'about RM 4.00 to buy']);
+  assert.deepEqual(s.quick.map((m) => m.name), ['My wrap', 'Shake']);           // your own first; the Whopper does not fit
+});
+
+test('what to eat with nothing set up: nothing is hidden, and each recipe still says what it needs', () => {
+  const recipes = [{ id: 'x', name: 'Stir-fry', kcal: 650, protein: 40, equipment: ['Stove'], ingredients: [{ item: 'Tofu', amount: '1', cost: 1.8 }] }];
+  const s = suggestMeals({ recipes, kitchen: { equipment: [], pantry: [] }, left: { kcal: 0, protein: 0 }, targets: { kcal: 0, protein: 0 } });
+  assert.equal(s.kitchenKnown, false);
+  assert.deepEqual([s.recipes.length, s.needsEquipment.length, s.recipes[0].lacks], [1, 0, ['Stove']]);
+  assert.deepEqual(s.recipes[0].why, ['about RM 1.80 to buy']);                  // no targets: no claim about fitting
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {

@@ -428,6 +428,15 @@ describe('food and health', () => {
     assert.equal((await app.call('PUT', '/api/food/advice', { text: null })).body.advice, null);
   });
 
+  test('food: the kitchen is saved, unknown names are dropped, and what to eat follows it', async () => {
+    const day = (await app.call('PUT', '/api/food/kitchen', { equipment: ['Air fryer', 'Rocket'], pantry: ['Rice', 'Gold'] })).body;
+    assert.deepEqual(day.plan.kitchen, { equipment: ['Air fryer'], pantry: ['Rice'] });
+    assert.ok(day.plan.recipes.every((r) => r.equipment.every((e) => e === 'Air fryer')));
+    assert.ok(day.plan.needsEquipment.length > 0);
+    assert.ok(![...day.plan.recipes, ...day.plan.needsEquipment].some((r) => /noodle|mee|maggi|pasta|spaghetti/i.test(r.name)));
+    assert.equal((await app.call('PUT', '/api/food/kitchen', { equipment: 'Air fryer', pantry: [] })).status, 400);
+  });
+
   test('food: a remembered food can be forgotten, and what was logged with it stays', async () => {
     const before = (await app.call('GET', '/api/food')).body;
     const id = before.foods.find((f) => f.name === 'Nasi lemak').id;
