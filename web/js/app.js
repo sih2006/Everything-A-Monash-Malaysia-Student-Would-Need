@@ -193,6 +193,16 @@ const COMMANDS = {
   deleteAccountMove: (f, d) => vm.deleteAccountMove(Number(d.id)),
 
   quickAddFood: (f, d) => vm.quickAddFood(d.id, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
+  quickAddPreset: (f, d) => vm.quickAddPreset(d.name, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
+  setFoodTab: (f, d) => vm.setFoodTab(d.tab),
+  readFoodPicture: async (f) => vm.readFoodPicture(await readPicture(f.picture)),
+  confirmFoodImport: (f) => {
+    const rows = [];
+    for (let i = 0; `food-${i}` in f; i++) {
+      if (f[`keep-${i}`] === 'on') rows.push({ food: f[`food-${i}`], kcal: f[`kcal-${i}`], protein: f[`protein-${i}`] });
+    }
+    return vm.confirmFoodImport(rows, f.meal ?? 'Snack');
+  },
   deleteFood: (f, d) => vm.deleteFood(d.id),
   forgetFood: (f, d) => vm.forgetFood(d.id),
 

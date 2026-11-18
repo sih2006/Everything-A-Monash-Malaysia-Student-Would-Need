@@ -8,6 +8,7 @@
 // tested with a fake API (see web/test/appViewModel.test.js).
 
 import { DEFAULT_SPAN, isSpan } from './expenses.js';
+import { isFoodTab } from './food.js';
 
 // The currencies amounts can be shown in. Ringgit first: it is what everything is stored and typed in.
 export const SHOW_IN = ['MYR', 'USD', 'OMR', 'CZK', 'CAD', 'IDR'];
@@ -60,6 +61,8 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     resultOrder: storage.get('resultOrder') ?? 'term', // how the finished units are ordered
     budgetTab: BUDGET_TABS.includes(storage.get('budgetTab')) ? storage.get('budgetTab') : 'all', // the Budget tab that is open
     budgetAccount: savedAccounts(storage.get('budgetAccount')),  // the account shown on Banking and on Investing: { banking: id, investing: id }
+    foodTab: isFoodTab(storage.get('foodTab')) ? storage.get('foodTab') : 'today',   // the Food tab that is open
+    foodImport: null,       // food read from a picture, waiting for the user to check: [{ food, kcal, protein }]
     expenseSpan: isSpan(storage.get('expenseSpan')) ? storage.get('expenseSpan') : DEFAULT_SPAN, // the period the Expenses tab looks back over
     currency: null,         // exchange rates from the backend; null until loaded, or when they could not load
     showIn: SHOW_IN.includes(storage.get('showIn')) ? storage.get('showIn') : 'MYR', // amounts on screen are shown in this currency
@@ -395,9 +398,39 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     saveFoodTargets: (f) => act('food', () => api.saveFoodTargets({ targetKcal: number(f.kcal, 'The calorie target'), targetProtein: number(f.protein, 'The protein target', { required: false }) ?? 0 }), 'Targets saved.'),
     logFood: (f) => act('food', () => api.logFood({ date: shown('food').date, food: f.food, meal: f.meal, remember: f.remember === 'on', kcal: number(f.kcal, 'Calories'), protein: number(f.protein, 'Protein', { required: false }) ?? 0 }), 'Food logged.'),
     quickAddFood(id, meal) {
-      const food = state.overview.food.foods.find((x) => x.id === Number(id));
+      const food = shown('food').foods.find((x) => x.id === Number(id));
       return act('food', () => api.logFood({ date: shown('food').date, food: food.name, kcal: food.kcal, protein: food.protein, meal }), `${food.name} logged.`);
     },
+    // A common meal: logged, and saved as one of your meals so its numbers can be corrected once.
+    quickAddPreset(name, meal) {
+      const food = shown('food').presets.find((x) => x.name === name);
+      if (!food) return Promise.resolve(false);
+      return act('food', () => api.logFood({ date: shown('food').date, food: food.name, kcal: food.kcal, protein: food.protein, meal, remember: true }), `${food.name} logged and saved to your meals.`);
+    },
+    setFoodTab(tab) {
+      state.foodTab = isFoodTab(tab) ? tab : 'today';
+      storage.set('foodTab', state.foodTab);
+      changed();
+    },
+    saveFoodAdvice: (text) => act('food', () => {
+      if (!String(text ?? '').trim()) throw new ApiError(400, 'invalid', 'Write some advice first, or remove it.');
+      return api.saveFoodAdvice(text, 'You');
+    }, 'Advice saved.'),
+    clearFoodAdvice: () => act('food', () => api.saveFoodAdvice(null), 'Advice removed.'),
+    // Reads food from a picture. Nothing is saved until the user has checked the list.
+    readFoodPicture: (picture) => act(null, async () => {
+      state.foodImport = (await api.readFoodPicture(picture.base64, picture.mimeType)).items;
+    }),
+    cancelFoodImport() { state.foodImport = null; changed(); },
+    confirmFoodImport: (rows, meal) => act('food', async () => {
+      let answer = null;
+      for (const row of rows) {
+        answer = await api.logFood({ date: shown('food').date, food: row.food, meal, remember: true,
+          kcal: number(row.kcal, `Calories for ${row.food}`), protein: number(row.protein, `Protein for ${row.food}`, { required: false }) ?? 0 });
+      }
+      state.foodImport = null;
+      return answer ?? shown('food');
+    }, 'Logged and saved to your meals.'),
     deleteFood: (id) => act('food', () => api.deleteFood(id), 'Entry removed.'),
     forgetFood: (id) => act('food', () => api.forgetFood(id), 'Removed from quick add.'),
 

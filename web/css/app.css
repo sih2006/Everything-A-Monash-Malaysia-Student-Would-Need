@@ -230,3 +230,8 @@ select.tool.currency { max-width: 4.6rem; }
 .currency-note { margin: 0 0 var(--s3); padding: var(--s2) var(--s3); border-radius: 12px; background: var(--track); font-size: .95rem; }
 .rates .inline-rate { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s2); margin-top: var(--s2); }
 .rates .inline-rate .field { flex: 1 1 12rem; }
+
+/* ----- Food ----- */
+.food-tabs { margin: var(--s3) 0; }
+.import-row { border: 0; padding: 0; margin: 0 0 var(--s3); display: grid; gap: var(--s2); grid-template-columns: auto 2fr 1fr 1fr; align-items: end; }
+@media (max-width: 699px) { .import-row { grid-template-columns: 1fr 1fr; } .import-row .tick { grid-column: 1 / -1; } }

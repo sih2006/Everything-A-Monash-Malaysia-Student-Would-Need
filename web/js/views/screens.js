@@ -8,6 +8,7 @@ import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending
 import { presentSpendingMap } from '../viewmodels/spendingMap.js';
 import { DEFAULT_SPAN, EXPENSE_SPANS, presentMonthlyTable, spanWords } from '../viewmodels/expenses.js';
 import { convertAll, presentRates } from '../viewmodels/currency.js';
+import { FOOD_TABS, groupPresets, presentFoodPeriods } from '../viewmodels/food.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -514,19 +515,19 @@ function couldCut(r, span, words) {
     </section>`;
 }
 
-function adviceCard(advice) {
+function adviceCard(advice, { save = 'saveAdvice', clear = 'clearAdvice', id = 'advice-edit', later = 'Later the AI helper will write this from your own numbers.' } = {}) {
   return `
     <section class="card advice">
       <div class="card-head"><h2>Advice</h2>${advice ? chip({ text: advice.by, tone: '' }) : ''}</div>
       ${advice ? `${advice.text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => line.startsWith('- ')
           ? `<p class="advice-tip">${esc(line.slice(2))}</p>` : `<p>${esc(line)}</p>`).join('')}
-        <p class="note">Written on ${esc(dayText(advice.on))}. Later the AI helper will write this from your own numbers.</p>`
-        : '<p class="note">No advice yet. Later the AI helper will write it from your spending. You can write your own below.</p>'}
-      ${fold('advice-edit', advice ? 'Change the advice' : 'Write advice', `
-        <form class="form" data-action="saveAdvice">
+        <p class="note">Written on ${esc(dayText(advice.on))}. ${later}</p>`
+        : `<p class="note">No advice yet. ${later} You can write your own below.</p>`}
+      ${fold(id, advice ? 'Change the advice' : 'Write advice', `
+        <form class="form" data-action="${save}">
           <label class="field"><span>Advice (start a line with "- " for a tip)</span><textarea name="text" rows="8" maxlength="6000">${esc(advice?.text ?? '')}</textarea></label>
           <button class="btn primary" type="submit">Save advice</button>
-          ${advice ? '<button type="button" class="link danger" data-action="clearAdvice">Remove the advice</button>' : ''}
+          ${advice ? `<button type="button" class="link danger" data-action="${clear}">Remove the advice</button>` : ''}
         </form>`)}
     </section>`;
 }
@@ -688,10 +689,21 @@ export function foodView(state) {
   const f = state.views.food ?? state.overview.food;
   const isCurrent = !state.views.food;
   const when = isCurrent ? 'today' : `on ${dayText(f.date)}`;
+  const tab = FOOD_TABS.some(([id]) => id === state.foodTab) ? state.foodTab : 'today';
+  const tabs = FOOD_TABS.filter(([id]) => FOOD_TAB_VIEWS[id]);
   return `
     ${pageHead('Food', f.hasTargets ? `Your daily targets are ${num(f.targetKcal)} kcal${f.targetProtein ? ` and ${num(f.targetProtein)} g of protein` : ''}.` : 'Set your own daily targets to get a verdict.', mood('t-food', 'Joel', f.mood))}
-    ${periodNav('food', isCurrent ? `Today, ${dayText(f.date)}` : dayText(f.date), isCurrent, 'day')}
+    <div class="seg food-tabs" role="group" aria-label="Food sections">
+      ${tabs.map(([id, label]) => `<button type="button" data-action="setFoodTab" data-tab="${id}" aria-pressed="${tab === id}">${label}</button>`).join('')}
+    </div>
+    ${(FOOD_TAB_VIEWS[tab] ?? foodToday)(f, state, isCurrent, when)}`;
+}
 
+// Today: the day's numbers, logging, quick add, reading a picture, and what was logged.
+function foodToday(f, state, isCurrent, when) {
+  const groups = groupPresets(f.presets);
+  return `
+    ${periodNav('food', isCurrent ? `Today, ${dayText(f.date)}` : dayText(f.date), isCurrent, 'day')}
     ${f.hasTargets ? `
     <section class="grid wide" aria-label="Today so far">
       <div class="card">
@@ -710,39 +722,45 @@ export function foodView(state) {
     </section>` : ''}
 
     <section class="card">
-      ${fold('food-targets', f.hasTargets ? 'Change your daily targets' : 'Set your daily targets', `
-        <form class="form" data-action="saveFoodTargets">
-          ${field('Calories (kcal)', 'kcal', `required inputmode="decimal" value="${f.targetKcal || ''}"`)}
-          ${field('Protein (g)', 'protein', `inputmode="decimal" value="${f.targetProtein || ''}"`, 'optional')}
-          <button class="btn primary" type="submit">Save targets</button>
-        </form>`, !f.hasTargets)}
-    </section>
-
-    <section class="card">
-      <h2>Log food</h2>
-      <form class="form" data-action="logFood">
-        ${field('Food', 'food', 'required maxlength="60" placeholder="Nasi lemak"')}
-        ${field('Calories (kcal)', 'kcal', 'required inputmode="decimal"')}
-        ${field('Protein (g)', 'protein', 'inputmode="decimal"', 'optional')}
-        ${select('Meal', 'meal', MEALS, 'Snack')}
-        <div class="field tick"><label><input type="checkbox" name="remember"> Remember for quick add</label></div>
-        <button class="btn primary" type="submit">Log</button>
-      </form>
-      ${f.foods.length ? `
-      <h3 class="label">Quick add</h3>
+      <h2>Quick add</h2>
       <div class="row">${select('Add to', 'quickMeal', MEALS, 'Snack')}</div>
+      ${f.foods.length ? `
+      <h3 class="label">Your meals</h3>
       <div class="quick">
         ${f.foods.map((q) => `
           <button type="button" data-action="quickAddFood" data-id="${q.id}">
             <strong>${esc(q.name)}</strong><span>${num(q.kcal)} kcal · ${num(q.protein)} g protein</span>
           </button>`).join('')}
-      </div>
-      ${fold('manage-foods', 'Change the quick-add list', `
+      </div>` : '<p class="note">Every meal you log is saved here, so the next time it is one press.</p>'}
+      ${groups.map((g) => fold(`presets-${g.name.toLowerCase().replace(/[^a-z]+/g, '-')}`, `Common meals: ${g.name}`, `
+        <div class="quick">
+          ${g.meals.map((q) => `
+            <button type="button" data-action="quickAddPreset" data-name="${esc(q.name)}">
+              <strong>${esc(q.name)}</strong><span>about ${num(q.kcal)} kcal · ${num(q.protein)} g protein</span>
+            </button>`).join('')}
+        </div>
+        <p class="note">Rough numbers for a usual portion, not official ones. A meal you log is saved as yours, and you can log it again with your own numbers to correct it.</p>`)).join('')}
+      ${f.foods.length ? fold('manage-foods', 'Change your meals', `
         <ul class="list">
           ${f.foods.map((q) => `<li><span>${esc(q.name)} <span class="dim">· ${num(q.kcal)} kcal</span></span>
-            <span class="end">${remove('forgetFood', `data-id="${q.id}"`, `Remove ${q.name} from quick add`)}</span></li>`).join('')}
+            <span class="end">${remove('forgetFood', `data-id="${q.id}"`, `Remove ${q.name} from your meals`)}</span></li>`).join('')}
         </ul>
-        <p class="note">Removing a food here does not change anything you already logged.</p>`)}` : ''}
+        <p class="note">To change a meal's numbers, log it again with the new numbers. Removing a meal here does not change anything you already logged.</p>`) : ''}
+    </section>
+
+    <section class="grid wide">
+      <div class="card">
+        <h2>Log food</h2>
+        <form class="form" data-action="logFood">
+          ${field('Food', 'food', 'required maxlength="60" placeholder="Nasi lemak"')}
+          ${field('Calories (kcal)', 'kcal', 'required inputmode="decimal"')}
+          ${field('Protein (g)', 'protein', 'inputmode="decimal"', 'optional')}
+          ${select('Meal', 'meal', MEALS, 'Snack')}
+          <div class="field tick"><label><input type="checkbox" name="remember" checked> Save to my meals</label></div>
+          <button class="btn primary" type="submit">Log</button>
+        </form>
+      </div>
+      ${foodPictureCard(f, state)}
     </section>
 
     <section class="card">
@@ -752,8 +770,66 @@ export function foodView(state) {
           <li><span><strong>${esc(e.food)}</strong> <span class="dim">· ${esc(e.meal)}</span></span>
           <span class="end">${num(e.kcal)} kcal <span class="dim">· ${num(e.protein)} g</span> ${remove('deleteFood', `data-id="${e.id}"`, `Remove ${e.food}`)}</span></li>`).join('')}
       </ul>`}
+    </section>
+
+    <section class="card">
+      ${fold('food-targets', f.hasTargets ? 'Change your daily targets' : 'Set your daily targets', `
+        <form class="form" data-action="saveFoodTargets">
+          ${field('Calories (kcal)', 'kcal', `required inputmode="decimal" value="${f.targetKcal || ''}"`)}
+          ${field('Protein (g)', 'protein', `inputmode="decimal" value="${f.targetProtein || ''}"`, 'optional')}
+          <button class="btn primary" type="submit">Save targets</button>
+        </form>`, !f.hasTargets)}
     </section>`;
 }
+
+// Read a meal from a photo or a nutrition label. The AI reads; the user checks every row before it is saved.
+function foodPictureCard(f, state) {
+  const items = state.foodImport;
+  if (items) {
+    return `
+      <div class="card">
+        <h2>Check what was read</h2>
+        ${items.length === 0 ? '<p class="note">No food could be read from that picture. Try a clearer photo, or the label.</p>' : `
+        <form class="form" data-action="confirmFoodImport">
+          ${items.map((it, i) => `
+            <fieldset class="import-row">
+              <label class="tick"><input type="checkbox" name="keep-${i}" checked> Keep</label>
+              ${field('Food', `food-${i}`, `required maxlength="60" value="${esc(it.food)}"`)}
+              ${field('kcal', `kcal-${i}`, `required inputmode="decimal" value="${it.kcal}"`)}
+              ${field('Protein (g)', `protein-${i}`, `inputmode="decimal" value="${it.protein}"`)}
+            </fieldset>`).join('')}
+          ${select('Meal', 'meal', MEALS, 'Snack')}
+          <button class="btn primary" type="submit">Log the kept rows</button>
+        </form>`}
+        <button type="button" class="link" data-action="cancelFoodImport">Cancel</button>
+      </div>`;
+  }
+  return `
+    <div class="card">
+      <h2>From a photo or label</h2>
+      ${f.ai ? `
+      <form class="form" data-action="readFoodPicture">
+        <label class="field"><span>A photo of the meal, or its nutrition label</span><input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required></label>
+        <button class="btn primary" type="submit">Read it</button>
+      </form>
+      <p class="note">The AI helper reads the picture and suggests the calories and protein. Nothing is saved until you have checked them.</p>`
+      : '<p class="note">This needs the AI helper, which is off: there is no Gemini key yet. It comes with v0.6 (see docs/handoff/gemini-setup.md). Everything else on this screen works without it.</p>'}
+    </div>`;
+}
+
+// Progress: today, this week and this month, and advice.
+function foodProgress(f) {
+  const cards = presentFoodPeriods(f.periods, { kcal: f.targetKcal, protein: f.targetProtein });
+  return `
+    <section class="grid stats" aria-label="How it is going">
+      ${cards.map((c) => `<div class="card ${c.tone}"><div class="label">${esc(c.title)}</div><div class="big">${esc(c.big)}</div><p class="note">${esc(c.note)}</p></div>`).join('')}
+    </section>
+    ${f.hasTargets ? '' : emptyCard('Set your daily targets', 'With a calorie target, and a protein target if you want one, each day, week and month says whether you are on track. Set them on the Today tab.')}
+    ${adviceCard(f.advice, { save: 'saveFoodAdvice', clear: 'clearFoodAdvice', id: 'food-advice-edit', later: 'Later the AI helper will write this from your food, workouts and health.' })}`;
+}
+
+// Which tabs exist, and what each one shows. "What to eat" and "Kitchen" are added with the recipes.
+const FOOD_TAB_VIEWS = { today: foodToday, progress: foodProgress };
 
 // ================= health =================
 
