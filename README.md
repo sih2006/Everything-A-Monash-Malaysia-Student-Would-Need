@@ -12,7 +12,7 @@ The name is not chosen yet, so the app shows `[APP NAME]`.
 |---|---|
 | **Grades** | Units, assessments, marks, hurdles and targets. For each unit: what you need on the rest, whether that is *possible*, and whether it is *realistic*. GPA, CGPA (Malaysia scale) and WAM, kept apart. Pass/fail units that never count. A what-if slider that moves the totals. A final goal that sets default targets. |
 | **Budget** | Bank, e-wallet, investing and cash accounts with a total. Money in, moves between accounts, a monthly limit and categories. An Expenses tab that looks back over a month, 3 months, a year or all time: what could be cut, a map of where the money goes, a month-by-month table, and advice. Amounts can be shown in USD, OMR, CZK, CAD or IDR. |
-| **Food** | Daily calorie and protein targets, a food log and quick add. |
+| **Food** | Daily calorie and protein targets and a food log. One-press quick add for your meals and common ones (Burger King, mamak, breakfast). Today, this week and this month. A kitchen, recipes with costs, and what to eat today. Reading a meal photo or label (with the AI helper). |
 | **Health** | Steps, sleep, heart rate, water, body weight with BMI, and workouts with exercises and best lifts, typed in by hand. |
 | **Map** | A life tree (years down the left, each area branching right, down to single days), and a path to the goal for each area. |
 | **Privacy** | Hide every number (marks and money) with one press. Download all your data to one file, load it back, or delete everything. |
@@ -40,7 +40,7 @@ The terminal program: `core/build/tracker` (on Windows: `core\build\tracker.exe`
 python tools/check.py
 ```
 
-This builds the core and runs all 299 tests: 106 for the C++ core (75 white-box with a leak check on each, 31 black-box), 119 for the backend and 74 for the web app. CI runs the same command on Linux for every pull request. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt).
+This builds the core and runs all 310 tests: 106 for the C++ core (75 white-box with a leak check on each, 31 black-box), 126 for the backend and 78 for the web app. CI runs the same command on Linux for every pull request. The output of the last run is in [docs/proofs/test-run.txt](docs/proofs/test-run.txt).
 
 ## How it is built
 

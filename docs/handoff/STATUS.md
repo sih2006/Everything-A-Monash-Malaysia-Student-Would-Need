@@ -6,7 +6,7 @@ What is built, what is tested, and what is known to be wrong. **Read it first**,
 
 ## In one paragraph
 
-The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 299 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
+The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 310 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
 
 ## How to run and check it
 
@@ -57,6 +57,20 @@ python tools/check.py                build and run every test
 | Also in this version | Pass/fail units; GPA, CGPA and WAM that follow the what-if sliders; more grade sorting; body weight with BMI, water, workouts with exercises and best lifts | Core, rule, API and view-model tests |
 
 The owner's real data (the transcript, bank statements, the e-wallet record, height, weight, the advice) is only in `backend/data/app.db`. None of it is in the repository, and the scripts that read the statements stay outside it too. Tests use made-up numbers.
+
+### v0.5 in progress: food
+
+| Part | What it does | Tests |
+|---|---|---|
+| Four Food tabs | **Today** (numbers, quick add, logging, reading a picture), **Progress**, **What to eat**, **Kitchen** | View-model and presenter tests, browser check |
+| Quick add | Your saved meals, then 23 common meals in groups (Burger King, other fast food, Malaysian, breakfast and snacks; no noodles). Every meal you log is saved by default | Rule, API and view-model tests |
+| Progress | Today, this week and this month: averages, days logged, days on target | Rule and presenter tests |
+| What to eat | 13 recipes with estimated costs, ranked by what is left of the day and by protein after a workout; set aside when the kitchen lacks the equipment; ready meals that fit | Rule and API tests |
+| Kitchen | Tick your equipment and the ingredients you keep | API and view-model tests |
+| Food advice | A placeholder for now; the AI helper writes it in v0.6 | API test |
+| Read a food picture | The AI helper reads a meal photo or a label; you check each row first | API test with a fake AI service |
+
+Also fixed: a backup now keeps the budget and food advice, the kitchen and rates typed by hand. Before, loading a backup dropped them.
 
 ### Started for v0.8: the Android app
 

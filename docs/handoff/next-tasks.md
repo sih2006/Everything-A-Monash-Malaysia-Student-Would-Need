@@ -20,7 +20,8 @@ The **Version** column says which version of the [roadmap](../03-plan/roadmap.md
 | A6 | **Turn on auto-add on the board:** on the [project board](https://github.com/users/sih2006/projects/1), open **Workflows**, then **Auto-add to project**, pick this repository, filter `is:issue`, turn it on. GitHub does not let a script do this. | now | A new issue appears on the board by itself |
 | A7 | **Protect `main`:** in the repository **Settings**, **Branches**, add a rule for `main` with **Require status checks to pass** and the check named `test`. | now | A pull request with a failing test cannot be merged |
 | A8 | **The health interview** for v0.4: what "complete" health means to you, and the health mascot. | 0.4 | New HEA requirements are in the PRD and on the board |
-| A9 | **The food interview** for v0.5: the Malaysian food list, meals and Joel's moods. | 0.5 | New NUT requirements are in the PRD and on the board |
+| A9 | **Fill in your kitchen and correct the common meals.** Tick your equipment and ingredients on Food, Kitchen. When you next eat a common meal (Burger King and so on), log it with the real numbers from the receipt or app, once; your version then replaces the estimate. | 0.5 | What to eat matches your kitchen, and your usual meals have real numbers |
+| A10 | **Set your food targets** on Food, Today. The app never picks them for you. | 0.5 | Progress gives a verdict for each day, week and month |
 
 ## B. Decisions only the owner can make
 
@@ -53,6 +54,7 @@ Each one is a small pull request.
 | # | Task | Version | Waits for |
 |---|---|---|---|
 | D5 | Run the AI features against the real Gemini API and fix what the first real run shows | 0.6 | A Gemini key ([gemini-setup.md](gemini-setup.md)) |
+| D8 | **AI food advice and reading food pictures with the real key:** the backend sends the week's food totals, targets and workouts (no names) and saves the answer as the food advice; check the picture reader on a real photo and label | 0.6 | A key |
 | D7 | **AI advice on the Expenses tab:** the backend sends the Could cut numbers (never the names of people paid) to the AI and saves the answer with `PUT /api/budget/advice` | 0.6 | B8 and a key |
 | D3 | The DynamoDB store, the Lambda entry point, Cognito login and the CDK code ([aws-setup.md](aws-setup.md)) | 0.7 | B3, and the AWS account |
 | D6 | Health Connect in the Android app, so steps, sleep and heart rate arrive without typing | 0.8 | C12 to C14 |

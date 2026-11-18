@@ -67,6 +67,13 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | NUT-04 | A food can be remembered and logged again with one press, and removed from that list. | Should | 0.2 | Built, tested |
 | NUT-05 | A log entry can be removed. | Must | 0.2 | Built, tested |
 | NUT-06 | A lookup of Malaysian foods with their calories. | Could | 0.5 | **Not built.** The capability map names it. Foods are typed in once instead. |
+| NUT-08 | Common meals for a student in Malaysia are ready for quick add (Burger King, other fast food, Malaysian plates, breakfast and snacks), with no noodle dishes. Their numbers are rough estimates and say so; a meal the user saves with their own numbers replaces it. | Should | 0.5 | Built, tested |
+| NUT-09 | Every meal the user logs is saved to their meals by default, so it is one press next time. | Should | 0.5 | Built, tested |
+| NUT-10 | Progress shows today, this week and this month: average calories and protein, days logged, and days on target when targets are set. Days with nothing logged are not counted. | Should | 0.5 | Built, tested |
+| NUT-11 | Advice on how the eating is going and what to do next. For now written by hand; later the AI helper writes it from food, workouts and health. | Should | 0.5 | Built, tested. The AI part is v0.6 |
+| NUT-12 | A photo of a meal, or its nutrition label, is read by the AI helper into food, calories and protein. The user checks every row before anything is logged. | Should | 0.5 | Built. Tested with a fake AI service only; the real run is v0.6 |
+| NUT-13 | The user records the equipment they have (air fryer, rice cooker and so on) and the ingredients they usually keep. | Should | 0.5 | Built, tested |
+| NUT-14 | "What to eat today": simple recipes (no noodles) with calories, protein, time, equipment and an estimated cost per ingredient, ranked by what is left of the day's targets, with protein first after a workout; recipes the kitchen cannot make are set aside, missing ingredients are listed with their cost, and ready meals that fit are offered. | Should | 0.5 | Built, tested. Costs are estimates |
 | NUT-07 | Another day can be viewed, and food can be logged on it. | Should | 0.2 | Built, tested |
 
 ## Health

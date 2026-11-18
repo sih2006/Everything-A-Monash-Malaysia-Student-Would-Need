@@ -10,7 +10,7 @@ Each version has one main theme. A version is finished when its theme works, its
 | **0.2** | **Study app.** The backend and the web app, with grades at the centre: GPA, CGPA and WAM, targets, what-if, screenshot import, export. | Done: [v0.2.0](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases/tag/v0.2.0) |
 | **0.3** | **Money.** Accounts, money in, budget tabs, Could cut, the spending map, looking back by period, other currencies, Hide numbers. | Done: [v0.3.0](https://github.com/sih2006/Everything-A-Monash-Malaysia-Student-Would-Need/releases/tag/v0.3.0) |
 | **0.4** | **Health.** Builds on the start in 0.3 (weight, BMI, water, workouts with exercises): steps, sleep and heart rate made complete, trends, and the health mascot. | Next |
-| **0.5** | **Food.** Builds on the simple food log: a Malaysian food list, meals, protein, and Joel's moods. | Planned |
+| **0.5** | **Food.** Quick add with common meals, today, the week and the month, a kitchen, recipes with costs, what to eat today, reading a food picture, and Joel's moods. | In progress |
 | **0.6** | **API integration.** The AI helper for real (study plan, screenshot import, spending advice on the Expenses tab), handbook lookup, future goals, and what people say about a unit. | Planned |
 | **0.7** | **Database and integration.** The data moves to a hosted database with a login, the parts are joined up, and the app works from the phone away from the laptop. Needs the hosting decision ([ADR-0005](../adr/0005-hosting.md)). | Planned |
 | **0.8** | **The phone app.** The native Android app ([ADR-0007](../adr/0007-native-android-app.md)) with every screen, and Health Connect. | Planned. Started in 0.3 |

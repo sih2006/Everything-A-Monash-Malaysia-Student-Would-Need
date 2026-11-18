@@ -117,7 +117,7 @@ Notes:
 - **Nothing worked out is stored.** GPA, verdicts, totals and summaries are calculated when asked for. So they can never be out of step with the marks.
 - **Deleting a unit deletes its assessments.** Deleting a budget category deletes its spending. The database enforces this (`ON DELETE CASCADE`).
 - **Days are text** in the form `YYYY-MM-DD`, worked out in Malaysian time. Text in that form sorts and compares correctly.
-- **`settings` keys:** `academics.currentTerm`, `academics.margin`, `academics.goal`, `academics.termDates`, `budget.limit`, `budget.advice`, `currency.rates` (the last rates fetched, "1 MYR = x"), `currency.manual` (rates typed by hand, "1 x = y MYR"), `food.targets`, `health.targets`.
+- **`settings` keys:** `academics.currentTerm`, `academics.margin`, `academics.goal`, `academics.termDates`, `budget.limit`, `budget.advice`, `currency.rates` (the last rates fetched, "1 MYR = x"), `currency.manual` (rates typed by hand, "1 x = y MYR"), `food.targets`, `food.advice`, `food.kitchen` (equipment and ingredients the user has), `health.targets`.
 - **An account's balance is not stored.** It is worked out from its moves, by day and then in the order entered. A `set` move means "it held exactly this much on this day": moves before it stop counting. A move between two of your own accounts is marked `transfer`, so it is never income or spending.
 - **There is one user**, so no table has a user column. Adding more users means adding one to every table (see section 4).
 - **Changes to the layout** are added as a new step at the end of `MIGRATIONS` in `backend/src/db.js`. The database remembers which steps it has run.
@@ -197,10 +197,13 @@ A change to grades returns the whole new grades report, so the screen can redraw
 
 | Method and address | Body | What it does |
 |---|---|---|
-| `GET /api/food?date=YYYY-MM-DD` | | The summary for a day (today if left out) |
+| `GET /api/food?date=YYYY-MM-DD` | | The summary for a day (today if left out), with `periods` (the day, its week and its month), `presets` (common meals for quick add), `plan` (the kitchen, recipes ranked for what is left, ready meals that fit) and `advice` |
 | `PUT /api/food/settings` | `targetKcal`, `targetProtein` | Sets the daily targets |
 | `POST /api/food/log` | `food`, `kcal`, `protein`, `meal`, `date`, `remember` | Logs a food. `remember: true` also saves it for quick add |
 | `DELETE /api/food/items/:id` | | Forgets a remembered food. What was logged with it stays |
+| `PUT /api/food/kitchen` | `equipment`, `pantry` (lists of names) | Saves the kitchen. Unknown names are dropped |
+| `PUT /api/food/advice` | `text` (or `null`), `by` | Saves the advice shown under Progress |
+| `POST /api/food/read-picture` | `image` (base64), `mimeType` | Food, calories and protein read from a photo or label by the AI helper. Saves nothing |
 | `DELETE /api/food/log/:id` | | Removes an entry |
 
 ### Health
