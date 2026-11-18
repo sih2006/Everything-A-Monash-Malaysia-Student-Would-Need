@@ -2,7 +2,7 @@
 
 What is built, what is tested, and what is known to be wrong. **Read it first**, and update it at the end of every piece of work.
 
-**Last updated:** 18 November 2026, at version 0.3.
+**Last updated:** 19 November 2026, at version 0.4.
 
 ## In one paragraph
 
@@ -59,7 +59,7 @@ python tools/check.py                build and run every test
 
 The owner's real data (the transcript, bank statements, the e-wallet record, height, weight, the advice) is only in `backend/data/app.db`. None of it is in the repository, and the scripts that read the statements stay outside it too. Tests use made-up numbers.
 
-### v0.4 in progress: food
+### v0.4: food
 
 | Part | What it does | Tests |
 |---|---|---|

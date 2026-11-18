@@ -67,7 +67,7 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | NUT-03 | The app shows eaten, left, and whether the day is on or over target. Exactly on target is not over. | Must | 0.2 | Built, tested |
 | NUT-04 | A food can be remembered and logged again with one press, and removed from that list. | Should | 0.2 | Built, tested |
 | NUT-05 | A log entry can be removed. | Must | 0.2 | Built, tested |
-| NUT-06 | A lookup of Malaysian foods with their calories. | Could | 0.4 | **Not built.** The capability map names it. Foods are typed in once instead. |
+| NUT-06 | A lookup of Malaysian foods with their calories. | Could | 0.6 | **Not built.** Moved from 0.4 to 0.6 by the owner on 19 November, as a lookup in a public food database. Until then, a food is typed in once and saved. |
 | NUT-08 | The owner's usual meals are ready for quick add (Burger King value meal and fries, kebab and shawarma, nasi lemak, nasi goreng ayam, ayam gepuk, chicken tandoori, fast food, eggs, a protein shake with milk, cheesy garlic bread), with no noodles, oats, Milo or teh tarik. Their numbers are rough estimates and say so; a meal the user saves with their own numbers replaces it. | Should | 0.4 | Built, tested |
 | NUT-09 | Every meal the user logs is saved to their meals by default, so it is one press next time. | Should | 0.4 | Built, tested |
 | NUT-10 | Progress shows today, this week and this month: average calories and protein, days logged, and days on target when targets are set. Days with nothing logged are not counted. | Should | 0.4 | Built, tested |
