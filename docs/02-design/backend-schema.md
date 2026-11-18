@@ -197,7 +197,7 @@ A change to grades returns the whole new grades report, so the screen can redraw
 
 | Method and address | Body | What it does |
 |---|---|---|
-| `GET /api/food?date=YYYY-MM-DD` | | The summary for a day (today if left out), with `periods` (the day, its week and its month), `presets` (common meals for quick add), `plan` (the kitchen, recipes ranked for what is left, ready meals that fit) and `advice` |
+| `GET /api/food?date=YYYY-MM-DD` | | The summary for a day (today if left out), with `periods` (the day, its week and its month), `presets` (common meals for quick add), `plan` (the kitchen, and home-cooked recipes ranked for what is left) and `advice` |
 | `PUT /api/food/settings` | `targetKcal`, `targetProtein` | Sets the daily targets |
 | `POST /api/food/log` | `food`, `kcal`, `protein`, `meal`, `date`, `remember` | Logs a food. `remember: true` also saves it for quick add |
 | `DELETE /api/food/items/:id` | | Forgets a remembered food. What was logged with it stays |
