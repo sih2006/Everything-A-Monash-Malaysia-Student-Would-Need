@@ -192,6 +192,23 @@ export function spendingSpans({ categories, transactions, month }) {
   return spans;
 }
 
+// Regular expenses to suggest for one-press adding: the same place at the same amount at least twice in the
+// spending given (the caller passes the last 90 days). Ones already saved are left out, also when the saved
+// name only contains the bank's name ("Burger King: Chick'n Crisp meal" saved, "Burger King" spent). Most frequent first.
+export function suggestRegulars(transactions, saved = []) {
+  const isSaved = (g) => saved.some((r) => r.amount === g.amount && (r.name.toLowerCase().includes(g.name.toLowerCase()) || g.name.toLowerCase().includes(r.name.toLowerCase())));
+  const groups = new Map();
+  for (const t of transactions) {
+    const key = `${t.what.toLowerCase()}|${t.amount}`;
+    const g = groups.get(key) ?? { name: t.what, amount: t.amount, category: t.category, account: t.account ?? null, count: 0, last: t.date };
+    g.count += 1;
+    if (t.date >= g.last) { g.last = t.date; g.category = t.category; g.account = t.account ?? null; }
+    groups.set(key, g);
+  }
+  return [...groups.values()].filter((g) => g.count >= 2 && !isSaved(g))
+    .sort((a, b) => b.count - a.count || b.amount - a.amount).slice(0, 8);
+}
+
 // Money that came in during a month: every "in" move except moves between your own accounts.
 // Grouped by where it came from (the note), biggest first. Net is what is left after the month's spending.
 export function incomeSummary(moves, month, spent) {
@@ -262,6 +279,112 @@ export function foodSummary({ date, targets, log, foods }) {
     tone: over ? 'warn' : 'good',
     mood: targets.kcal <= 0 ? 'waiting' : over ? 'concerned' : targets.protein > 0 && proteinLeft === 0 ? 'proud' : targets.protein > 0 ? 'wants more protein' : 'pleased',
     log, meals, foods
+  };
+}
+
+// How the eating is going over a day, the week (Monday to Sunday) and the month that hold `day`.
+// Only days with something logged count, so a forgotten day does not look like a day of fasting.
+// "On target" means at or under the calorie target; protein is met when it reaches its target.
+export function foodPeriods({ day, targets, log }) {
+  const days = new Map();
+  for (const e of log) {
+    const d = days.get(e.date) ?? { kcal: 0, protein: 0 };
+    d.kcal += e.kcal;
+    d.protein += e.protein;
+    days.set(e.date, d);
+  }
+  const week = weekRange(day);
+  const month = monthRange(day.slice(0, 7));
+  const sum = (from, to, length) => {
+    const inside = [...days].filter(([d]) => d >= from && d <= to && d <= day).map(([, v]) => v);
+    const logged = inside.length;
+    const kcal = Math.round(inside.reduce((s, v) => s + v.kcal, 0));
+    const protein = Math.round(inside.reduce((s, v) => s + v.protein, 0));
+    return {
+      from, to, length, logged, kcal, protein,
+      averageKcal: logged ? Math.round(kcal / logged) : 0,
+      averageProtein: logged ? Math.round(protein / logged) : 0,
+      daysOnTarget: targets.kcal > 0 ? inside.filter((v) => v.kcal <= targets.kcal).length : null,
+      daysProteinMet: targets.protein > 0 ? inside.filter((v) => v.protein >= targets.protein).length : null
+    };
+  };
+  return { day: sum(day, day, 1), week: sum(week.from, week.to, 7), month: sum(month.from, month.to, month.days) };
+}
+
+// What to eat today. Recipes are ranked by how well they fit what is left of the day's targets, with protein
+// counting more after a workout or when protein is still short, and fewer things to buy counting a little.
+// A recipe that needs equipment the user does not have is moved to `needsEquipment`, unless the kitchen
+// has not been filled in yet (then nothing is moved, and each recipe says what it needs).
+// Only home cooking is suggested, never takeout: the owner's choice.
+// `preferences.avoid` lists foods the user does not eat (words such as "cucumber"). A recipe where one is only
+// an optional side is kept without it; a recipe that needs one is left out. `preferences.priority` decides what
+// counts most after fitting the day: "protein" (the default), "cost" or "time".
+export const FOOD_PRIORITIES = ['protein', 'cost', 'time'];
+const avoids = (text, avoid) => avoid.some((word) => text.toLowerCase().includes(word.toLowerCase()));
+export function suggestMeals({ recipes, kitchen, left, targets, workedOut = false, preferences = { avoid: [], priority: 'protein' } }) {
+  const avoid = preferences.avoid ?? [];
+  let skipped = 0;
+  recipes = recipes.flatMap((r) => {
+    if (avoids(r.name, avoid) || r.ingredients.some((x) => !x.optional && avoids(x.item, avoid))) { skipped += 1; return []; }
+    const without = r.ingredients.filter((x) => x.optional && avoids(x.item, avoid));
+    return [{ ...r, ingredients: r.ingredients.filter((x) => !without.includes(x)), without: without.map((x) => x.item.toLowerCase()) }];
+  });
+  const kitchenKnown = kitchen.equipment.length > 0 || kitchen.pantry.length > 0;
+  const has = new Set(kitchen.pantry.map((x) => x.toLowerCase()));
+  const tools = new Set(kitchen.equipment);
+  const hasTargets = targets.kcal > 0;
+  const proteinShort = targets.protein > 0 && left.protein > 0;
+  const proteinWeight = workedOut || proteinShort ? 2 : 1;
+  const fits = (kcal) => !hasTargets || kcal <= Math.max(0, left.kcal);
+  const ranked = recipes.map((r) => {
+    const missing = r.ingredients.filter((x) => !has.has(x.item.toLowerCase()));
+    const cost = round2(r.ingredients.reduce((sum, x) => sum + x.cost, 0));
+    const toBuy = round2(missing.reduce((sum, x) => sum + x.cost, 0));
+    const lacks = r.equipment.filter((e) => !tools.has(e));
+    // Things to buy count only a little: the owner is happy to shop, so the best meal should win, not the cheapest.
+    // The chosen priority adds its own pull: protein per calorie, a low cost, or a short time.
+    const priority = preferences.priority ?? 'protein';
+    const score = (r.protein / r.kcal) * 100 * proteinWeight * (priority === 'protein' ? 1.5 : 1) + (fits(r.kcal) ? 10 : -20) - toBuy * 0.3
+      - (priority === 'cost' ? cost * 2 : 0) - (priority === 'time' ? r.minutes * 0.8 : 0);
+    const why = [];
+    if (hasTargets) why.push(fits(r.kcal) ? `fits the ${Math.max(0, Math.round(left.kcal))} kcal left` : `more than the ${Math.max(0, Math.round(left.kcal))} kcal left`);
+    if (workedOut && r.protein >= 30) why.push('high protein after your workout');
+    else if (proteinShort && r.protein >= 30) why.push(`helps with the ${Math.round(left.protein)} g protein still to go`);
+    why.push(missing.length === 0 ? 'you have everything' : `about RM ${toBuy.toFixed(2)} to buy`);
+    if (r.without.length) why.push(`without ${r.without.join(' or ')}`);
+    return { ...r, fits: fits(r.kcal), cost, toBuy, missing, lacks, why, score: round2(score) };
+  }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  return {
+    kitchenKnown, workedOut, left, hasTargets,
+    recipes: kitchenKnown ? ranked.filter((r) => r.lacks.length === 0) : ranked,
+    needsEquipment: kitchenKnown ? ranked.filter((r) => r.lacks.length > 0) : [],
+    skipped                                     // recipes left out because they need a food the user does not eat
+  };
+}
+
+// Daily calories and protein worked out from the user's own weight goal. It only suggests: the user decides
+// whether to use them. Energy use is the Mifflin-St Jeor estimate times an activity factor; a kilogram of fat
+// is taken as about 7,700 kcal. The pace is judged against a common guide of up to about 1% of body weight a
+// week. Calories never go below a floor (1,500 for men, 1,200 for women); when the goal would need less, the
+// floor is used and the answer says the goal date is out of reach at a safe intake.
+export const ACTIVITY = { low: 1.2, light: 1.375, moderate: 1.55, high: 1.725 };
+export function targetsFromGoal({ weightKg, heightCm, goalKg, age, sex, activity, weeks }) {
+  const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + (sex === 'female' ? -161 : 5);
+  const maintenance = Math.round(bmr * ACTIVITY[activity]);
+  const toLose = round2(weightKg - goalKg);
+  const weekly = round2(toLose / weeks);
+  const deficit = Math.round((weekly * 7700) / 7);
+  const floor = sex === 'female' ? 1200 : 1500;
+  const wanted = Math.round((maintenance - deficit) / 10) * 10;
+  const calories = Math.max(floor, wanted);
+  const percent = round2((weekly / weightKg) * 100);
+  return {
+    maintenance, toLose, weekly, deficit, calories, floorUsed: wanted < floor,
+    protein: Math.round(weightKg * 1.8 / 5) * 5,        // a common guide for keeping muscle while losing fat: 1.6 to 2.2 g per kg
+    percentPerWeek: percent,
+    pace: toLose <= 0 ? 'none' : percent <= 1 ? 'realistic' : percent <= 1.5 ? 'aggressive' : 'too fast',
+    // How many weeks the same loss takes at a steady 0.75% of body weight a week.
+    steadyWeeks: toLose > 0 ? Math.ceil(toLose / (weightKg * 0.0075)) : 0
   };
 }
 

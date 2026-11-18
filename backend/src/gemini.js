@@ -60,6 +60,25 @@ export function createGemini({ apiKey, model = 'gemini-2.5-flash', fetchImpl = f
       return ask([{ text: prompt }]);
     },
 
+    // Reads food from a photo of a meal or a nutrition label. Returns [{ food, kcal, protein }] for the user to check.
+    async readMeal(base64, mimeType) {
+      const prompt =
+        'This picture shows food, a meal, a menu item or a nutrition label. ' +
+        'Return a JSON array. Each item has: "food" (a short name), "kcal" (calories for the portion shown, as a number) ' +
+        'and "protein" (grams of protein for that portion, as a number, or null if you cannot tell). ' +
+        'If it is a nutrition label, use the numbers printed on it. If it is a photo, estimate a usual portion. ' +
+        'At most 8 items. Do not add anything that is not in the picture.';
+      const text = await ask([{ text: prompt }, { inlineData: { mimeType, data: base64 } }], { json: true });
+      let items;
+      try { items = JSON.parse(text); } catch { items = null; }
+      if (!Array.isArray(items)) throw new HttpError(502, 'ai_unreadable', 'The AI helper could not read any food from that picture.');
+      const amount = (value, max) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max ? Math.round(value) : null);
+      return items
+        .filter((item) => item && typeof item.food === 'string' && item.food.trim() !== '' && amount(item.kcal, 5000) !== null)
+        .slice(0, 8)
+        .map((item) => ({ food: item.food.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 60), kcal: amount(item.kcal, 5000), protein: amount(item.protein, 500) ?? 0 }));
+    },
+
     // Reads assessments and marks from a picture. Returns [{ name, weight, score, max }].
     async readScreenshot(base64, mimeType) {
       const prompt =

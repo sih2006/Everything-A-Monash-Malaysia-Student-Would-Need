@@ -145,6 +145,29 @@ describe('a damaged or edited file', () => {
     assert.equal((await app.call('GET', '/api/export')).body.units.length, 0);
   });
 
+  test('advice, the kitchen, food preferences and goal answers, and rates typed by hand survive a download and a load', async () => {
+    const fresh = await start();
+    await fresh.call('POST', '/api/demo');
+    await fresh.call('PUT', '/api/budget/advice', { text: 'Cook more.\n- Fewer deliveries.', by: 'Test' });
+    await fresh.call('PUT', '/api/food/advice', { text: 'More protein.', by: 'Test' });
+    await fresh.call('PUT', '/api/food/kitchen', { equipment: ['Air fryer', 'Rice cooker'], pantry: ['Rice', 'Eggs'] });
+    await fresh.call('PUT', '/api/currency/manual', { code: 'USD', myrPerUnit: 4.2 });
+    await fresh.call('PUT', '/api/food/preferences', { avoid: ['cucumber'], priority: 'time' });
+    const category = (await fresh.call('GET', '/api/budget')).body.categories[0].name;
+    const account = (await fresh.call('GET', '/api/budget')).body.money.accounts[0];
+    await fresh.call('POST', '/api/budget/regulars', { name: 'Rent', amount: 1200, category, accountId: account.id });
+    await fresh.call('PUT', '/api/health/days/2026-11-19', { weightKg: 90 });
+    const health = (await fresh.call('GET', '/api/health')).body;
+    await fresh.call('PUT', '/api/health/settings', { stepTarget: health.stepTarget, sleepTargetMinutes: health.sleepTargetMinutes, workoutTarget: health.workoutTarget, heightCm: 180, weightGoalKg: 80 });
+    assert.equal((await fresh.call('POST', '/api/food/goal-targets', { age: 20, sex: 'male', activity: 'light', weeks: 10 })).status, 200);
+    const file = (await fresh.call('GET', '/api/export')).body;
+    await fresh.call('DELETE', '/api/data', { confirm: 'delete everything' });
+    assert.equal((await fresh.call('POST', '/api/import', file)).status, 200);
+    const back = (await fresh.call('GET', '/api/export')).body.settings;
+    for (const key of ['budget.advice', 'budget.regulars', 'food.advice', 'food.kitchen', 'food.preferences', 'food.profile', 'currency.manual']) assert.deepEqual(back[key], file.settings[key], key);
+    await fresh.close();
+  });
+
   test('the good file still loads after all of that', async () => {
     assert.equal((await app.call('POST', '/api/import', good)).status, 200);
   });

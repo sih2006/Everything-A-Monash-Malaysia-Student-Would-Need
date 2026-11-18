@@ -7,11 +7,13 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodPeriods, foodSummary, suggestRegulars, suggestMeals, targetsFromGoal, ACTIVITY, FOOD_PRIORITIES, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
 import { CURRENCIES, RATES_SOURCE, RatesUnavailable } from './rates.js';
+import { PRESET_MEALS } from './meals.js';
+import { EQUIPMENT, INGREDIENTS, RECIPES } from './recipes.js';
 import { loadDemo } from './seed.js';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -237,6 +239,9 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
       spans,
       byMonth: monthlySpending(upToMonth),
       advice: store.getSetting('budget.advice', null),
+      // Regular expenses for one-press adding, and ones suggested from the last 90 days of spending.
+      regulars: store.getSetting('budget.regulars', []),
+      suggestedRegulars: suggestRegulars(store.listTransactions(addDays(today(), -90), today()), store.getSetting('budget.regulars', [])),
       // Balances are always as they are now, whichever month is being looked at.
       money: accountSummary(store.listAccounts(), moves)
     };
@@ -293,6 +298,33 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     if (other && other.id !== check.id(params.id)) throw new HttpError(409, 'exists', `There is already a category called ${fields.name}.`, 'name');
     if (Object.keys(fields).length && !store.updateCategory(check.id(params.id), fields)) throw new HttpError(404, 'not_found', 'That category does not exist.');
     return budgetFor(today().slice(0, 7));
+  });
+
+  // Regular expenses: a name, an amount, a category and the account it is usually paid from.
+  const regularFrom = (body) => {
+    const category = store.getCategoryByName(check.text(body.category, 'category', { max: 30 }));
+    if (!category) throw new HttpError(400, 'invalid', 'Pick one of your categories.', 'category');
+    // The account is kept by name, so it survives a backup being loaded (accounts get new ids then).
+    const account = body.accountId === undefined || body.accountId === null || body.accountId === '' ? null : mustFindAccount(check.id(body.accountId)).name;
+    return {
+      name: check.text(body.name, 'name', { max: 60 }),
+      amount: Math.round(check.number(body.amount, 'amount', { min: 0.01, max: 1e6 }) * 100) / 100,
+      category: category.name, account
+    };
+  };
+  route('POST', '/api/budget/regulars', ({ body }) => {
+    const list = store.getSetting('budget.regulars', []);
+    if (list.length >= 30) throw new HttpError(400, 'invalid', 'You can keep up to 30 regular expenses. Remove one first.');
+    const id = list.reduce((max, r) => Math.max(max, r.id), 0) + 1;
+    store.setSetting('budget.regulars', [...list, { id, ...regularFrom(body) }]);
+    return budgetNow();
+  });
+  route('DELETE', '/api/budget/regulars/:id', ({ params }) => {
+    const id = check.id(params.id);
+    const list = store.getSetting('budget.regulars', []);
+    if (!list.some((r) => r.id === id)) throw new HttpError(404, 'not_found', 'That regular expense does not exist.');
+    store.setSetting('budget.regulars', list.filter((r) => r.id !== id));
+    return budgetNow();
   });
 
   // Advice shown on the Expenses tab. For now it is written by hand (by Claude); later the AI helper fills it.
@@ -401,12 +433,31 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
 
   // ================= food =================
 
-  const foodFor = (date) => foodSummary({
-    date,
-    targets: store.getSetting('food.targets', { kcal: 0, protein: 0 }),
-    log: store.listFoodLog(date),
-    foods: store.listFoods()
-  });
+  const foodFor = (date) => {
+    const targets = store.getSetting('food.targets', { kcal: 0, protein: 0 });
+    const foods = store.listFoods();
+    const yours = new Set(foods.map((f) => f.name.toLowerCase()));
+    return {
+      ...foodSummary({ date, targets, log: store.listFoodLog(date), foods }),
+      // Today, this week and this month. Only the month that holds `date` is needed.
+      periods: foodPeriods({ day: date, targets, log: store.listFoodLogAll().filter((e) => e.date.slice(0, 7) === date.slice(0, 7)) }),
+      // Common meals for quick add, except any the user has saved with their own numbers.
+      presets: PRESET_MEALS.filter((m) => !yours.has(m.name.toLowerCase()) && !(store.getSetting('food.preferences', { avoid: [] }).avoid ?? []).some((w) => m.name.toLowerCase().includes(w.toLowerCase()))),
+      profile: store.getSetting('food.profile', null),
+      advice: store.getSetting('food.advice', null),
+      ai: gemini.configured,
+      plan: foodPlan(date, targets)
+    };
+  };
+  // What to eat: the kitchen, and home-cooked recipes ranked for what is left of the day.
+  function foodPlan(date, targets) {
+    const kitchen = store.getSetting('food.kitchen', { equipment: [], pantry: [] });
+    const eaten = store.listFoodLog(date).reduce((t, e) => ({ kcal: t.kcal + e.kcal, protein: t.protein + e.protein }), { kcal: 0, protein: 0 });
+    const left = { kcal: targets.kcal - eaten.kcal, protein: Math.max(0, targets.protein - eaten.protein) };
+    const workedOut = store.listWorkouts(date, date).length > 0;
+    const preferences = store.getSetting('food.preferences', { avoid: [], priority: 'protein' });
+    return { ...suggestMeals({ recipes: RECIPES, kitchen, left, targets, workedOut, preferences }), kitchen, preferences, priorities: FOOD_PRIORITIES, equipment: EQUIPMENT, ingredients: INGREDIENTS };
+  }
 
   route('GET', '/api/food', ({ query }) => foodFor(dayOf(query.get('date') ?? undefined)));
 
@@ -432,6 +483,64 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     if (body.remember === true) store.insertFood({ name: entry.food, kcal: entry.kcal, protein: entry.protein });
     return foodFor(entry.date);
   });
+
+  // The kitchen: the equipment the user has and the ingredients they keep. Only known names are kept.
+  route('PUT', '/api/food/kitchen', ({ body }) => {
+    const pick = (value, known, name) => {
+      if (!Array.isArray(value)) throw new HttpError(400, 'invalid', `${name} must be a list.`, name);
+      return known.filter((k) => value.includes(k));
+    };
+    store.setSetting('food.kitchen', { equipment: pick(body.equipment, EQUIPMENT, 'equipment'), pantry: pick(body.pantry, INGREDIENTS, 'pantry') });
+    return foodFor(today());
+  });
+
+  // Food preferences: foods the user does not eat, and what counts most when suggesting recipes.
+  route('PUT', '/api/food/preferences', ({ body }) => {
+    if (!Array.isArray(body.avoid)) throw new HttpError(400, 'invalid', 'The foods to avoid must be a list.', 'avoid');
+    const avoid = [...new Set(body.avoid.map((w) => check.text(w, 'avoid', { max: 30 }).toLowerCase()))].slice(0, 20);
+    const priority = FOOD_PRIORITIES.includes(body.priority) ? body.priority : 'protein';
+    store.setSetting('food.preferences', { avoid, priority });
+    return foodFor(today());
+  });
+
+  // Targets worked out from the weight goal in Health settings. It only suggests; nothing changes until the
+  // user saves the targets. The answers (age, sex, activity, weeks) are kept so the form remembers them.
+  route('POST', '/api/food/goal-targets', ({ body }) => {
+    const health = store.getSetting('health.targets', {});
+    const latest = store.listHealthDays('0000-01-01', today()).filter((d) => d.weightKg).at(-1);
+    if (!latest) throw new HttpError(400, 'invalid', 'Log your body weight on Health first.');
+    if (!health.heightCm) throw new HttpError(400, 'invalid', 'Add your height in the Health settings first.');
+    if (!health.weightGoalKg) throw new HttpError(400, 'invalid', 'Set a goal weight in the Health settings first.');
+    if (!['male', 'female'].includes(body.sex)) throw new HttpError(400, 'invalid', 'Pick male or female: the energy formula differs.', 'sex');
+    if (!ACTIVITY[body.activity]) throw new HttpError(400, 'invalid', 'Pick how active you are.', 'activity');
+    const profile = {
+      age: check.number(body.age, 'age', { min: 15, max: 90, whole: true }), sex: body.sex, activity: body.activity,
+      weeks: check.number(body.weeks, 'weeks', { min: 1, max: 104, whole: true })
+    };
+    store.setSetting('food.profile', profile);
+    return { profile, weightKg: latest.weightKg, goalKg: health.weightGoalKg, ...targetsFromGoal({ weightKg: latest.weightKg, heightCm: health.heightCm, goalKg: health.weightGoalKg, ...profile }) };
+  });
+
+  // Advice shown on the Food screen. For now it is written by hand; later the AI helper fills it (v0.6).
+  route('PUT', '/api/food/advice', ({ body }) => {
+    if (body.text === null) store.setSetting('food.advice', null);
+    else store.setSetting('food.advice', {
+      text: check.text(String(body.text ?? '').replace(/\r?\n/g, ' \u2028 '), 'text', { max: 6000 }).replace(/ \u2028 /g, '\n'),
+      by: check.text(body.by, 'by', { max: 60, required: false }) || 'You',
+      on: today()
+    });
+    return foodFor(today());
+  });
+
+  // Reads food from a photo or a nutrition label. Nothing is saved: the user checks the list first.
+  route('POST', '/api/food/read-picture', async ({ body }) => {
+    const mimeType = check.text(body.mimeType, 'mimeType', { max: 20 });
+    if (!IMAGE_TYPES.includes(mimeType)) throw new HttpError(400, 'invalid', 'The picture must be a PNG, JPEG or WebP file.', 'mimeType');
+    if (typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+=*$/.test(body.image) || body.image.length < 100) {
+      throw new HttpError(400, 'invalid', 'The picture did not arrive properly. Choose the file again.', 'image');
+    }
+    return { items: await gemini.readMeal(body.image, mimeType) };
+  }, PICTURE);
 
   // Forgets a remembered food. Entries already logged with it are kept.
   route('DELETE', '/api/food/items/:id', ({ params }) => {
@@ -675,6 +784,48 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     if (s['health.targets']) {
       const h = s['health.targets'];
       settings['health.targets'] = healthTargets(h);
+    }
+    // Written advice, the kitchen and rates typed by hand are the user's own too, so a backup keeps them.
+    // (The saved live rates are not restored: they are fetched again.)
+    const advice = (a, name) => {
+      if (!a || typeof a !== 'object') throw new HttpError(400, 'invalid', `The ${name} in the file is damaged.`);
+      return {
+        text: check.text(String(a.text ?? '').replace(/\r?\n/g, ' \u2028 '), name, { max: 6000 }).replace(/ \u2028 /g, '\n'),
+        by: check.text(a.by, 'by', { max: 60, required: false }) || 'You',
+        on: isDay(a.on) ? a.on : today()
+      };
+    };
+    if (s['budget.advice']) settings['budget.advice'] = advice(s['budget.advice'], 'budget advice');
+    if (s['food.advice']) settings['food.advice'] = advice(s['food.advice'], 'food advice');
+    if (Array.isArray(s['budget.regulars'])) {
+      settings['budget.regulars'] = s['budget.regulars'].slice(0, 30).map((r, n) => ({
+        id: n + 1,
+        name: check.text(r.name, 'name', { max: 60 }),
+        amount: Math.round(check.number(r.amount, 'amount', { min: 0.01, max: 1e6 }) * 100) / 100,
+        category: check.text(r.category, 'category', { max: 30 }),
+        account: check.text(r.account, 'account', { max: 30, required: false }) || null
+      }));
+    }
+    if (s['food.preferences'] && typeof s['food.preferences'] === 'object') {
+      const fp = s['food.preferences'];
+      settings['food.preferences'] = {
+        avoid: (Array.isArray(fp.avoid) ? fp.avoid : []).slice(0, 20).map((w) => check.text(w, 'avoid', { max: 30 }).toLowerCase()),
+        priority: FOOD_PRIORITIES.includes(fp.priority) ? fp.priority : 'protein'
+      };
+    }
+    if (s['food.profile'] && typeof s['food.profile'] === 'object') {
+      const fp = s['food.profile'];
+      if (!['male', 'female'].includes(fp.sex) || !ACTIVITY[fp.activity]) throw new HttpError(400, 'invalid', 'The food profile in the file is damaged.');
+      settings['food.profile'] = { age: check.number(fp.age, 'age', { min: 15, max: 90, whole: true }), sex: fp.sex, activity: fp.activity, weeks: check.number(fp.weeks, 'weeks', { min: 1, max: 104, whole: true }) };
+    }
+    if (s['food.kitchen']) {
+      const k = s['food.kitchen'];
+      const listed = (value) => (Array.isArray(value) ? value : []);
+      settings['food.kitchen'] = { equipment: EQUIPMENT.filter((e) => listed(k.equipment).includes(e)), pantry: INGREDIENTS.filter((x) => listed(k.pantry).includes(x)) };
+    }
+    if (s['currency.manual'] && typeof s['currency.manual'] === 'object') {
+      settings['currency.manual'] = Object.fromEntries(Object.keys(CURRENCIES).filter((code) => s['currency.manual'][code] !== undefined)
+        .map((code) => [code, check.number(s['currency.manual'][code], 'myrPerUnit', { min: 0.000001, max: 1e6 })]));
     }
 
     const units = list('units', 500).map((u) => ({

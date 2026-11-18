@@ -120,7 +120,7 @@ Each of these is unconfirmed until the author approves this document.
 
 ## Later releases
 
-The versions after 0.2 follow the [roadmap](../03-plan/roadmap.md): 0.3 money, 0.4 health, 0.5 food, 0.6 API integration, 0.7 database and integration, 0.8 the phone app, 0.9 full testing, 1.0 UI and UX polish. The epics below are not yet broken into stories. Each one is interviewed and specified when its version comes up.
+The versions after 0.2 follow the [roadmap](../03-plan/roadmap.md): 0.3 money, 0.4 food, 0.5 health, 0.6 API integration, 0.7 database and integration, 0.8 the phone app, 0.9 full testing, 1.0 UI and UX polish. The epics below are not yet broken into stories. Each one is interviewed and specified when its version comes up.
 
 | Epic | What it would deliver |
 |---|---|

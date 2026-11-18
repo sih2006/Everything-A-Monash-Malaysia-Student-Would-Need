@@ -6,7 +6,7 @@ What is built, what is tested, and what is known to be wrong. **Read it first**,
 
 ## In one paragraph
 
-The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 299 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
+The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 320 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
 
 ## How to run and check it
 
@@ -51,12 +51,29 @@ python tools/check.py                build and run every test
 | Spending map | A treemap of that spending, with a legend, hover tips and a table view | 5 layout tests, browser check |
 | Advice | Text on the Expenses tab, saved with `PUT /api/budget/advice`. A placeholder for now; the AI helper writes it in v0.6. | API test |
 | Hide numbers | One switch hides every mark, grade, target and amount on every screen (it replaced Hide grades and Hide money) | View-model tests |
-| Looking back | The Expenses tab switches between this month, 3 months, a year and all time: total spent, essential, could cut, and a month-by-month table of what went where | Rule, API and view-model tests, browser check |
-| Other currencies | A converter, and a switch that shows every amount in USD, OMR, CZK, CAD or IDR. Live rates once a day, or a rate typed by hand ([ADR-0008](../adr/0008-exchange-rates.md)) | API tests with a fake rate service, view-model tests, browser check |
+| Looking back | The Expenses tab switches between this month, 3 months, a year and all time: total spent, essential, could cut, a spending map with the totals for that period, and a month-by-month table of what went where | Rule, API and view-model tests, browser check |
+| Regular expenses | One-press Quick add on the Expenses tab (rent or a usual meal, for example), with suggestions from repeated spending | Rule, API and view-model tests, browser check |
+ A converter, and a switch that shows every amount in USD, OMR, CZK, CAD or IDR. Live rates once a day, or a rate typed by hand ([ADR-0008](../adr/0008-exchange-rates.md)) | API tests with a fake rate service, view-model tests, browser check |
 | Life tree | The Map's Life view: years down the left; studies, money, food and health branching right, down to single days | 8 rule tests, 10 view-model tests |
 | Also in this version | Pass/fail units; GPA, CGPA and WAM that follow the what-if sliders; more grade sorting; body weight with BMI, water, workouts with exercises and best lifts | Core, rule, API and view-model tests |
 
 The owner's real data (the transcript, bank statements, the e-wallet record, height, weight, the advice) is only in `backend/data/app.db`. None of it is in the repository, and the scripts that read the statements stay outside it too. Tests use made-up numbers.
+
+### v0.4 in progress: food
+
+| Part | What it does | Tests |
+|---|---|---|
+| Four Food tabs | **Today** (numbers, quick add, logging, reading a picture), **Progress**, **What to eat**, **Kitchen** | View-model and presenter tests, browser check |
+| Quick add | Your saved meals, then the owner's 17 usual meals in groups (Burger King, kebab and shawarma, Malaysian, fast food, breakfast and snacks). Every meal you log is saved by default | Rule, API and view-model tests |
+| Progress | Today, this week and this month: averages, days logged, days on target | Rule and presenter tests |
+| What to eat | 18 quick, halal home-cooked recipes (20 minutes or less, for a stove, an air fryer and a toaster), shown by meal: breakfast, lunch, dinner or snack, with estimated costs, ranked by what is left of the day and by protein after a workout; set aside when the kitchen lacks the equipment. No takeout suggestions | Rule and API tests |
+| Preferences | Foods you do not eat (cucumber, pickles and noodles for the owner) and what counts most: high protein, cheapest or quickest | Rule, API and view-model tests |
+| Targets from your goal | Calories and protein worked out from the goal weight, weeks, age, sex and activity, with a verdict on the pace and a safe floor; used only when you press "Use these" | Rule, API and view-model tests |
+ API and view-model tests |
+| Food advice | A placeholder for now; the AI helper writes it in v0.6 | API test |
+| Read a food picture | The AI helper reads a meal photo or a label; you check each row first | API test with a fake AI service |
+
+Also fixed: a backup now keeps the budget and food advice, the kitchen and rates typed by hand. Before, loading a backup dropped them.
 
 ### Started for v0.8: the Android app
 

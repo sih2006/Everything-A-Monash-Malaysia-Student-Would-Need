@@ -57,12 +57,12 @@ When a version of the [roadmap](../03-plan/roadmap.md) is finished:
 1. Check that its milestone has no open issues.
 2. Tag the merge commit that finishes it, and push the tag:
    ```
-   git tag -a v0.4.0 COMMIT -m "v0.4: health"
+   git tag -a v0.4.0 COMMIT -m "v0.4: food"
    git push origin v0.4.0
    ```
 3. Publish the release with plain notes on what is in it:
    ```
-   gh release create v0.4.0 --prerelease --title "v0.4: Health" --notes-file notes.md
+   gh release create v0.4.0 --prerelease --title "v0.4: Food" --notes-file notes.md
    ```
    Every release before 1.0 is marked as a pre-release.
 4. Close the version's milestone.

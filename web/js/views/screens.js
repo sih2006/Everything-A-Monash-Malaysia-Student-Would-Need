@@ -8,6 +8,7 @@ import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending
 import { presentSpendingMap } from '../viewmodels/spendingMap.js';
 import { DEFAULT_SPAN, EXPENSE_SPANS, presentMonthlyTable, spanWords } from '../viewmodels/expenses.js';
 import { convertAll, presentRates } from '../viewmodels/currency.js';
+import { FOOD_TABS, MEAL_TIMES, groupPresets, mealForHour, presentFoodPeriods, recipesFor } from '../viewmodels/food.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -456,78 +457,112 @@ function incomeSection(b, day) {
     </section>`;
 }
 
-// The spending map: one block per category, sized by what it costs a month, with its places inside.
+// The spending map: one block per category, sized by what it cost over the period chosen, with its places inside.
 // Two layouts are drawn, a wide one for a laptop and a tall one for a phone; CSS shows the one that fits.
 function mapLayout(map, kind) {
   const pc = (n, of) => `${((n / of) * 100).toFixed(3)}%`;
   const box = (r) => `left:${pc(r.x, map.width)};top:${pc(r.y, map.height)};width:${pc(r.w, map.width)};height:${pc(r.h, map.height)}`;
   return `<div class="spend-map ${kind}" style="aspect-ratio:${map.width} / ${map.height}" role="img" aria-label="Spending map. The same numbers are in the table below.">
     ${map.blocks.map((b) => `
-      <div class="sm-cat c${b.colour}" style="${box(b)}" data-tip="${esc(b.category)}: ${rm(b.perMonth)} a month">
-        ${b.labelled ? `<div class="sm-head"><strong>${esc(b.category)}</strong> <span>${rm(b.perMonth)}</span></div>` : ''}
+      <div class="sm-cat c${b.colour}" style="${box(b)}" data-tip="${esc(b.category)}: ${rm(b.total)}${map.months > 1 ? `, about ${rm(b.perMonth)} a month` : ''}">
+        ${b.labelled ? `<div class="sm-head"><strong>${esc(b.category)}</strong> <span>${rm(b.total)}</span></div>` : ''}
       </div>
-      ${b.places.map((p) => `<div class="sm-place c${b.colour}" style="${box(p)}" data-tip="${esc(p.what)} · ${esc(b.category)}: ${rm(p.perMonth)} a month, ${p.count}×">
-        ${p.labelled ? `<span class="sm-name">${esc(p.what)}</span><span class="sm-value">${rm(p.perMonth)}</span>` : ''}</div>`).join('')}`).join('')}
+      ${b.places.map((p) => `<div class="sm-place c${b.colour}" style="${box(p)}" data-tip="${esc(p.what)} · ${esc(b.category)}: ${rm(p.total)}, ${p.count}×">
+        ${p.labelled ? `<span class="sm-name">${esc(p.what)}</span><span class="sm-value">${rm(p.total)}</span>` : ''}</div>`).join('')}`).join('')}
   </div>`;
 }
 
-function spendingMapCard(reducible, span, words) {
+function spendingMapCard(reducible, words) {
   const wide = presentSpendingMap(reducible, 1000, 520);
   if (!wide) return '';
   const tall = presentSpendingMap(reducible, 400, 640);
   return `
     <section class="card spend-map-card">
-      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: span === 'month' ? rm(reducible.total) : `${rm(wide.perMonth)} a month`, tone: '' })}</div>
-      <p class="note">Without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}. ${span === 'month' ? `Spending in ${esc(words)}.` : `The average month over ${esc(words)}.`} Bigger block, more money. Point at a block for its numbers.</p>
+      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: rm(wide.total), tone: '' })}</div>
+      <p class="note">Covers ${esc(words)}, without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}.${wide.months > 1 ? ` About ${rm(wide.perMonth)} a month.` : ''} Bigger block, more money. Point at a block for its numbers.</p>
       <ul class="sm-legend" aria-label="Categories">
-        ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.perMonth)}</span></li>`).join('')}
+        ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.total)}</span></li>`).join('')}
       </ul>
       ${mapLayout(wide, 'wide')}${mapLayout(tall, 'tall')}
       <details class="sm-table">
         <summary>Show as a table</summary>
         <table>
-          <thead><tr><th scope="col">Category</th><th scope="col">Place</th><th scope="col">Times</th><th scope="col">A month</th></tr></thead>
-          <tbody>${wide.blocks.map((b) => b.places.map((p, i) => `<tr>${i === 0 ? `<th scope="rowgroup" rowspan="${b.places.length}">${esc(b.category)}<br><span class="dim">${rm(b.perMonth)}</span></th>` : ''}
-            <td>${esc(p.what)}</td><td>${p.count}</td><td>${rm(p.perMonth)}</td></tr>`).join('')).join('')}</tbody>
+          <thead><tr><th scope="col">Category</th><th scope="col">Place</th><th scope="col">Times</th><th scope="col">Total</th>${wide.months > 1 ? '<th scope="col">A month</th>' : ''}</tr></thead>
+          <tbody>${wide.blocks.map((b) => b.places.map((p, i) => `<tr>${i === 0 ? `<th scope="rowgroup" rowspan="${b.places.length}">${esc(b.category)}<br><span class="dim">${rm(b.total)}</span></th>` : ''}
+            <td>${esc(p.what)}</td><td>${p.count}</td><td>${rm(p.total)}</td>${wide.months > 1 ? `<td>${rm(p.perMonth)}</td>` : ''}</tr>`).join('')).join('')}</tbody>
         </table>
       </details>
     </section>`;
 }
 
 // What could be cut: spending outside the essential categories, over the period chosen.
-function couldCut(r, span, words) {
+function couldCut(r, words) {
   if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in ${esc(words)}.</p></section>`;
   const most = r.byCategory[0]?.amount || 1;
   return `
     <section class="card could-cut">
-      <div class="card-head"><h2>Could cut: ${span === 'month' ? rm(r.total) : `${rm(r.perMonth)} a month`}</h2>${chip({ text: words, tone: '' })}</div>
-      <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. ${rm(r.total)} in all.</p>
+      <div class="card-head"><h2>Could cut: ${rm(r.total)}</h2>${chip({ text: words, tone: '' })}</div>
+      <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. Covers ${esc(words)}.${r.months > 1 ? ` About ${rm(r.perMonth)} a month.` : ''}</p>
       ${r.byCategory.slice(0, 6).map((c) => `
         <div class="bar-row">
-          <div class="top"><strong>${esc(c.category)}</strong><span>${rm(c.perMonth)} <span class="note">a month</span></span></div>
+          <div class="top"><strong>${esc(c.category)}</strong><span>${rm(c.amount)}${r.months > 1 ? ` <span class="note">· ${rm(c.perMonth)} a month</span>` : ''}</span></div>
           ${bar((c.amount / most) * 100, '')}
         </div>`).join('')}
       <h3>The places you pay most</h3>
       <ol class="list ranked">
-        ${r.top.map((p) => `<li><span>${esc(p.what)} <span class="dim">· ${esc(p.category)} · ${p.count}× at about ${rm(p.average)}</span></span><span class="end">${rm(p.perMonth)}<span class="dim"> /month</span></span></li>`).join('')}
+        ${r.top.map((p) => `<li><span>${esc(p.what)} <span class="dim">· ${esc(p.category)} · ${p.count}× at about ${rm(p.average)}</span></span><span class="end">${rm(p.total)}</span></li>`).join('')}
       </ol>
     </section>`;
 }
 
-function adviceCard(advice) {
+function adviceCard(advice, { save = 'saveAdvice', clear = 'clearAdvice', id = 'advice-edit', later = 'Later the AI helper will write this from your own numbers.' } = {}) {
   return `
     <section class="card advice">
       <div class="card-head"><h2>Advice</h2>${advice ? chip({ text: advice.by, tone: '' }) : ''}</div>
       ${advice ? `${advice.text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => line.startsWith('- ')
           ? `<p class="advice-tip">${esc(line.slice(2))}</p>` : `<p>${esc(line)}</p>`).join('')}
-        <p class="note">Written on ${esc(dayText(advice.on))}. Later the AI helper will write this from your own numbers.</p>`
-        : '<p class="note">No advice yet. Later the AI helper will write it from your spending. You can write your own below.</p>'}
-      ${fold('advice-edit', advice ? 'Change the advice' : 'Write advice', `
-        <form class="form" data-action="saveAdvice">
+        <p class="note">Written on ${esc(dayText(advice.on))}. ${later}</p>`
+        : `<p class="note">No advice yet. ${later} You can write your own below.</p>`}
+      ${fold(id, advice ? 'Change the advice' : 'Write advice', `
+        <form class="form" data-action="${save}">
           <label class="field"><span>Advice (start a line with "- " for a tip)</span><textarea name="text" rows="8" maxlength="6000">${esc(advice?.text ?? '')}</textarea></label>
           <button class="btn primary" type="submit">Save advice</button>
-          ${advice ? '<button type="button" class="link danger" data-action="clearAdvice">Remove the advice</button>' : ''}
+          ${advice ? `<button type="button" class="link danger" data-action="${clear}">Remove the advice</button>` : ''}
         </form>`)}
+    </section>`;
+}
+
+// Regular expenses: one press each. Suggestions come from the same place at the same amount at least twice.
+function regularsCard(b) {
+  const regulars = b.regulars ?? [];
+  const suggested = b.suggestedRegulars ?? [];
+  const rm2 = (n) => rm(n);
+  return `
+    <section class="card regulars">
+      <h2>Quick add</h2>
+      ${regulars.length ? `<div class="quick">
+        ${regulars.map((r) => `
+          <button type="button" data-action="spendRegular" data-id="${r.id}">
+            <strong>${esc(r.name)}</strong><span>${rm2(r.amount)} · ${esc(r.category)}${r.account ? ` · ${esc(r.account)}` : ''}</span>
+          </button>`).join('')}
+      </div>` : '<p class="note">Save the things you pay for again and again, such as rent or your usual meal, and each is one press here.</p>'}
+      ${suggested.length ? `
+      <h3 class="label">Suggested from your spending</h3>
+      <ul class="list">
+        ${suggested.map((s, n) => `<li><span>${esc(s.name)} <span class="dim">· ${rm2(s.amount)} · ${s.count} times in 90 days · ${esc(s.category)}</span></span>
+          <span class="end"><button type="button" class="link" data-action="saveSuggestedRegular" data-index="${n}">Save</button></span></li>`).join('')}
+      </ul>` : ''}
+      ${fold('add-regular', 'Add a regular expense', `
+        <form class="form" data-action="addRegular">
+          ${field('Name', 'name', 'required maxlength="60" placeholder="Rent"')}
+          ${field('Amount (RM)', 'amount', 'required inputmode="decimal"')}
+          ${select('Category', 'category', b.categories.map((c) => [c.name, c.name]))}
+          ${b.money.accounts.length ? select('Paid from', 'accountId', [['', 'Not from an account'], ...b.money.accounts.map((a) => [String(a.id), a.name])]) : ''}
+          <button class="btn primary" type="submit">Save</button>
+        </form>`)}
+      ${regulars.length ? fold('manage-regulars', 'Change your regular expenses', `
+        <ul class="list">${regulars.map((r) => `<li><span>${esc(r.name)} <span class="dim">· ${rm2(r.amount)}</span></span><span class="end">${remove('removeRegular', `data-id="${r.id}"`, `Remove ${r.name}`)}</span></li>`).join('')}</ul>
+        <p class="note">To change one, remove it and save it again. Removing it does not change any spending already added.</p>`) : ''}
     </section>`;
 }
 
@@ -553,10 +588,10 @@ function lookingBack(b, state) {
       </div>
     </section>
 
-    ${spendingMapCard(r, span, words)}
+    ${spendingMapCard(r, words)}
 
     <section class="grid wide">
-      ${couldCut(r, span, words)}
+      ${couldCut(r, words)}
       ${adviceCard(b.advice)}
     </section>
 
@@ -597,6 +632,8 @@ function expensesTab(b, state, isCurrent, spendDay) {
       ${bar(b.spentPercent, b.tone, b.monthPercent)}
       <p>The triangle points at today.</p>
     </section>` : ''}
+
+    ${regularsCard(b)}
 
     ${lookingBack(b, state)}
 
@@ -688,10 +725,21 @@ export function foodView(state) {
   const f = state.views.food ?? state.overview.food;
   const isCurrent = !state.views.food;
   const when = isCurrent ? 'today' : `on ${dayText(f.date)}`;
+  const tab = FOOD_TABS.some(([id]) => id === state.foodTab) ? state.foodTab : 'today';
+  const tabs = FOOD_TABS.filter(([id]) => FOOD_TAB_VIEWS[id]);
   return `
     ${pageHead('Food', f.hasTargets ? `Your daily targets are ${num(f.targetKcal)} kcal${f.targetProtein ? ` and ${num(f.targetProtein)} g of protein` : ''}.` : 'Set your own daily targets to get a verdict.', mood('t-food', 'Joel', f.mood))}
-    ${periodNav('food', isCurrent ? `Today, ${dayText(f.date)}` : dayText(f.date), isCurrent, 'day')}
+    <div class="seg food-tabs" role="group" aria-label="Food sections">
+      ${tabs.map(([id, label]) => `<button type="button" data-action="setFoodTab" data-tab="${id}" aria-pressed="${tab === id}">${label}</button>`).join('')}
+    </div>
+    ${(FOOD_TAB_VIEWS[tab] ?? foodToday)(f, state, isCurrent, when)}`;
+}
 
+// Today: the day's numbers, logging, quick add, reading a picture, and what was logged.
+function foodToday(f, state, isCurrent, when) {
+  const groups = groupPresets(f.presets);
+  return `
+    ${periodNav('food', isCurrent ? `Today, ${dayText(f.date)}` : dayText(f.date), isCurrent, 'day')}
     ${f.hasTargets ? `
     <section class="grid wide" aria-label="Today so far">
       <div class="card">
@@ -710,39 +758,45 @@ export function foodView(state) {
     </section>` : ''}
 
     <section class="card">
-      ${fold('food-targets', f.hasTargets ? 'Change your daily targets' : 'Set your daily targets', `
-        <form class="form" data-action="saveFoodTargets">
-          ${field('Calories (kcal)', 'kcal', `required inputmode="decimal" value="${f.targetKcal || ''}"`)}
-          ${field('Protein (g)', 'protein', `inputmode="decimal" value="${f.targetProtein || ''}"`, 'optional')}
-          <button class="btn primary" type="submit">Save targets</button>
-        </form>`, !f.hasTargets)}
-    </section>
-
-    <section class="card">
-      <h2>Log food</h2>
-      <form class="form" data-action="logFood">
-        ${field('Food', 'food', 'required maxlength="60" placeholder="Nasi lemak"')}
-        ${field('Calories (kcal)', 'kcal', 'required inputmode="decimal"')}
-        ${field('Protein (g)', 'protein', 'inputmode="decimal"', 'optional')}
-        ${select('Meal', 'meal', MEALS, 'Snack')}
-        <div class="field tick"><label><input type="checkbox" name="remember"> Remember for quick add</label></div>
-        <button class="btn primary" type="submit">Log</button>
-      </form>
-      ${f.foods.length ? `
-      <h3 class="label">Quick add</h3>
+      <h2>Quick add</h2>
       <div class="row">${select('Add to', 'quickMeal', MEALS, 'Snack')}</div>
+      ${f.foods.length ? `
+      <h3 class="label">Your meals</h3>
       <div class="quick">
         ${f.foods.map((q) => `
           <button type="button" data-action="quickAddFood" data-id="${q.id}">
             <strong>${esc(q.name)}</strong><span>${num(q.kcal)} kcal · ${num(q.protein)} g protein</span>
           </button>`).join('')}
-      </div>
-      ${fold('manage-foods', 'Change the quick-add list', `
+      </div>` : '<p class="note">Every meal you log is saved here, so the next time it is one press.</p>'}
+      ${groups.map((g) => fold(`presets-${g.name.toLowerCase().replace(/[^a-z]+/g, '-')}`, `Common meals: ${g.name}`, `
+        <div class="quick">
+          ${g.meals.map((q) => `
+            <button type="button" data-action="quickAddPreset" data-name="${esc(q.name)}">
+              <strong>${esc(q.name)}</strong><span>about ${num(q.kcal)} kcal · ${num(q.protein)} g protein</span>
+            </button>`).join('')}
+        </div>
+        <p class="note">Rough numbers for a usual portion, not official ones. A meal you log is saved as yours, and you can log it again with your own numbers to correct it.</p>`)).join('')}
+      ${f.foods.length ? fold('manage-foods', 'Change your meals', `
         <ul class="list">
           ${f.foods.map((q) => `<li><span>${esc(q.name)} <span class="dim">· ${num(q.kcal)} kcal</span></span>
-            <span class="end">${remove('forgetFood', `data-id="${q.id}"`, `Remove ${q.name} from quick add`)}</span></li>`).join('')}
+            <span class="end">${remove('forgetFood', `data-id="${q.id}"`, `Remove ${q.name} from your meals`)}</span></li>`).join('')}
         </ul>
-        <p class="note">Removing a food here does not change anything you already logged.</p>`)}` : ''}
+        <p class="note">To change a meal's numbers, log it again with the new numbers. Removing a meal here does not change anything you already logged.</p>`) : ''}
+    </section>
+
+    <section class="grid wide">
+      <div class="card">
+        <h2>Log food</h2>
+        <form class="form" data-action="logFood">
+          ${field('Food', 'food', 'required maxlength="60" placeholder="Nasi lemak"')}
+          ${field('Calories (kcal)', 'kcal', 'required inputmode="decimal"')}
+          ${field('Protein (g)', 'protein', 'inputmode="decimal"', 'optional')}
+          ${select('Meal', 'meal', MEALS, 'Snack')}
+          <div class="field tick"><label><input type="checkbox" name="remember" checked> Save to my meals</label></div>
+          <button class="btn primary" type="submit">Log</button>
+        </form>
+      </div>
+      ${foodPictureCard(f, state)}
     </section>
 
     <section class="card">
@@ -752,8 +806,158 @@ export function foodView(state) {
           <li><span><strong>${esc(e.food)}</strong> <span class="dim">· ${esc(e.meal)}</span></span>
           <span class="end">${num(e.kcal)} kcal <span class="dim">· ${num(e.protein)} g</span> ${remove('deleteFood', `data-id="${e.id}"`, `Remove ${e.food}`)}</span></li>`).join('')}
       </ul>`}
+    </section>
+
+    <section class="card">
+      ${fold('food-targets', f.hasTargets ? 'Change your daily targets' : 'Set your daily targets', `
+        <form class="form" data-action="saveFoodTargets">
+          ${field('Calories (kcal)', 'kcal', `required inputmode="decimal" value="${f.targetKcal || ''}"`)}
+          ${field('Protein (g)', 'protein', `inputmode="decimal" value="${f.targetProtein || ''}"`, 'optional')}
+          <button class="btn primary" type="submit">Save targets</button>
+        </form>`, !f.hasTargets)}
     </section>`;
 }
+
+// Read a meal from a photo or a nutrition label. The AI reads; the user checks every row before it is saved.
+function foodPictureCard(f, state) {
+  const items = state.foodImport;
+  if (items) {
+    return `
+      <div class="card">
+        <h2>Check what was read</h2>
+        ${items.length === 0 ? '<p class="note">No food could be read from that picture. Try a clearer photo, or the label.</p>' : `
+        <form class="form" data-action="confirmFoodImport">
+          ${items.map((it, i) => `
+            <fieldset class="import-row">
+              <label class="tick"><input type="checkbox" name="keep-${i}" checked> Keep</label>
+              ${field('Food', `food-${i}`, `required maxlength="60" value="${esc(it.food)}"`)}
+              ${field('kcal', `kcal-${i}`, `required inputmode="decimal" value="${it.kcal}"`)}
+              ${field('Protein (g)', `protein-${i}`, `inputmode="decimal" value="${it.protein}"`)}
+            </fieldset>`).join('')}
+          ${select('Meal', 'meal', MEALS, 'Snack')}
+          <button class="btn primary" type="submit">Log the kept rows</button>
+        </form>`}
+        <button type="button" class="link" data-action="cancelFoodImport">Cancel</button>
+      </div>`;
+  }
+  return `
+    <div class="card">
+      <h2>From a photo or label</h2>
+      ${f.ai ? `
+      <form class="form" data-action="readFoodPicture">
+        <label class="field"><span>A photo of the meal, or its nutrition label</span><input type="file" name="picture" accept="image/png,image/jpeg,image/webp" required></label>
+        <button class="btn primary" type="submit">Read it</button>
+      </form>
+      <p class="note">The AI helper reads the picture and suggests the calories and protein. Nothing is saved until you have checked them.</p>`
+      : '<p class="note">This needs the AI helper, which is off: there is no Gemini key yet. It comes with v0.6 (see docs/handoff/gemini-setup.md). Everything else on this screen works without it.</p>'}
+    </div>`;
+}
+
+// Targets worked out from the weight goal. They are only suggested: "Use these" saves them as the targets.
+const ACTIVITY_CHOICES = [['low', 'Low: mostly sitting, under 5,000 steps'], ['light', 'Light: some walking, 2 to 3 workouts a week'], ['moderate', 'Moderate: active most days'], ['high', 'High: hard training most days']];
+const PACE_WORDS = { realistic: ['Realistic pace', 'good'], aggressive: ['Aggressive pace', 'warn'], 'too fast': ['Too fast to be safe', 'warn'], none: ['Nothing to lose', ''] };
+function goalTargetsCard(f, state) {
+  const g = state.goalPlan;
+  const p = f.profile ?? {};
+  return `
+    <section class="card goal-targets">
+      <h2>Targets from your goal</h2>
+      <p class="note">Worked out from your weight, your height and your goal weight on Health. The app only suggests: nothing changes until you press "Use these".</p>
+      <form class="form" data-action="goalTargets">
+        ${field('Age', 'age', `required inputmode="numeric" value="${p.age ?? ''}"`)}
+        ${select('Sex (the formula differs)', 'sex', [['male', 'Male'], ['female', 'Female']], p.sex ?? 'male')}
+        ${select('How active you are', 'activity', ACTIVITY_CHOICES, p.activity ?? 'light')}
+        ${field('Weeks to reach your goal', 'weeks', `required inputmode="numeric" value="${p.weeks ?? ''}"`)}
+        <button class="btn primary" type="submit">Work it out</button>
+      </form>
+      ${g ? `
+      <div class="goal-result">
+        <div class="card-head"><h3>${num(g.toLose)} kg in ${g.profile.weeks} weeks: ${num(g.weekly * 1000) / 1000} kg a week</h3>${chip({ text: PACE_WORDS[g.pace][0], tone: PACE_WORDS[g.pace][1] })}</div>
+        <p>About <strong>${num(g.calories)} kcal</strong> and <strong>${num(g.protein)} g of protein</strong> a day. You burn about ${num(g.maintenance)} kcal a day now.</p>
+        ${g.floorUsed ? `<p class="note warn">Reaching it by then would need fewer calories than is safe, so this uses a floor of ${num(g.calories)} kcal. At that, expect to get there later.</p>` : ''}
+        ${g.pace !== 'realistic' && g.pace !== 'none' ? `<p class="note">A steady 0.75% of your weight a week would take about ${g.steadyWeeks} weeks for the same ${num(g.toLose)} kg, and keeps more muscle.</p>` : ''}
+        <button type="button" class="btn primary" data-action="useGoalTargets">Use these as my targets</button>
+        <p class="note">Estimates from a standard formula, not medical advice.</p>
+      </div>` : ''}
+    </section>`;
+}
+
+// Progress: today, this week and this month, and advice.
+function foodProgress(f, state) {
+  const cards = presentFoodPeriods(f.periods, { kcal: f.targetKcal, protein: f.targetProtein });
+  return `
+    <section class="grid stats" aria-label="How it is going">
+      ${cards.map((c) => `<div class="card ${c.tone}"><div class="label">${esc(c.title)}</div><div class="big">${esc(c.big)}</div><p class="note">${esc(c.note)}</p></div>`).join('')}
+    </section>
+    ${f.hasTargets ? '' : emptyCard('Set your daily targets', 'With a calorie target, and a protein target if you want one, each day, week and month says whether you are on track. Work them out from your goal below, or set them on the Today tab.')}
+    ${goalTargetsCard(f, state)}
+    ${adviceCard(f.advice, { save: 'saveFoodAdvice', clear: 'clearFoodAdvice', id: 'food-advice-edit', later: 'Later the AI helper will write this from your food, workouts and health.' })}`;
+}
+
+// What to eat today: what is left of the day, and quick home-cooked recipes for the kitchen you have.
+function foodEat(f, state) {
+  const p = f.plan;
+  const meal = state.eatMeal ?? mealForHour(new Date().getHours());
+  const rm2 = (n) => `RM ${Number(n).toFixed(2)}`;
+  const recipeCard = (r) => `
+    <article class="card recipe">
+      <div class="card-head"><h3>${esc(r.name)}</h3>${chip({ text: `${num(r.kcal)} kcal · ${num(r.protein)} g`, tone: r.fits ? 'good' : 'warn' })}</div>
+      <p class="note">${esc(r.why.join(' · '))}. ${r.minutes} min${r.equipment.length ? ` · ${esc(r.equipment.join(', '))}` : ' · no cooking'}${r.lacks.length && !p.kitchenKnown ? '' : ''}</p>
+      <p class="note">About ${rm2(r.cost)} a serving${r.missing.length ? `. To buy: ${esc(r.missing.map((x) => `${x.item} (${rm2(x.cost)})`).join(', '))}` : ''}.</p>
+      ${fold(`recipe-${r.id}`, 'Ingredients and steps', `
+        <ul class="list">${r.ingredients.map((x) => `<li><span>${esc(x.item)} <span class="dim">· ${esc(x.amount)}</span></span><span class="end">${rm2(x.cost)}</span></li>`).join('')}</ul>
+        <ol class="steps">${r.steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>`)}
+      <button type="button" class="btn" data-action="logRecipe" data-id="${esc(r.id)}" data-meal="${meal}">I made this: log it as ${meal.toLowerCase()}</button>
+    </article>`;
+  const left = p.hasTargets
+    ? `${num(Math.max(0, p.left.kcal))} kcal${p.left.protein > 0 ? ` and ${num(p.left.protein)} g of protein` : ''} left today`
+    : 'No daily target set, so every recipe is shown';
+  return `
+    <section class="banner ${p.hasTargets && p.left.kcal <= 0 ? 'warn' : 'good'}">
+      <h2>${esc(left)}</h2>
+      <p>${p.workedOut ? 'You worked out today, so protein-rich meals come first. ' : ''}${p.kitchenKnown ? 'Only recipes your kitchen can make are shown first.' : 'Tick your equipment and ingredients on the Kitchen tab, and these suggestions follow what you have.'}</p>
+    </section>
+    <div class="seg meal-switch" role="group" aria-label="Which meal">
+      ${MEAL_TIMES.map((m) => `<button type="button" data-action="setEatMeal" data-meal="${m}" aria-pressed="${m === meal}">${m}</button>`).join('')}
+    </div>
+    <h2 class="section-title">${meal} ideas</h2>
+    ${p.skipped ? `<p class="note">${p.skipped} ${p.skipped === 1 ? 'recipe is' : 'recipes are'} hidden because ${p.skipped === 1 ? 'it needs' : 'they need'} a food you do not eat.</p>` : ''}
+    <p class="note">Home cooking only, 20 minutes or less. All halal: buy meat, cheese and sauces with a halal logo.</p>
+    <section class="grid wide recipes">${recipesFor(p.recipes, meal).map(recipeCard).join('') || '<p class="note">Nothing for this meal with your kitchen yet.</p>'}</section>
+    ${recipesFor(p.needsEquipment, meal).length ? fold('recipes-more', `With more equipment (${recipesFor(p.needsEquipment, meal).length})`, `
+      <section class="grid wide recipes">${recipesFor(p.needsEquipment, meal).map((r) => recipeCard({ ...r, why: [`needs ${r.lacks.join(' and ')}`, ...r.why] })).join('')}</section>`) : ''}
+    <p class="note">Calories, protein and prices are estimates for the amounts listed. Prices are usual Malaysian supermarket prices and change by shop and week.</p>`;
+}
+
+// The kitchen: the equipment and ingredients you have. "What to eat" follows it.
+function foodKitchen(f) {
+  const k = f.plan.kitchen;
+  const box = (prefix, name, on) => `<label class="tick"><input type="checkbox" name="${prefix}:${esc(name)}" ${on ? 'checked' : ''}> ${esc(name)}</label>`;
+  return `
+    <section class="card kitchen">
+      <h2>Your kitchen</h2>
+      <p class="note">Tick what you have. "What to eat" then shows the recipes you can make first, and what you would need to buy for the others.</p>
+      <form class="form" data-action="saveKitchen">
+        <h3 class="label">Equipment</h3>
+        <div class="ticks">${f.plan.equipment.map((e) => box('equipment', e, k.equipment.includes(e))).join('')}</div>
+        <h3 class="label">Ingredients you usually have</h3>
+        <div class="ticks">${f.plan.ingredients.map((x) => box('pantry', x, k.pantry.includes(x))).join('')}</div>
+        <button class="btn primary" type="submit">Save kitchen</button>
+      </form>
+    </section>
+    <section class="card">
+      <h2>Your preferences</h2>
+      <form class="form" data-action="savePreferences">
+        ${field('Foods I do not eat (separate with commas)', 'avoid', `maxlength="300" value="${esc((f.plan.preferences.avoid ?? []).join(', '))}" placeholder="cucumber, pickles, noodles"`)}
+        ${select('What matters most', 'priority', [['protein', 'High protein'], ['cost', 'Cheapest'], ['time', 'Quickest']], f.plan.preferences.priority ?? 'protein')}
+        <button class="btn primary" type="submit">Save preferences</button>
+      </form>
+      <p class="note">A food you do not eat is left out where it is only a side, and recipes that need it are not suggested. Quick add hides common meals named after it.</p>
+    </section>`;
+}
+
+// Which tabs exist, and what each one shows.
+const FOOD_TAB_VIEWS = { today: foodToday, progress: foodProgress, eat: foodEat, kitchen: foodKitchen };
 
 // ================= health =================
 

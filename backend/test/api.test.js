@@ -352,15 +352,15 @@ describe('money accounts', () => {
     const after = await app.call('POST', '/api/budget/categories', { name: 'Treats', limit: 0 });
     const treats = after.body.categories.find((c) => c.name === 'Treats');
     assert.equal(after.body.categories.find((c) => c.name === 'Housing').essential, true);
-    await app.call('POST', '/api/transactions', { category: 'Housing', what: 'Rent', amount: 2850, date: '2026-11-02' });
+    await app.call('POST', '/api/transactions', { category: 'Housing', what: 'Rent', amount: 1200, date: '2026-11-02' });
     await app.call('POST', '/api/transactions', { category: 'Treats', what: 'Bubble tea', amount: 12, date: '2026-11-03' });
     const month = (await app.call('GET', '/api/budget?month=2026-11')).body;
     assert.ok(month.reducible.top.some((p) => p.what === 'Bubble tea'));
     assert.deepEqual(Object.keys(month.spans), ['month', '3m', 'year', 'all']);
     assert.equal(month.spans.month.spent, month.spent);                             // everything this month, rent included ...
-    assert.equal(month.spans.month.spent - month.spans.month.total, 2850);          // ... but rent is not something to cut
+    assert.equal(month.spans.month.spent - month.spans.month.total, 1200);          // ... but rent is not something to cut
     const november = month.byMonth.at(-1);
-    assert.deepEqual([november.month, november.total, november.byCategory.Housing, november.byCategory.Treats], ['2026-11', month.spent, 2850, 12]);
+    assert.deepEqual([november.month, november.total, november.byCategory.Housing, november.byCategory.Treats], ['2026-11', month.spent, 1200, 12]);
     assert.ok(!month.reducible.top.some((p) => p.what === 'Rent'));                  // essential: never "could cut"
     assert.equal((await app.call('PATCH', `/api/budget/categories/${treats.id}`, { essential: 'yes' })).status, 400);
     const saved = (await app.call('PUT', '/api/budget/advice', { text: 'Line one.\nLine two.', by: 'Claude' })).body;
@@ -377,6 +377,24 @@ describe('money accounts', () => {
     const after = (await app.call('GET', '/api/budget')).body;
     assert.equal(after.money.accounts.find((a) => a.id === id).balance, 115);
     await app.call('DELETE', `/api/accounts/${id}`);
+  });
+
+  test('regular expenses: saved, checked, suggested from repeats, and removed', async () => {
+    const made = (await app.call('POST', '/api/budget/categories', { name: 'Takeaway', limit: 0 })).body;
+    assert.ok(made.categories.some((c) => c.name === 'Takeaway'));
+    await app.call('POST', '/api/transactions', { category: 'Takeaway', what: 'Chicken meal', amount: 12.5, date: '2026-11-10' });
+    await app.call('POST', '/api/transactions', { category: 'Takeaway', what: 'Chicken meal', amount: 12.5, date: '2026-11-17' });
+    const before = (await app.call('GET', '/api/budget')).body;
+    assert.ok(before.suggestedRegulars.some((r) => r.name === 'Chicken meal' && r.count === 2));
+    const saved = (await app.call('POST', '/api/budget/regulars', { name: 'Chicken meal', amount: 12.5, category: 'Takeaway' })).body;
+    const regular = saved.regulars.find((r) => r.name === 'Chicken meal');
+    assert.deepEqual([regular.amount, regular.category, regular.account], [12.5, 'Takeaway', null]);
+    assert.ok(!saved.suggestedRegulars.some((r) => r.name === 'Chicken meal'));             // saved: no longer suggested
+    assert.equal((await app.call('POST', '/api/budget/regulars', { name: 'Rent', amount: 1200, category: 'Nowhere' })).status, 400);
+    assert.equal((await app.call('POST', '/api/budget/regulars', { name: 'Rent', amount: -5, category: 'Takeaway' })).status, 400);
+    const after = (await app.call('DELETE', `/api/budget/regulars/${regular.id}`)).body;
+    assert.ok(!after.regulars.some((r) => r.id === regular.id));
+    assert.equal((await app.call('DELETE', `/api/budget/regulars/${regular.id}`)).status, 404);
   });
 
   test('accounts are checked', async () => {
@@ -412,6 +430,46 @@ describe('food and health', () => {
     assert.equal(body.foods[0].name, 'Nasi lemak');   // remembered for quick add
     const after = await app.call('DELETE', `/api/food/log/${body.log[1].id}`);
     assert.equal(after.body.kcal, 640);
+  });
+
+  test('food: common meals for quick add, your own saved meal wins, and the day comes with periods and advice', async () => {
+    const before = (await app.call('GET', '/api/food')).body;
+    const bk = "Burger King Chick'n Crisp meal (fries, drink)";
+    assert.ok(before.presets.every((m) => m.name.length <= 60), 'every common meal can be logged: names are at most 60 characters');
+    assert.ok(before.presets.some((m) => m.name === bk));
+    assert.ok(!before.presets.some((m) => /noodle|mee|maggi|kuey|laksa|oat|milo|teh tarik|kfc/i.test(m.name)));   // the owner's list
+    await app.call('POST', '/api/food/log', { food: bk, kcal: 1000, protein: 22, meal: 'Lunch', remember: true });
+    const after = (await app.call('GET', '/api/food')).body;
+    assert.ok(!after.presets.some((m) => m.name === bk));                                      // now it is yours, with your numbers
+    assert.deepEqual(after.foods.find((f) => f.name === bk).kcal, 1000);
+    assert.deepEqual(Object.keys(after.periods), ['day', 'week', 'month']);
+    const advised = (await app.call('PUT', '/api/food/advice', { text: 'Eat more protein.', by: 'Test' })).body;
+    assert.deepEqual([advised.advice.text, advised.advice.by], ['Eat more protein.', 'Test']);
+    assert.equal((await app.call('PUT', '/api/food/advice', { text: null })).body.advice, null);
+  });
+
+  test('food: the kitchen is saved, unknown names are dropped, and what to eat follows it', async () => {
+    const day = (await app.call('PUT', '/api/food/kitchen', { equipment: ['Air fryer', 'Rocket'], pantry: ['Rice', 'Gold'] })).body;
+    assert.deepEqual(day.plan.kitchen, { equipment: ['Air fryer'], pantry: ['Rice'] });
+    assert.ok(day.plan.recipes.every((r) => r.equipment.every((e) => e === 'Air fryer')));
+    assert.ok(day.plan.needsEquipment.length > 0);
+    assert.ok(![...day.plan.recipes, ...day.plan.needsEquipment].some((r) => /noodle|mee|maggi|pasta|spaghetti/i.test(r.name)));
+    assert.equal((await app.call('PUT', '/api/food/kitchen', { equipment: 'Air fryer', pantry: [] })).status, 400);
+  });
+
+  test('food: preferences hide disliked foods; targets come from the weight goal only when asked', async () => {
+    const day = (await app.call('PUT', '/api/food/preferences', { avoid: ['Cucumber', 'pickles', 'noodles'], priority: 'time' })).body;
+    assert.deepEqual(day.plan.preferences, { avoid: ['cucumber', 'pickles', 'noodles'], priority: 'time' });
+    assert.ok([...day.plan.recipes, ...day.plan.needsEquipment].every((r) => r.ingredients.every((x) => !/cucumber/i.test(x.item))));
+    assert.equal((await app.call('PUT', '/api/food/preferences', { avoid: 'cucumber' })).status, 400);
+    assert.equal((await app.call('POST', '/api/food/goal-targets', { age: 20, sex: 'male', activity: 'light', weeks: 8 })).status, 400);   // no weight yet
+    const targetsBefore = (await app.call('GET', '/api/food')).body.targetKcal;
+    await app.call('PUT', '/api/health/days/2026-11-19', { weightKg: 90 });
+    await app.call('PUT', '/api/health/settings', { heightCm: 180, weightGoalKg: 80 });
+    const plan = (await app.call('POST', '/api/food/goal-targets', { age: 20, sex: 'male', activity: 'light', weeks: 8 })).body;
+    assert.deepEqual([plan.calories, plan.pace, plan.floorUsed, plan.goalKg], [1500, 'aggressive', true, 80]);
+    assert.deepEqual((await app.call('GET', '/api/food')).body.profile, { age: 20, sex: 'male', activity: 'light', weeks: 8 });
+    assert.equal((await app.call('GET', '/api/food')).body.targetKcal, targetsBefore);                       // suggesting changes nothing
   });
 
   test('food: a remembered food can be forgotten, and what was logged with it stays', async () => {
@@ -671,6 +729,18 @@ describe('the AI helper', () => {
     assert.equal(app.store.listAssessments().length, 0);
     assert.equal((await app.call('POST', '/api/import/screenshot', { image: 'A'.repeat(200), mimeType: 'application/pdf' })).status, 400);
     assert.equal((await app.call('POST', '/api/import/screenshot', { image: 'not base64 !!', mimeType: 'image/png' })).status, 400);
+    await app.close();
+  });
+
+  test('food: a photo or label is read into a list to check; nothing is saved; bad items are left out', async () => {
+    const answer = JSON.stringify([{ food: 'Whopper', kcal: 650.4, protein: 30 }, { food: 'Fries', kcal: 'lots' }, { food: 'Coke', kcal: 210, protein: null }]);
+    const fetchImpl = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: answer }] } }] }), { status: 200 });
+    const app = await start({ geminiKey: 'test-key', fetchImpl });
+    const { status, body } = await app.call('POST', '/api/food/read-picture', { image: 'A'.repeat(200), mimeType: 'image/jpeg' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.items, [{ food: 'Whopper', kcal: 650, protein: 30 }, { food: 'Coke', kcal: 210, protein: 0 }]);
+    assert.equal((await app.call('GET', '/api/food')).body.log.length, 0);
+    assert.equal((await app.call('POST', '/api/food/read-picture', { image: 'A'.repeat(200), mimeType: 'text/plain' })).status, 400);
     await app.close();
   });
 

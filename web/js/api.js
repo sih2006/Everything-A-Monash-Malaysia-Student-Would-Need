@@ -73,6 +73,8 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     // budget
     saveBudgetLimit: (limit) => put('/api/budget/settings', { limit }),
     addCategory: (category) => post('/api/budget/categories', category),
+    addRegular: (regular) => post('/api/budget/regulars', regular),
+    removeRegular: (id) => remove(`/api/budget/regulars/${id}`),
     updateCategory: (id, fields) => patch(`/api/budget/categories/${id}`, fields),
     currency: () => get('/api/currency'),
     refreshRates: () => post('/api/currency/refresh'),
@@ -95,6 +97,11 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     logFood: (entry) => post('/api/food/log', entry),
     deleteFood: (id) => remove(`/api/food/log/${id}`),
     forgetFood: (id) => remove(`/api/food/items/${id}`),
+    saveFoodAdvice: (text, by) => put('/api/food/advice', { text, by }),
+    saveKitchen: (kitchen) => put('/api/food/kitchen', kitchen),
+    savePreferences: (preferences) => put('/api/food/preferences', preferences),
+    goalTargets: (answers) => post('/api/food/goal-targets', answers),
+    readFoodPicture: (image, mimeType) => post('/api/food/read-picture', { image, mimeType }),
 
     // health
     saveHealthTargets: (targets) => put('/api/health/settings', targets),

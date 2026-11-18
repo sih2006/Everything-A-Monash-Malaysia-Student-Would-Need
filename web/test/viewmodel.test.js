@@ -622,3 +622,49 @@ test('budget tabs: the open tab and the account picked on each tab are kept for 
   saved.budgetAccount = 'not json';
   assert.deepEqual(createAppViewModel({ api: {}, storage, onChange: () => {} }).state.budgetAccount, { banking: null, investing: null });
 });
+
+test('the kitchen form becomes two lists, and a cooked recipe is logged and saved', async () => {
+  const sent = [];
+  const plan = { recipes: [{ id: 'eggs', name: 'Eggs on toast', kcal: 400, protein: 22 }], needsEquipment: [] };
+  const { vm } = setup({
+    saveKitchen: (k) => { sent.push(['kitchen', k]); return Promise.resolve(overview().food); },
+    logFood: (e) => { sent.push(['log', e]); return Promise.resolve(overview().food); }
+  });
+  await vm.load();
+  vm.state.overview.food = { ...vm.state.overview.food, plan };
+  await vm.saveKitchen({ 'equipment:Air fryer': 'on', 'pantry:Rice': 'on', 'pantry:Eggs': 'on', other: 'x' });
+  assert.deepEqual(sent[0], ['kitchen', { equipment: ['Air fryer'], pantry: ['Rice', 'Eggs'] }]);
+  vm.state.overview.food = { ...vm.state.overview.food, plan };
+  await vm.logRecipe('eggs', 'Dinner');
+  assert.deepEqual(sent[1][1], { date: vm.state.overview.food.date, food: 'Eggs on toast', kcal: 400, protein: 22, meal: 'Dinner', remember: true });
+  assert.equal(await vm.logRecipe('nothing-like-this', 'Dinner'), false);
+});
+
+test('preferences: a comma list becomes a clean list; goal targets are only saved when the user says so', async () => {
+  const sent = [];
+  const { vm } = setup({
+    savePreferences: (p) => { sent.push(['prefs', p]); return Promise.resolve(overview().food); },
+    goalTargets: (a) => { sent.push(['goal', a]); return Promise.resolve({ calories: 1800, protein: 160, profile: a }); },
+    saveFoodTargets: (t) => { sent.push(['targets', t]); return Promise.resolve(overview().food); }
+  });
+  await vm.load();
+  await vm.savePreferences({ avoid: ' Cucumber, pickles,, noodles ', priority: 'time' });
+  assert.deepEqual(sent[0], ['prefs', { avoid: ['Cucumber', 'pickles', 'noodles'], priority: 'time' }]);
+  await vm.goalTargets({ age: '20', sex: 'male', activity: 'light', weeks: '8' });
+  assert.deepEqual(sent[1], ['goal', { age: 20, sex: 'male', activity: 'light', weeks: 8 }]);
+  assert.equal(sent.length, 2);                                    // working it out saves nothing
+  await vm.useGoalTargets();
+  assert.deepEqual(sent[2], ['targets', { targetKcal: 1800, targetProtein: 160 }]);
+  assert.equal(vm.state.goalPlan, null);
+});
+
+test('a regular expense is one press: it is added with its own amount, category and account', async () => {
+  const sent = [];
+  const regulars = [{ id: 1, name: 'Rent', amount: 1200, category: 'Rent and electricity', account: 'Maybank' }];
+  const { vm } = setup({ addSpending: (e) => { sent.push(e); return Promise.resolve(overview().budget); } });
+  await vm.load();
+  vm.state.overview.budget = { ...vm.state.overview.budget, regulars, money: { accounts: [{ id: 7, name: 'Maybank' }] } };
+  await vm.spendRegular(1);
+  assert.deepEqual(sent[0], { what: 'Rent', amount: 1200, category: 'Rent and electricity', date: vm.state.overview.today, accountId: 7 });
+  assert.equal(await vm.spendRegular(99), false);
+});
