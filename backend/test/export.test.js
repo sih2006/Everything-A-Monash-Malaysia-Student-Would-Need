@@ -145,6 +145,21 @@ describe('a damaged or edited file', () => {
     assert.equal((await app.call('GET', '/api/export')).body.units.length, 0);
   });
 
+  test('advice, the kitchen and rates typed by hand survive a download and a load', async () => {
+    const fresh = await start();
+    await fresh.call('POST', '/api/demo');
+    await fresh.call('PUT', '/api/budget/advice', { text: 'Cook more.\n- Fewer deliveries.', by: 'Test' });
+    await fresh.call('PUT', '/api/food/advice', { text: 'More protein.', by: 'Test' });
+    await fresh.call('PUT', '/api/food/kitchen', { equipment: ['Air fryer', 'Rice cooker'], pantry: ['Rice', 'Eggs'] });
+    await fresh.call('PUT', '/api/currency/manual', { code: 'USD', myrPerUnit: 4.2 });
+    const file = (await fresh.call('GET', '/api/export')).body;
+    await fresh.call('DELETE', '/api/data', { confirm: 'delete everything' });
+    assert.equal((await fresh.call('POST', '/api/import', file)).status, 200);
+    const back = (await fresh.call('GET', '/api/export')).body.settings;
+    for (const key of ['budget.advice', 'food.advice', 'food.kitchen', 'currency.manual']) assert.deepEqual(back[key], file.settings[key], key);
+    await fresh.close();
+  });
+
   test('the good file still loads after all of that', async () => {
     assert.equal((await app.call('POST', '/api/import', good)).status, 200);
   });
