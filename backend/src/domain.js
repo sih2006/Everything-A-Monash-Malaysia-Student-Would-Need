@@ -312,7 +312,8 @@ export function suggestMeals({ recipes, kitchen, left, targets, workedOut = fals
     const cost = round2(r.ingredients.reduce((sum, x) => sum + x.cost, 0));
     const toBuy = round2(missing.reduce((sum, x) => sum + x.cost, 0));
     const lacks = r.equipment.filter((e) => !tools.has(e));
-    const score = (r.protein / r.kcal) * 100 * proteinWeight + (fits(r.kcal) ? 10 : -20) - toBuy;
+    // Things to buy count only a little: the owner is happy to shop, so the best meal should win, not the cheapest.
+    const score = (r.protein / r.kcal) * 100 * proteinWeight + (fits(r.kcal) ? 10 : -20) - toBuy * 0.3;
     const why = [];
     if (hasTargets) why.push(fits(r.kcal) ? `fits the ${Math.max(0, Math.round(left.kcal))} kcal left` : `more than the ${Math.max(0, Math.round(left.kcal))} kcal left`);
     if (workedOut && r.protein >= 30) why.push('high protein after your workout');

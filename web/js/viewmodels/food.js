@@ -24,6 +24,19 @@ export function presentFoodPeriods(periods, targets) {
   });
 }
 
+// The meal "What to eat" opens on, from the hour of the day (Malaysian time on the user's device).
+export const MEAL_TIMES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+export function mealForHour(hour) {
+  if (hour >= 5 && hour < 11) return 'Breakfast';
+  if (hour >= 11 && hour < 15) return 'Lunch';
+  if (hour >= 15 && hour < 18) return 'Snack';
+  if (hour >= 18 && hour < 22) return 'Dinner';
+  return 'Snack';                              // late at night or very early: something small
+}
+
+// The recipes that suit one meal, in the order the backend ranked them.
+export const recipesFor = (list, meal) => (list ?? []).filter((r) => (r.meals ?? MEAL_TIMES).includes(meal));
+
 // The common meals, in their groups, in the order the groups first appear.
 export function groupPresets(presets) {
   const groups = [];

@@ -2,7 +2,7 @@
 // the tests need no server and no database.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { EQUIPMENT, MAX_MINUTES, RECIPES } from '../src/recipes.js';
+import { EQUIPMENT, MAX_MINUTES, MEAL_TIMES, RECIPES } from '../src/recipes.js';
 
 import { accountSummary, addDays, budgetSummary, foodPeriods, suggestMeals, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
@@ -289,7 +289,12 @@ test('the recipes are quick home cooking: 20 minutes or less, no noodles or oats
     assert.ok(!/noodle|mee|maggi|pasta|oat/i.test(`${r.name} ${r.ingredients.map((x) => x.item).join(' ')}`), r.name);
     assert.ok(r.ingredients.every((x) => x.cost > 0), r.name);
     assert.ok(r.equipment.every((e) => EQUIPMENT.includes(e)), r.name);
+    assert.ok(r.meals.length > 0 && r.meals.every((m) => MEAL_TIMES.includes(m)), `${r.name} says which meals it suits`);
+    // Halal only: never pork, lard, bacon, ham or alcohol (wine, beer, mirin, rum).
+    assert.ok(!/pork|lard|bacon|ham\b|wine|beer|mirin|rum\b|sake/i.test(r.ingredients.map((x) => x.item).join(' ')), `${r.name} is halal`);
   }
+  // Every meal of the day has several recipes to choose from.
+  for (const meal of MEAL_TIMES) assert.ok(RECIPES.filter((r) => r.meals.includes(meal)).length >= 4, `${meal} has choice`);
   // The owner's kitchen (a stove, an air fryer and a toaster) can make every recipe.
   const mine = new Set(['Stove', 'Air fryer', 'Toaster']);
   assert.ok(RECIPES.every((r) => r.equipment.every((e) => mine.has(e))));

@@ -8,7 +8,7 @@ import { RESULT_ORDERS, UNIT_ORDERS, presentGrades, presentHome, presentSpending
 import { presentSpendingMap } from '../viewmodels/spendingMap.js';
 import { DEFAULT_SPAN, EXPENSE_SPANS, presentMonthlyTable, spanWords } from '../viewmodels/expenses.js';
 import { convertAll, presentRates } from '../viewmodels/currency.js';
-import { FOOD_TABS, groupPresets, presentFoodPeriods } from '../viewmodels/food.js';
+import { FOOD_TABS, MEAL_TIMES, groupPresets, mealForHour, presentFoodPeriods, recipesFor } from '../viewmodels/food.js';
 import { ICON, artSpace, bar, chip, columns, emptyCard, field, fold, mood, pageHead, periodNav, select, trendChart, weightChart } from './parts.js';
 
 const MEALS = [['Breakfast', 'Breakfast'], ['Lunch', 'Lunch'], ['Dinner', 'Dinner'], ['Snack', 'Snack']];
@@ -829,8 +829,9 @@ function foodProgress(f) {
 }
 
 // What to eat today: what is left of the day, and quick home-cooked recipes for the kitchen you have.
-function foodEat(f) {
+function foodEat(f, state) {
   const p = f.plan;
+  const meal = state.eatMeal ?? mealForHour(new Date().getHours());
   const rm2 = (n) => `RM ${Number(n).toFixed(2)}`;
   const recipeCard = (r) => `
     <article class="card recipe">
@@ -840,7 +841,7 @@ function foodEat(f) {
       ${fold(`recipe-${r.id}`, 'Ingredients and steps', `
         <ul class="list">${r.ingredients.map((x) => `<li><span>${esc(x.item)} <span class="dim">· ${esc(x.amount)}</span></span><span class="end">${rm2(x.cost)}</span></li>`).join('')}</ul>
         <ol class="steps">${r.steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>`)}
-      <button type="button" class="btn" data-action="logRecipe" data-id="${esc(r.id)}">I made this: log it</button>
+      <button type="button" class="btn" data-action="logRecipe" data-id="${esc(r.id)}" data-meal="${meal}">I made this: log it as ${meal.toLowerCase()}</button>
     </article>`;
   const left = p.hasTargets
     ? `${num(Math.max(0, p.left.kcal))} kcal${p.left.protein > 0 ? ` and ${num(p.left.protein)} g of protein` : ''} left today`
@@ -850,12 +851,14 @@ function foodEat(f) {
       <h2>${esc(left)}</h2>
       <p>${p.workedOut ? 'You worked out today, so protein-rich meals come first. ' : ''}${p.kitchenKnown ? 'Only recipes your kitchen can make are shown first.' : 'Tick your equipment and ingredients on the Kitchen tab, and these suggestions follow what you have.'}</p>
     </section>
-    <div class="row">${select('Log as', 'planMeal', MEALS, 'Lunch')}</div>
-    <h2 class="section-title">Cook something quick</h2>
-    <p class="note">Home cooking only, 20 minutes or less.</p>
-    <section class="grid wide recipes">${p.recipes.map(recipeCard).join('')}</section>
-    ${p.needsEquipment.length ? fold('recipes-more', `With more equipment (${p.needsEquipment.length})`, `
-      <section class="grid wide recipes">${p.needsEquipment.map((r) => recipeCard({ ...r, why: [`needs ${r.lacks.join(' and ')}`, ...r.why] })).join('')}</section>`) : ''}
+    <div class="seg meal-switch" role="group" aria-label="Which meal">
+      ${MEAL_TIMES.map((m) => `<button type="button" data-action="setEatMeal" data-meal="${m}" aria-pressed="${m === meal}">${m}</button>`).join('')}
+    </div>
+    <h2 class="section-title">${meal} ideas</h2>
+    <p class="note">Home cooking only, 20 minutes or less. All halal: buy meat, cheese and sauces with a halal logo.</p>
+    <section class="grid wide recipes">${recipesFor(p.recipes, meal).map(recipeCard).join('') || '<p class="note">Nothing for this meal with your kitchen yet.</p>'}</section>
+    ${recipesFor(p.needsEquipment, meal).length ? fold('recipes-more', `With more equipment (${recipesFor(p.needsEquipment, meal).length})`, `
+      <section class="grid wide recipes">${recipesFor(p.needsEquipment, meal).map((r) => recipeCard({ ...r, why: [`needs ${r.lacks.join(' and ')}`, ...r.why] })).join('')}</section>`) : ''}
     <p class="note">Calories, protein and prices are estimates for the amounts listed. Prices are usual Malaysian supermarket prices and change by shop and week.</p>`;
 }
 

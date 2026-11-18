@@ -195,7 +195,8 @@ const COMMANDS = {
   quickAddFood: (f, d) => vm.quickAddFood(d.id, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
   quickAddPreset: (f, d) => vm.quickAddPreset(d.name, $('select[name="quickMeal"]', view)?.value ?? 'Snack'),
   setFoodTab: (f, d) => vm.setFoodTab(d.tab),
-  logRecipe: (f, d) => vm.logRecipe(d.id, $('select[name="planMeal"]', view)?.value ?? 'Lunch'),
+  logRecipe: (f, d) => vm.logRecipe(d.id, d.meal),
+  setEatMeal: (f, d) => vm.setEatMeal(d.meal),
   readFoodPicture: async (f) => vm.readFoodPicture(await readPicture(f.picture)),
   confirmFoodImport: (f) => {
     const rows = [];

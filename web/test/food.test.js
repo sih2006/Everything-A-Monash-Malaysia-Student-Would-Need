@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupPresets, isFoodTab, presentFoodPeriods } from '../js/viewmodels/food.js';
+import { groupPresets, isFoodTab, mealForHour, presentFoodPeriods, recipesFor } from '../js/viewmodels/food.js';
 
 const period = (over) => ({ logged: 0, length: 1, kcal: 0, protein: 0, averageKcal: 0, averageProtein: 0, daysOnTarget: null, daysProteinMet: null, ...over });
 
@@ -29,4 +29,12 @@ test('common meals keep their groups, in order', () => {
   assert.deepEqual(groups.map((g) => [g.name, g.meals.map((m) => m.name)]), [['Burger King', ['Whopper', 'Fries']], ['Malaysian', ['Nasi lemak']]]);
   assert.deepEqual(groupPresets(undefined), []);
   assert.ok(isFoodTab('progress') && !isFoodTab('snacks'));
+});
+
+test('what to eat opens on the meal for the time of day, and shows only recipes for that meal', () => {
+  assert.deepEqual([7, 12, 16, 19, 23, 3].map(mealForHour), ['Breakfast', 'Lunch', 'Snack', 'Dinner', 'Snack', 'Snack']);
+  const list = [{ id: 'a', meals: ['Breakfast'] }, { id: 'b', meals: ['Lunch', 'Dinner'] }, { id: 'c', meals: ['Breakfast', 'Snack'] }];
+  assert.deepEqual(recipesFor(list, 'Breakfast').map((r) => r.id), ['a', 'c']);
+  assert.deepEqual(recipesFor(list, 'Dinner').map((r) => r.id), ['b']);
+  assert.deepEqual(recipesFor(undefined, 'Lunch'), []);
 });

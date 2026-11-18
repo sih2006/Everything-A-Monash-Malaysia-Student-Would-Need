@@ -62,6 +62,7 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     budgetTab: BUDGET_TABS.includes(storage.get('budgetTab')) ? storage.get('budgetTab') : 'all', // the Budget tab that is open
     budgetAccount: savedAccounts(storage.get('budgetAccount')),  // the account shown on Banking and on Investing: { banking: id, investing: id }
     foodTab: isFoodTab(storage.get('foodTab')) ? storage.get('foodTab') : 'today',   // the Food tab that is open
+    eatMeal: null,          // the meal What to eat shows; null means "the meal for the time of day"
     foodImport: null,       // food read from a picture, waiting for the user to check: [{ food, kcal, protein }]
     expenseSpan: isSpan(storage.get('expenseSpan')) ? storage.get('expenseSpan') : DEFAULT_SPAN, // the period the Expenses tab looks back over
     currency: null,         // exchange rates from the backend; null until loaded, or when they could not load
@@ -407,6 +408,7 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       if (!food) return Promise.resolve(false);
       return act('food', () => api.logFood({ date: shown('food').date, food: food.name, kcal: food.kcal, protein: food.protein, meal, remember: true }), `${food.name} logged and saved to your meals.`);
     },
+    setEatMeal(meal) { state.eatMeal = ['Breakfast', 'Lunch', 'Dinner', 'Snack'].includes(meal) ? meal : null; changed(); },
     setFoodTab(tab) {
       state.foodTab = isFoodTab(tab) ? tab : 'today';
       storage.set('foodTab', state.foodTab);
