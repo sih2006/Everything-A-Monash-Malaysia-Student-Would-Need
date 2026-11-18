@@ -828,7 +828,7 @@ function foodProgress(f) {
     ${adviceCard(f.advice, { save: 'saveFoodAdvice', clear: 'clearFoodAdvice', id: 'food-advice-edit', later: 'Later the AI helper will write this from your food, workouts and health.' })}`;
 }
 
-// What to eat today: what is left of the day, quick meals that fit, and recipes for the kitchen you have.
+// What to eat today: what is left of the day, and quick home-cooked recipes for the kitchen you have.
 function foodEat(f) {
   const p = f.plan;
   const rm2 = (n) => `RM ${Number(n).toFixed(2)}`;
@@ -851,17 +851,8 @@ function foodEat(f) {
       <p>${p.workedOut ? 'You worked out today, so protein-rich meals come first. ' : ''}${p.kitchenKnown ? 'Only recipes your kitchen can make are shown first.' : 'Tick your equipment and ingredients on the Kitchen tab, and these suggestions follow what you have.'}</p>
     </section>
     <div class="row">${select('Log as', 'planMeal', MEALS, 'Lunch')}</div>
-    ${p.quick.length ? `
-    <section class="card">
-      <h2>Ready meals that fit</h2>
-      <div class="quick">
-        ${p.quick.map((m) => `
-          <button type="button" data-action="quickAddPlanned" ${m.mine ? `data-id="${m.id}"` : `data-name="${esc(m.name)}"`}>
-            <strong>${esc(m.name)}</strong><span>${m.mine ? '' : 'about '}${num(m.kcal)} kcal · ${num(m.protein)} g protein</span>
-          </button>`).join('')}
-      </div>
-    </section>` : ''}
-    <h2 class="section-title">Cook something</h2>
+    <h2 class="section-title">Cook something quick</h2>
+    <p class="note">Home cooking only, 20 minutes or less.</p>
     <section class="grid wide recipes">${p.recipes.map(recipeCard).join('')}</section>
     ${p.needsEquipment.length ? fold('recipes-more', `With more equipment (${p.needsEquipment.length})`, `
       <section class="grid wide recipes">${p.needsEquipment.map((r) => recipeCard({ ...r, why: [`needs ${r.lacks.join(' and ')}`, ...r.why] })).join('')}</section>`) : ''}

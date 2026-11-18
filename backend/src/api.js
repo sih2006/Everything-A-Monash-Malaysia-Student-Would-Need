@@ -415,19 +415,16 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
       presets: PRESET_MEALS.filter((m) => !yours.has(m.name.toLowerCase())),
       advice: store.getSetting('food.advice', null),
       ai: gemini.configured,
-      plan: foodPlan(date, targets, foods)
+      plan: foodPlan(date, targets)
     };
   };
-  // What to eat: the kitchen, recipes ranked for what is left of the day, and quick meals that fit.
-  function foodPlan(date, targets, foods) {
+  // What to eat: the kitchen, and home-cooked recipes ranked for what is left of the day.
+  function foodPlan(date, targets) {
     const kitchen = store.getSetting('food.kitchen', { equipment: [], pantry: [] });
     const eaten = store.listFoodLog(date).reduce((t, e) => ({ kcal: t.kcal + e.kcal, protein: t.protein + e.protein }), { kcal: 0, protein: 0 });
     const left = { kcal: targets.kcal - eaten.kcal, protein: Math.max(0, targets.protein - eaten.protein) };
     const workedOut = store.listWorkouts(date, date).length > 0;
-    const yours = new Set(foods.map((f) => f.name.toLowerCase()));
-    const meals = [...foods.map((f) => ({ name: f.name, kcal: f.kcal, protein: f.protein, mine: true, id: f.id })),
-      ...PRESET_MEALS.filter((m) => !yours.has(m.name.toLowerCase())).map((m) => ({ name: m.name, kcal: m.kcal, protein: m.protein }))];
-    return { ...suggestMeals({ recipes: RECIPES, meals, kitchen, left, targets, workedOut }), kitchen, equipment: EQUIPMENT, ingredients: INGREDIENTS };
+    return { ...suggestMeals({ recipes: RECIPES, kitchen, left, targets, workedOut }), kitchen, equipment: EQUIPMENT, ingredients: INGREDIENTS };
   }
 
   route('GET', '/api/food', ({ query }) => foodFor(dayOf(query.get('date') ?? undefined)));

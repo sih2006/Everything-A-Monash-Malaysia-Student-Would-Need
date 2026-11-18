@@ -416,12 +416,14 @@ describe('food and health', () => {
 
   test('food: common meals for quick add, your own saved meal wins, and the day comes with periods and advice', async () => {
     const before = (await app.call('GET', '/api/food')).body;
-    assert.ok(before.presets.some((m) => m.name === 'Burger King Whopper'));
-    assert.ok(!before.presets.some((m) => /noodle|mee|maggi|kuey|laksa/i.test(m.name)));      // no noodles, as asked
-    await app.call('POST', '/api/food/log', { food: 'Burger King Whopper', kcal: 700, protein: 31, meal: 'Lunch', remember: true });
+    const bk = "Burger King Chick'n Crisp meal (fries, drink)";
+    assert.ok(before.presets.every((m) => m.name.length <= 60), 'every common meal can be logged: names are at most 60 characters');
+    assert.ok(before.presets.some((m) => m.name === bk));
+    assert.ok(!before.presets.some((m) => /noodle|mee|maggi|kuey|laksa|oat|milo|teh tarik|kfc/i.test(m.name)));   // the owner's list
+    await app.call('POST', '/api/food/log', { food: bk, kcal: 1000, protein: 22, meal: 'Lunch', remember: true });
     const after = (await app.call('GET', '/api/food')).body;
-    assert.ok(!after.presets.some((m) => m.name === 'Burger King Whopper'));                  // now it is yours, with your numbers
-    assert.deepEqual(after.foods.find((f) => f.name === 'Burger King Whopper').kcal, 700);
+    assert.ok(!after.presets.some((m) => m.name === bk));                                      // now it is yours, with your numbers
+    assert.deepEqual(after.foods.find((f) => f.name === bk).kcal, 1000);
     assert.deepEqual(Object.keys(after.periods), ['day', 'week', 'month']);
     const advised = (await app.call('PUT', '/api/food/advice', { text: 'Eat more protein.', by: 'Test' })).body;
     assert.deepEqual([advised.advice.text, advised.advice.by], ['Eat more protein.', 'Test']);

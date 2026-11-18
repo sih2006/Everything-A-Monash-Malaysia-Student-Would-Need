@@ -2,6 +2,7 @@
 // the tests need no server and no database.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { EQUIPMENT, MAX_MINUTES, RECIPES } from '../src/recipes.js';
 
 import { accountSummary, addDays, budgetSummary, foodPeriods, suggestMeals, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
@@ -282,6 +283,18 @@ test('food periods: today, the week and the month, counting only days with somet
   assert.equal(foodPeriods({ day: '2026-11-18', targets: { kcal: 0, protein: 0 }, log }).week.daysOnTarget, null);
 });
 
+test('the recipes are quick home cooking: 20 minutes or less, no noodles or oats, every ingredient costed', () => {
+  for (const r of RECIPES) {
+    assert.ok(r.minutes <= MAX_MINUTES, `${r.name} takes ${r.minutes} minutes`);
+    assert.ok(!/noodle|mee|maggi|pasta|oat/i.test(`${r.name} ${r.ingredients.map((x) => x.item).join(' ')}`), r.name);
+    assert.ok(r.ingredients.every((x) => x.cost > 0), r.name);
+    assert.ok(r.equipment.every((e) => EQUIPMENT.includes(e)), r.name);
+  }
+  // The owner's kitchen (a stove, an air fryer and a toaster) can make every recipe.
+  const mine = new Set(['Stove', 'Air fryer', 'Toaster']);
+  assert.ok(RECIPES.every((r) => r.equipment.every((e) => mine.has(e))));
+});
+
 test('what to eat: recipes that fit what is left come first, protein counts more after a workout, missing things are costed', () => {
   const ing = (item, cost) => ({ item, amount: '1', cost });
   const recipes = [
@@ -290,14 +303,13 @@ test('what to eat: recipes that fit what is left come first, protein counts more
     { id: 'c', name: 'Big pasta', kcal: 1100, protein: 40, equipment: ['Stove'], ingredients: [ing('Pasta', 1)] }
   ];
   const kitchen = { equipment: ['Air fryer'], pantry: ['rice', 'Oats'] };
-  const s = suggestMeals({ recipes, kitchen, left: { kcal: 800, protein: 60 }, targets: { kcal: 2200, protein: 140 }, workedOut: true,
-    meals: [{ name: 'Shake', kcal: 130, protein: 25 }, { name: 'Whopper', kcal: 900, protein: 30 }, { name: 'My wrap', kcal: 400, protein: 20, mine: true }] });
+  const s = suggestMeals({ recipes, kitchen, left: { kcal: 800, protein: 60 }, targets: { kcal: 2200, protein: 140 }, workedOut: true });
   assert.deepEqual(s.recipes.map((r) => r.id), ['a', 'b']);                     // 'c' needs a stove the kitchen does not have
   assert.deepEqual(s.needsEquipment.map((r) => [r.id, r.lacks]), [['c', ['Stove']]]);
   assert.deepEqual(s.recipes[0].missing.map((x) => x.item), ['Chicken']);        // the pantry match ignores capitals
   assert.deepEqual([s.recipes[0].cost, s.recipes[0].toBuy], [4.4, 4]);
   assert.deepEqual(s.recipes[0].why, ['fits the 800 kcal left', 'high protein after your workout', 'about RM 4.00 to buy']);
-  assert.deepEqual(s.quick.map((m) => m.name), ['My wrap', 'Shake']);           // your own first; the Whopper does not fit
+  assert.equal(s.quick, undefined);                                              // home cooking only: no takeout suggestions
 });
 
 test('what to eat with nothing set up: nothing is hidden, and each recipe still says what it needs', () => {

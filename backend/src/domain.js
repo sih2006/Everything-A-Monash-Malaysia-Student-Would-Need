@@ -298,8 +298,8 @@ export function foodPeriods({ day, targets, log }) {
 // counting more after a workout or when protein is still short, and fewer things to buy counting a little.
 // A recipe that needs equipment the user does not have is moved to `needsEquipment`, unless the kitchen
 // has not been filled in yet (then nothing is moved, and each recipe says what it needs).
-// `quick` picks ready meals (the user's own first, then the common ones) that fit what is left.
-export function suggestMeals({ recipes, meals = [], kitchen, left, targets, workedOut = false }) {
+// Only home cooking is suggested, never takeout: the owner's choice.
+export function suggestMeals({ recipes, kitchen, left, targets, workedOut = false }) {
   const kitchenKnown = kitchen.equipment.length > 0 || kitchen.pantry.length > 0;
   const has = new Set(kitchen.pantry.map((x) => x.toLowerCase()));
   const tools = new Set(kitchen.equipment);
@@ -320,14 +320,10 @@ export function suggestMeals({ recipes, meals = [], kitchen, left, targets, work
     why.push(missing.length === 0 ? 'you have everything' : `about RM ${toBuy.toFixed(2)} to buy`);
     return { ...r, fits: fits(r.kcal), cost, toBuy, missing, lacks, why, score: round2(score) };
   }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-  const quick = meals.filter((m) => fits(m.kcal)).map((m) => ({ ...m, perKcal: m.protein / Math.max(1, m.kcal) }))
-    .sort((a, b) => (b.mine === true) - (a.mine === true) || b.perKcal - a.perKcal).slice(0, 6)
-    .map(({ perKcal, ...m }) => m);
   return {
     kitchenKnown, workedOut, left, hasTargets,
     recipes: kitchenKnown ? ranked.filter((r) => r.lacks.length === 0) : ranked,
-    needsEquipment: kitchenKnown ? ranked.filter((r) => r.lacks.length > 0) : [],
-    quick
+    needsEquipment: kitchenKnown ? ranked.filter((r) => r.lacks.length > 0) : []
   };
 }
 
