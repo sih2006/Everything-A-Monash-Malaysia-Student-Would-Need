@@ -74,7 +74,9 @@ Added on 17 and 18 November 2026, from what the owner asked for. Written after t
 | NUT-12 | A photo of a meal, or its nutrition label, is read by the AI helper into food, calories and protein. The user checks every row before anything is logged. | Should | 0.5 | Built. Tested with a fake AI service only; the real run is v0.6 |
 | NUT-13 | The user records the equipment they have (air fryer, rice cooker and so on) and the ingredients they usually keep. | Should | 0.5 | Built, tested |
 | NUT-14 | "What to eat today": quick home-cooked recipes only (20 minutes or less, halal, no takeout, no noodles or oats), shown for the meal chosen (breakfast, lunch, dinner or snack; it starts on the meal for the time of day), with calories, protein, time, equipment and an estimated cost per ingredient, ranked by what is left of the day's targets, with protein first after a workout; recipes the kitchen cannot make are set aside, and missing ingredients are listed with their cost. | Should | 0.5 | Built, tested. Costs are estimates |
-| NUT-07 | Another day can be viewed, and food can be logged on it. | Should | 0.2 | Built, tested |
+| NUT-15 | Preferences: foods the user does not eat (left out where they are only a side; recipes that need them are not suggested; common meals named after them are hidden) and what counts most when suggesting (high protein, cheapest or quickest). | Should | 0.5 | Built, tested |
+| NUT-16 | Daily calories and protein can be worked out from the user's own goal weight, a number of weeks, age, sex and activity, with a verdict on the pace (realistic, aggressive or too fast) and a safe floor. The app only suggests; the user decides whether to use them. | Should | 0.5 | Built, tested. Estimates, not medical advice |
+, and food can be logged on it. | Should | 0.2 | Built, tested |
 
 ## Health
 

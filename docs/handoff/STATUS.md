@@ -6,7 +6,7 @@ What is built, what is tested, and what is known to be wrong. **Read it first**,
 
 ## In one paragraph
 
-The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 312 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
+The app works on a laptop and is in daily use with the owner's real grades and money records, which are kept only in the local database (git ignores it). Grades, budget, food, health and the map all work. 317 automated tests pass on Windows and in CI on Linux. Versions 0.1 to 0.3 are released; the next versions are in the [roadmap](../03-plan/roadmap.md). Nothing is online yet, and nothing has run on a real phone.
 
 ## How to run and check it
 
@@ -66,7 +66,9 @@ The owner's real data (the transcript, bank statements, the e-wallet record, hei
 | Quick add | Your saved meals, then the owner's 17 usual meals in groups (Burger King, kebab and shawarma, Malaysian, fast food, breakfast and snacks). Every meal you log is saved by default | Rule, API and view-model tests |
 | Progress | Today, this week and this month: averages, days logged, days on target | Rule and presenter tests |
 | What to eat | 18 quick, halal home-cooked recipes (20 minutes or less, for a stove, an air fryer and a toaster), shown by meal: breakfast, lunch, dinner or snack, with estimated costs, ranked by what is left of the day and by protein after a workout; set aside when the kitchen lacks the equipment. No takeout suggestions | Rule and API tests |
-| Kitchen | Tick your equipment and the ingredients you keep | API and view-model tests |
+| Preferences | Foods you do not eat (cucumber, pickles and noodles for the owner) and what counts most: high protein, cheapest or quickest | Rule, API and view-model tests |
+| Targets from your goal | Calories and protein worked out from the goal weight, weeks, age, sex and activity, with a verdict on the pace and a safe floor; used only when you press "Use these" | Rule, API and view-model tests |
+ API and view-model tests |
 | Food advice | A placeholder for now; the AI helper writes it in v0.6 | API test |
 | Read a food picture | The AI helper reads a meal photo or a label; you check each row first | API test with a fake AI service |
 

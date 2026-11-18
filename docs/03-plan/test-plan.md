@@ -10,12 +10,12 @@ This document answers: how do we know the app works, and which test proves which
 |---|---|---|---|---|
 | **Unit, white-box** (core) | Each data structure and each grade rule, written with knowledge of the code | Our own test helper, with a leak check on every test | 75 | `core/tests/test_*.cpp` |
 | **System, black-box** (core) | The terminal program as a user sees it, written from the backlog's acceptance criteria only | A script types into the real program and reads its output | 31 | `core/tests/blackbox.py` |
-| **Unit** (backend rules) | Budget, money, food and health rules, and the life tree, as pure functions | `node:test` | 46 | `backend/test/domain.test.js`, `life.test.js` |
-| **Integration** (backend) | The real server, a real database and the real C++ engine, called over HTTP; export and import; exchange rates with a fake service | `node:test` | 81 | `backend/test/api.test.js`, `export.test.js`, `currency.test.js` |
-| **Unit** (web) | Presenters, commands, the two layouts, periods and currencies, with a fake API and no browser | `node:test` | 79 | `web/test/*.test.js` |
+| **Unit** (backend rules) | Budget, money, food and health rules, and the life tree, as pure functions | `node:test` | 49 | `backend/test/domain.test.js`, `life.test.js` |
+| **Integration** (backend) | The real server, a real database and the real C++ engine, called over HTTP; export and import; exchange rates with a fake service | `node:test` | 82 | `backend/test/api.test.js`, `export.test.js`, `currency.test.js` |
+| **Unit** (web) | Presenters, commands, the two layouts, periods and currencies, with a fake API and no browser | `node:test` | 80 | `web/test/*.test.js` |
 | **Browser, by hand** | The real screens in a real browser | Driven with the Playwright command-line tool, checked by eye | see section 5 | not automated |
 
-Total automated: **312 tests**. Run them all with `python tools/check.py`; CI runs the same command on Linux for every pull request. The last saved run is in [docs/proofs/test-run.txt](../proofs/test-run.txt).
+Total automated: **317 tests**. Run them all with `python tools/check.py`; CI runs the same command on Linux for every pull request. The last saved run is in [docs/proofs/test-run.txt](../proofs/test-run.txt).
 
 This follows the test pyramid: many fast unit tests, fewer integration tests, and a small number of whole-app checks.
 
@@ -119,7 +119,8 @@ Version 0.3 (money):
 | BUD-20, BUD-21 Looking back, month by month | rule "spending by month", "months between", "spending spans"; API "the month lists what could be cut"; `expenses.test.js` ×3 | Pass, and checked in a browser at laptop and phone width |
 | BUD-22, BUD-23 Other currencies | `currency.test.js` (backend) ×4 with a fake rate service; `currency.test.js` (web) ×5 | Pass, and checked in a browser with live rates |
 | NUT-08 to NUT-14 Food (v0.5) | rule "food periods", "what to eat" ×2, "the recipes are quick home cooking"; API "common meals", "the kitchen is saved", "a photo or label is read"; export "advice, the kitchen and rates survive"; `food.test.js` ×4; view-model "the kitchen form becomes two lists" | Pass; the picture reader only with a fake AI service |
-| APP-02 Hide numbers | view-model "hide numbers is remembered", "starts on if either old switch was on", "masks every RM amount" | Pass |
+| NUT-15, NUT-16 Preferences and targets from a goal | rule "preferences", "priority", "targets from a weight goal"; API "preferences hide disliked foods"; export round trip; view-model "preferences" | Pass |
+ view-model "hide numbers is remembered", "starts on if either old switch was on", "masks every RM amount" | Pass |
 
 ## 4. Tests beyond the backlog
 
