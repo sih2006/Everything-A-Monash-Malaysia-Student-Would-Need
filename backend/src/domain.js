@@ -265,6 +265,35 @@ export function foodSummary({ date, targets, log, foods }) {
   };
 }
 
+// How the eating is going over a day, the week (Monday to Sunday) and the month that hold `day`.
+// Only days with something logged count, so a forgotten day does not look like a day of fasting.
+// "On target" means at or under the calorie target; protein is met when it reaches its target.
+export function foodPeriods({ day, targets, log }) {
+  const days = new Map();
+  for (const e of log) {
+    const d = days.get(e.date) ?? { kcal: 0, protein: 0 };
+    d.kcal += e.kcal;
+    d.protein += e.protein;
+    days.set(e.date, d);
+  }
+  const week = weekRange(day);
+  const month = monthRange(day.slice(0, 7));
+  const sum = (from, to, length) => {
+    const inside = [...days].filter(([d]) => d >= from && d <= to && d <= day).map(([, v]) => v);
+    const logged = inside.length;
+    const kcal = Math.round(inside.reduce((s, v) => s + v.kcal, 0));
+    const protein = Math.round(inside.reduce((s, v) => s + v.protein, 0));
+    return {
+      from, to, length, logged, kcal, protein,
+      averageKcal: logged ? Math.round(kcal / logged) : 0,
+      averageProtein: logged ? Math.round(protein / logged) : 0,
+      daysOnTarget: targets.kcal > 0 ? inside.filter((v) => v.kcal <= targets.kcal).length : null,
+      daysProteinMet: targets.protein > 0 ? inside.filter((v) => v.protein >= targets.protein).length : null
+    };
+  };
+  return { day: sum(day, day, 1), week: sum(week.from, week.to, 7), month: sum(month.from, month.to, month.days) };
+}
+
 // ---------- health ----------
 
 // `days` have {day, steps, sleepMinutes, restingHr}; `workouts` have {id, date, name}.

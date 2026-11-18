@@ -7,11 +7,12 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { inTransaction } from './db.js';
-import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
+import { ACCOUNT_KINDS, WORKOUT_KINDS, accountSummary, addDays, incomeSummary, monthlySpending, spendingSpans, budgetSummary, foodPeriods, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange } from './domain.js';
 import { EngineMissing } from './engine.js';
 import { HttpError, check, createRouter, readJson, sendJson, sendStatic } from './http.js';
 import { lifeTree } from './life.js';
 import { CURRENCIES, RATES_SOURCE, RatesUnavailable } from './rates.js';
+import { PRESET_MEALS } from './meals.js';
 import { loadDemo } from './seed.js';
 
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -401,12 +402,20 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
 
   // ================= food =================
 
-  const foodFor = (date) => foodSummary({
-    date,
-    targets: store.getSetting('food.targets', { kcal: 0, protein: 0 }),
-    log: store.listFoodLog(date),
-    foods: store.listFoods()
-  });
+  const foodFor = (date) => {
+    const targets = store.getSetting('food.targets', { kcal: 0, protein: 0 });
+    const foods = store.listFoods();
+    const yours = new Set(foods.map((f) => f.name.toLowerCase()));
+    return {
+      ...foodSummary({ date, targets, log: store.listFoodLog(date), foods }),
+      // Today, this week and this month. Only the month that holds `date` is needed.
+      periods: foodPeriods({ day: date, targets, log: store.listFoodLogAll().filter((e) => e.date.slice(0, 7) === date.slice(0, 7)) }),
+      // Common meals for quick add, except any the user has saved with their own numbers.
+      presets: PRESET_MEALS.filter((m) => !yours.has(m.name.toLowerCase())),
+      advice: store.getSetting('food.advice', null),
+      ai: gemini.configured
+    };
+  };
 
   route('GET', '/api/food', ({ query }) => foodFor(dayOf(query.get('date') ?? undefined)));
 
@@ -432,6 +441,27 @@ export function createApp({ db, store, engine, gemini, rates = null, webDir, tod
     if (body.remember === true) store.insertFood({ name: entry.food, kcal: entry.kcal, protein: entry.protein });
     return foodFor(entry.date);
   });
+
+  // Advice shown on the Food screen. For now it is written by hand; later the AI helper fills it (v0.6).
+  route('PUT', '/api/food/advice', ({ body }) => {
+    if (body.text === null) store.setSetting('food.advice', null);
+    else store.setSetting('food.advice', {
+      text: check.text(String(body.text ?? '').replace(/\r?\n/g, ' \u2028 '), 'text', { max: 6000 }).replace(/ \u2028 /g, '\n'),
+      by: check.text(body.by, 'by', { max: 60, required: false }) || 'You',
+      on: today()
+    });
+    return foodFor(today());
+  });
+
+  // Reads food from a photo or a nutrition label. Nothing is saved: the user checks the list first.
+  route('POST', '/api/food/read-picture', async ({ body }) => {
+    const mimeType = check.text(body.mimeType, 'mimeType', { max: 20 });
+    if (!IMAGE_TYPES.includes(mimeType)) throw new HttpError(400, 'invalid', 'The picture must be a PNG, JPEG or WebP file.', 'mimeType');
+    if (typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+=*$/.test(body.image) || body.image.length < 100) {
+      throw new HttpError(400, 'invalid', 'The picture did not arrive properly. Choose the file again.', 'image');
+    }
+    return { items: await gemini.readMeal(body.image, mimeType) };
+  }, PICTURE);
 
   // Forgets a remembered food. Entries already logged with it are kept.
   route('DELETE', '/api/food/items/:id', ({ params }) => {

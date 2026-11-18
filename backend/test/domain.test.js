@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { accountSummary, addDays, budgetSummary, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, foodPeriods, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -268,6 +268,18 @@ test('spending spans: this month, 3 months, a year and all time each end with th
   // Records that start in August: "a year" covers only August to October, so its average is not spread over empty months.
   const short = spendingSpans({ categories, transactions: transactions.slice(1), month: '2026-10' });
   assert.deepEqual([short.year.months, short.year.from, short.year.perMonth], [3, '2026-08-01', 16.67]);
+});
+
+test('food periods: today, the week and the month, counting only days with something logged', () => {
+  const e = (date, kcal, protein) => ({ date, kcal, protein });
+  const log = [e('2026-11-02', 2500, 90), e('2026-11-16', 1800, 120), e('2026-11-17', 1000, 40), e('2026-11-17', 900, 50), e('2026-11-18', 2100, 100), e('2026-11-20', 3000, 10)];
+  const p = foodPeriods({ day: '2026-11-18', targets: { kcal: 2000, protein: 100 }, log });
+  assert.deepEqual(p.day, { from: '2026-11-18', to: '2026-11-18', length: 1, logged: 1, kcal: 2100, protein: 100, averageKcal: 2100, averageProtein: 100, daysOnTarget: 0, daysProteinMet: 1 });
+  // The week of Wednesday 18 November runs Monday 16 to Sunday 22; the 20th is after "today", so it is not counted yet.
+  assert.deepEqual([p.week.logged, p.week.averageKcal, p.week.daysOnTarget, p.week.daysProteinMet], [3, 1933, 2, 2]);
+  assert.deepEqual([p.month.logged, p.month.length, p.month.kcal], [4, 30, 8300]);
+  // With no targets set, there is no verdict, only the numbers.
+  assert.equal(foodPeriods({ day: '2026-11-18', targets: { kcal: 0, protein: 0 }, log }).week.daysOnTarget, null);
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {

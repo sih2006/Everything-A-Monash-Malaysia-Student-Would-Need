@@ -414,6 +414,20 @@ describe('food and health', () => {
     assert.equal(after.body.kcal, 640);
   });
 
+  test('food: common meals for quick add, your own saved meal wins, and the day comes with periods and advice', async () => {
+    const before = (await app.call('GET', '/api/food')).body;
+    assert.ok(before.presets.some((m) => m.name === 'Burger King Whopper'));
+    assert.ok(!before.presets.some((m) => /noodle|mee|maggi|kuey|laksa/i.test(m.name)));      // no noodles, as asked
+    await app.call('POST', '/api/food/log', { food: 'Burger King Whopper', kcal: 700, protein: 31, meal: 'Lunch', remember: true });
+    const after = (await app.call('GET', '/api/food')).body;
+    assert.ok(!after.presets.some((m) => m.name === 'Burger King Whopper'));                  // now it is yours, with your numbers
+    assert.deepEqual(after.foods.find((f) => f.name === 'Burger King Whopper').kcal, 700);
+    assert.deepEqual(Object.keys(after.periods), ['day', 'week', 'month']);
+    const advised = (await app.call('PUT', '/api/food/advice', { text: 'Eat more protein.', by: 'Test' })).body;
+    assert.deepEqual([advised.advice.text, advised.advice.by], ['Eat more protein.', 'Test']);
+    assert.equal((await app.call('PUT', '/api/food/advice', { text: null })).body.advice, null);
+  });
+
   test('food: a remembered food can be forgotten, and what was logged with it stays', async () => {
     const before = (await app.call('GET', '/api/food')).body;
     const id = before.foods.find((f) => f.name === 'Nasi lemak').id;
@@ -671,6 +685,18 @@ describe('the AI helper', () => {
     assert.equal(app.store.listAssessments().length, 0);
     assert.equal((await app.call('POST', '/api/import/screenshot', { image: 'A'.repeat(200), mimeType: 'application/pdf' })).status, 400);
     assert.equal((await app.call('POST', '/api/import/screenshot', { image: 'not base64 !!', mimeType: 'image/png' })).status, 400);
+    await app.close();
+  });
+
+  test('food: a photo or label is read into a list to check; nothing is saved; bad items are left out', async () => {
+    const answer = JSON.stringify([{ food: 'Whopper', kcal: 650.4, protein: 30 }, { food: 'Fries', kcal: 'lots' }, { food: 'Coke', kcal: 210, protein: null }]);
+    const fetchImpl = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: answer }] } }] }), { status: 200 });
+    const app = await start({ geminiKey: 'test-key', fetchImpl });
+    const { status, body } = await app.call('POST', '/api/food/read-picture', { image: 'A'.repeat(200), mimeType: 'image/jpeg' });
+    assert.equal(status, 200);
+    assert.deepEqual(body.items, [{ food: 'Whopper', kcal: 650, protein: 30 }, { food: 'Coke', kcal: 210, protein: 0 }]);
+    assert.equal((await app.call('GET', '/api/food')).body.log.length, 0);
+    assert.equal((await app.call('POST', '/api/food/read-picture', { image: 'A'.repeat(200), mimeType: 'text/plain' })).status, 400);
     await app.close();
   });
 
