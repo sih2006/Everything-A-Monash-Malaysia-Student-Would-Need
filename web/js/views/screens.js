@@ -457,60 +457,60 @@ function incomeSection(b, day) {
     </section>`;
 }
 
-// The spending map: one block per category, sized by what it costs a month, with its places inside.
+// The spending map: one block per category, sized by what it cost over the period chosen, with its places inside.
 // Two layouts are drawn, a wide one for a laptop and a tall one for a phone; CSS shows the one that fits.
 function mapLayout(map, kind) {
   const pc = (n, of) => `${((n / of) * 100).toFixed(3)}%`;
   const box = (r) => `left:${pc(r.x, map.width)};top:${pc(r.y, map.height)};width:${pc(r.w, map.width)};height:${pc(r.h, map.height)}`;
   return `<div class="spend-map ${kind}" style="aspect-ratio:${map.width} / ${map.height}" role="img" aria-label="Spending map. The same numbers are in the table below.">
     ${map.blocks.map((b) => `
-      <div class="sm-cat c${b.colour}" style="${box(b)}" data-tip="${esc(b.category)}: ${rm(b.perMonth)} a month">
-        ${b.labelled ? `<div class="sm-head"><strong>${esc(b.category)}</strong> <span>${rm(b.perMonth)}</span></div>` : ''}
+      <div class="sm-cat c${b.colour}" style="${box(b)}" data-tip="${esc(b.category)}: ${rm(b.total)}${map.months > 1 ? `, about ${rm(b.perMonth)} a month` : ''}">
+        ${b.labelled ? `<div class="sm-head"><strong>${esc(b.category)}</strong> <span>${rm(b.total)}</span></div>` : ''}
       </div>
-      ${b.places.map((p) => `<div class="sm-place c${b.colour}" style="${box(p)}" data-tip="${esc(p.what)} · ${esc(b.category)}: ${rm(p.perMonth)} a month, ${p.count}×">
-        ${p.labelled ? `<span class="sm-name">${esc(p.what)}</span><span class="sm-value">${rm(p.perMonth)}</span>` : ''}</div>`).join('')}`).join('')}
+      ${b.places.map((p) => `<div class="sm-place c${b.colour}" style="${box(p)}" data-tip="${esc(p.what)} · ${esc(b.category)}: ${rm(p.total)}, ${p.count}×">
+        ${p.labelled ? `<span class="sm-name">${esc(p.what)}</span><span class="sm-value">${rm(p.total)}</span>` : ''}</div>`).join('')}`).join('')}
   </div>`;
 }
 
-function spendingMapCard(reducible, span, words) {
+function spendingMapCard(reducible, words) {
   const wide = presentSpendingMap(reducible, 1000, 520);
   if (!wide) return '';
   const tall = presentSpendingMap(reducible, 400, 640);
   return `
     <section class="card spend-map-card">
-      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: span === 'month' ? rm(reducible.total) : `${rm(wide.perMonth)} a month`, tone: '' })}</div>
-      <p class="note">Without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}. ${span === 'month' ? `Spending in ${esc(words)}.` : `The average month over ${esc(words)}.`} Bigger block, more money. Point at a block for its numbers.</p>
+      <div class="card-head"><h2>Where your money goes</h2>${chip({ text: rm(wide.total), tone: '' })}</div>
+      <p class="note">Covers ${esc(words)}, without ${wide.essential.length ? esc(wide.essential.join(' and ')) : 'essential categories'}.${wide.months > 1 ? ` About ${rm(wide.perMonth)} a month.` : ''} Bigger block, more money. Point at a block for its numbers.</p>
       <ul class="sm-legend" aria-label="Categories">
-        ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.perMonth)}</span></li>`).join('')}
+        ${wide.legend.map((l) => `<li><span class="sm-swatch c${l.colour}" aria-hidden="true"></span>${esc(l.category)} <span class="dim">${rm(l.total)}</span></li>`).join('')}
       </ul>
       ${mapLayout(wide, 'wide')}${mapLayout(tall, 'tall')}
       <details class="sm-table">
         <summary>Show as a table</summary>
         <table>
-          <thead><tr><th scope="col">Category</th><th scope="col">Place</th><th scope="col">Times</th><th scope="col">A month</th></tr></thead>
-          <tbody>${wide.blocks.map((b) => b.places.map((p, i) => `<tr>${i === 0 ? `<th scope="rowgroup" rowspan="${b.places.length}">${esc(b.category)}<br><span class="dim">${rm(b.perMonth)}</span></th>` : ''}
-            <td>${esc(p.what)}</td><td>${p.count}</td><td>${rm(p.perMonth)}</td></tr>`).join('')).join('')}</tbody>
+          <thead><tr><th scope="col">Category</th><th scope="col">Place</th><th scope="col">Times</th><th scope="col">Total</th>${wide.months > 1 ? '<th scope="col">A month</th>' : ''}</tr></thead>
+          <tbody>${wide.blocks.map((b) => b.places.map((p, i) => `<tr>${i === 0 ? `<th scope="rowgroup" rowspan="${b.places.length}">${esc(b.category)}<br><span class="dim">${rm(b.total)}</span></th>` : ''}
+            <td>${esc(p.what)}</td><td>${p.count}</td><td>${rm(p.total)}</td>${wide.months > 1 ? `<td>${rm(p.perMonth)}</td>` : ''}</tr>`).join('')).join('')}</tbody>
         </table>
       </details>
     </section>`;
 }
 
 // What could be cut: spending outside the essential categories, over the period chosen.
-function couldCut(r, span, words) {
+function couldCut(r, words) {
   if (!r || r.total <= 0) return `<section class="card"><h2>Could cut</h2><p class="note">No spending outside your essential categories in ${esc(words)}.</p></section>`;
   const most = r.byCategory[0]?.amount || 1;
   return `
     <section class="card could-cut">
-      <div class="card-head"><h2>Could cut: ${span === 'month' ? rm(r.total) : `${rm(r.perMonth)} a month`}</h2>${chip({ text: words, tone: '' })}</div>
-      <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. ${rm(r.total)} in all.</p>
+      <div class="card-head"><h2>Could cut: ${rm(r.total)}</h2>${chip({ text: words, tone: '' })}</div>
+      <p class="note">Everything except ${r.essential.length ? esc(r.essential.join(' and ')) : 'the categories you mark as essential'}. Covers ${esc(words)}.${r.months > 1 ? ` About ${rm(r.perMonth)} a month.` : ''}</p>
       ${r.byCategory.slice(0, 6).map((c) => `
         <div class="bar-row">
-          <div class="top"><strong>${esc(c.category)}</strong><span>${rm(c.perMonth)} <span class="note">a month</span></span></div>
+          <div class="top"><strong>${esc(c.category)}</strong><span>${rm(c.amount)}${r.months > 1 ? ` <span class="note">· ${rm(c.perMonth)} a month</span>` : ''}</span></div>
           ${bar((c.amount / most) * 100, '')}
         </div>`).join('')}
       <h3>The places you pay most</h3>
       <ol class="list ranked">
-        ${r.top.map((p) => `<li><span>${esc(p.what)} <span class="dim">· ${esc(p.category)} · ${p.count}× at about ${rm(p.average)}</span></span><span class="end">${rm(p.perMonth)}<span class="dim"> /month</span></span></li>`).join('')}
+        ${r.top.map((p) => `<li><span>${esc(p.what)} <span class="dim">· ${esc(p.category)} · ${p.count}× at about ${rm(p.average)}</span></span><span class="end">${rm(p.total)}</span></li>`).join('')}
       </ol>
     </section>`;
 }
@@ -588,10 +588,10 @@ function lookingBack(b, state) {
       </div>
     </section>
 
-    ${spendingMapCard(r, span, words)}
+    ${spendingMapCard(r, words)}
 
     <section class="grid wide">
-      ${couldCut(r, span, words)}
+      ${couldCut(r, words)}
       ${adviceCard(b.advice)}
     </section>
 

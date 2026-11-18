@@ -24,7 +24,7 @@ test('squarify: nothing to show gives no blocks; zero values are left out', () =
   assert.equal(squarify([{ value: 1 }, { value: 0 }], 0, 0, 10, 10).length, 1);
 });
 
-const category = (name, perMonth) => ({ category: name, perMonth, amount: perMonth * 3, places: [{ what: `${name} shop`, perMonth, count: 3 }] });
+const category = (name, perMonth) => ({ category: name, perMonth, amount: perMonth * 3, places: [{ what: `${name} shop`, total: perMonth * 3, perMonth, count: 3 }] });
 
 test('spending map: colours follow the category name, not its size; past seven, categories fold into Everything else', () => {
   const byCategory = [category('Shopping', 500), category('Eating out', 900), category('Games', 40), category('Laundry', 5),
@@ -34,6 +34,10 @@ test('spending map: colours follow the category name, not its size; past seven, 
   const other = map.blocks.find((b) => b.category === 'Everything else');
   assert.equal(other.colour, 0);
   assert.equal(other.perMonth, 13);                                    // the two smallest: Books 8 + Laundry 5
+  assert.equal(other.total, 39);                                       // and over the 3 months
+  const eating = map.blocks.find((b) => b.category === 'Eating out');
+  assert.equal(eating.total, 2700);                                    // blocks show the whole period, not the average month
+  assert.equal(eating.places[0].total, 2700);
   assert.deepEqual(other.places.map((p) => p.what).sort(), ['Books', 'Laundry']);
   // Eating out is the biggest, but its colour comes from its place in name order among the seven shown.
   assert.equal(map.blocks.find((b) => b.category === 'Eating out').colour, 2);

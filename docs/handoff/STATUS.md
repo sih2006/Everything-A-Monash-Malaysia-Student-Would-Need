@@ -51,7 +51,7 @@ python tools/check.py                build and run every test
 | Spending map | A treemap of that spending, with a legend, hover tips and a table view | 5 layout tests, browser check |
 | Advice | Text on the Expenses tab, saved with `PUT /api/budget/advice`. A placeholder for now; the AI helper writes it in v0.6. | API test |
 | Hide numbers | One switch hides every mark, grade, target and amount on every screen (it replaced Hide grades and Hide money) | View-model tests |
-| Looking back | The Expenses tab switches between this month, 3 months, a year and all time: total spent, essential, could cut, and a month-by-month table of what went where | Rule, API and view-model tests, browser check |
+| Looking back | The Expenses tab switches between this month, 3 months, a year and all time: total spent, essential, could cut, a spending map with the totals for that period, and a month-by-month table of what went where | Rule, API and view-model tests, browser check |
 | Regular expenses | One-press Quick add on the Expenses tab (rent or a usual meal, for example), with suggestions from repeated spending | Rule, API and view-model tests, browser check |
  A converter, and a switch that shows every amount in USD, OMR, CZK, CAD or IDR. Live rates once a day, or a rate typed by hand ([ADR-0008](../adr/0008-exchange-rates.md)) | API tests with a fake rate service, view-model tests, browser check |
 | Life tree | The Map's Life view: years down the left; studies, money, food and health branching right, down to single days | 8 rule tests, 10 view-model tests |

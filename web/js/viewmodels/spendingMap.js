@@ -45,9 +45,10 @@ const HEADER = 34;                     // room at the top of a category block fo
 const GAP = 3;                         // space between blocks, in layout units
 
 // Lays out the map for a canvas of `width` by `height` layout units.
+// Blocks are sized by what was spent over the whole period; each also keeps what that comes to a month.
 // Colour follows the category, not its size: the categories shown are given colours in name order.
 export function presentSpendingMap(reducible, width, height) {
-  const all = (reducible?.byCategory ?? []).filter((c) => c.perMonth > 0);
+  const all = (reducible?.byCategory ?? []).filter((c) => c.amount > 0).map((c) => ({ ...c, total: c.amount }));
   if (all.length === 0) return null;
   let shown = all.slice(0, MAP_COLOURS);
   const folded = all.slice(MAP_COLOURS);
@@ -55,20 +56,21 @@ export function presentSpendingMap(reducible, width, height) {
   shown = shown.map((c) => ({ ...c, colour: names.indexOf(c.category) + 1 }));
   if (folded.length) {
     shown.push({
-      category: 'Everything else', colour: 0, perMonth: round2(folded.reduce((s, c) => s + c.perMonth, 0)),
-      places: folded.map((c) => ({ what: c.category, perMonth: c.perMonth, count: c.places.reduce((s, p) => s + p.count, 0) }))
+      category: 'Everything else', colour: 0,
+      total: round2(folded.reduce((s, c) => s + c.total, 0)), perMonth: round2(folded.reduce((s, c) => s + c.perMonth, 0)),
+      places: folded.map((c) => ({ what: c.category, total: c.total, perMonth: c.perMonth, count: c.places.reduce((s, p) => s + p.count, 0) }))
     });
   }
-  const blocks = squarify(shown.map((c) => ({ ...c, value: c.perMonth })), 0, 0, width, height).map((b) => {
+  const blocks = squarify(shown.map((c) => ({ ...c, value: c.total })), 0, 0, width, height).map((b) => {
     const labelled = b.h >= HEADER * 2.2 && b.w >= 170;
     const top = b.y + (labelled ? HEADER : GAP);
-    const inner = squarify(b.places.filter((p) => p.perMonth > 0).map((p) => ({ ...p, value: p.perMonth })),
+    const inner = squarify(b.places.filter((p) => p.total > 0).map((p) => ({ ...p, value: p.total })),
       b.x + GAP, top, Math.max(0, b.w - GAP * 2), Math.max(0, b.y + b.h - top - GAP));
     return { ...b, labelled, places: inner.map((p) => ({ ...p, labelled: p.w >= 100 && p.h >= 40 })) };
   });
   return {
-    width, height, perMonth: reducible.perMonth, months: reducible.months, essential: reducible.essential,
-    legend: [...shown].sort((a, b) => (a.colour === 0) - (b.colour === 0) || b.perMonth - a.perMonth).map((c) => ({ category: c.category, colour: c.colour, perMonth: c.perMonth })),
+    width, height, total: reducible.total, perMonth: reducible.perMonth, months: reducible.months, essential: reducible.essential,
+    legend: [...shown].sort((a, b) => (a.colour === 0) - (b.colour === 0) || b.total - a.total).map((c) => ({ category: c.category, colour: c.colour, total: c.total, perMonth: c.perMonth })),
     blocks
   };
 }
