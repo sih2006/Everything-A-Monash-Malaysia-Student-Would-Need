@@ -96,6 +96,7 @@ export function createApi({ fetchImpl = (...args) => fetch(...args), getToken = 
     deleteFood: (id) => remove(`/api/food/log/${id}`),
     forgetFood: (id) => remove(`/api/food/items/${id}`),
     saveFoodAdvice: (text, by) => put('/api/food/advice', { text, by }),
+    saveKitchen: (kitchen) => put('/api/food/kitchen', kitchen),
     readFoodPicture: (image, mimeType) => post('/api/food/read-picture', { image, mimeType }),
 
     // health

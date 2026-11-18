@@ -828,8 +828,66 @@ function foodProgress(f) {
     ${adviceCard(f.advice, { save: 'saveFoodAdvice', clear: 'clearFoodAdvice', id: 'food-advice-edit', later: 'Later the AI helper will write this from your food, workouts and health.' })}`;
 }
 
-// Which tabs exist, and what each one shows. "What to eat" and "Kitchen" are added with the recipes.
-const FOOD_TAB_VIEWS = { today: foodToday, progress: foodProgress };
+// What to eat today: what is left of the day, quick meals that fit, and recipes for the kitchen you have.
+function foodEat(f) {
+  const p = f.plan;
+  const rm2 = (n) => `RM ${Number(n).toFixed(2)}`;
+  const recipeCard = (r) => `
+    <article class="card recipe">
+      <div class="card-head"><h3>${esc(r.name)}</h3>${chip({ text: `${num(r.kcal)} kcal · ${num(r.protein)} g`, tone: r.fits ? 'good' : 'warn' })}</div>
+      <p class="note">${esc(r.why.join(' · '))}. ${r.minutes} min${r.equipment.length ? ` · ${esc(r.equipment.join(', '))}` : ' · no cooking'}${r.lacks.length && !p.kitchenKnown ? '' : ''}</p>
+      <p class="note">About ${rm2(r.cost)} a serving${r.missing.length ? `. To buy: ${esc(r.missing.map((x) => `${x.item} (${rm2(x.cost)})`).join(', '))}` : ''}.</p>
+      ${fold(`recipe-${r.id}`, 'Ingredients and steps', `
+        <ul class="list">${r.ingredients.map((x) => `<li><span>${esc(x.item)} <span class="dim">· ${esc(x.amount)}</span></span><span class="end">${rm2(x.cost)}</span></li>`).join('')}</ul>
+        <ol class="steps">${r.steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>`)}
+      <button type="button" class="btn" data-action="logRecipe" data-id="${esc(r.id)}">I made this: log it</button>
+    </article>`;
+  const left = p.hasTargets
+    ? `${num(Math.max(0, p.left.kcal))} kcal${p.left.protein > 0 ? ` and ${num(p.left.protein)} g of protein` : ''} left today`
+    : 'No daily target set, so every recipe is shown';
+  return `
+    <section class="banner ${p.hasTargets && p.left.kcal <= 0 ? 'warn' : 'good'}">
+      <h2>${esc(left)}</h2>
+      <p>${p.workedOut ? 'You worked out today, so protein-rich meals come first. ' : ''}${p.kitchenKnown ? 'Only recipes your kitchen can make are shown first.' : 'Tick your equipment and ingredients on the Kitchen tab, and these suggestions follow what you have.'}</p>
+    </section>
+    <div class="row">${select('Log as', 'planMeal', MEALS, 'Lunch')}</div>
+    ${p.quick.length ? `
+    <section class="card">
+      <h2>Ready meals that fit</h2>
+      <div class="quick">
+        ${p.quick.map((m) => `
+          <button type="button" data-action="quickAddPlanned" ${m.mine ? `data-id="${m.id}"` : `data-name="${esc(m.name)}"`}>
+            <strong>${esc(m.name)}</strong><span>${m.mine ? '' : 'about '}${num(m.kcal)} kcal · ${num(m.protein)} g protein</span>
+          </button>`).join('')}
+      </div>
+    </section>` : ''}
+    <h2 class="section-title">Cook something</h2>
+    <section class="grid wide recipes">${p.recipes.map(recipeCard).join('')}</section>
+    ${p.needsEquipment.length ? fold('recipes-more', `With more equipment (${p.needsEquipment.length})`, `
+      <section class="grid wide recipes">${p.needsEquipment.map((r) => recipeCard({ ...r, why: [`needs ${r.lacks.join(' and ')}`, ...r.why] })).join('')}</section>`) : ''}
+    <p class="note">Calories, protein and prices are estimates for the amounts listed. Prices are usual Malaysian supermarket prices and change by shop and week.</p>`;
+}
+
+// The kitchen: the equipment and ingredients you have. "What to eat" follows it.
+function foodKitchen(f) {
+  const k = f.plan.kitchen;
+  const box = (prefix, name, on) => `<label class="tick"><input type="checkbox" name="${prefix}:${esc(name)}" ${on ? 'checked' : ''}> ${esc(name)}</label>`;
+  return `
+    <section class="card kitchen">
+      <h2>Your kitchen</h2>
+      <p class="note">Tick what you have. "What to eat" then shows the recipes you can make first, and what you would need to buy for the others.</p>
+      <form class="form" data-action="saveKitchen">
+        <h3 class="label">Equipment</h3>
+        <div class="ticks">${f.plan.equipment.map((e) => box('equipment', e, k.equipment.includes(e))).join('')}</div>
+        <h3 class="label">Ingredients you usually have</h3>
+        <div class="ticks">${f.plan.ingredients.map((x) => box('pantry', x, k.pantry.includes(x))).join('')}</div>
+        <button class="btn primary" type="submit">Save kitchen</button>
+      </form>
+    </section>`;
+}
+
+// Which tabs exist, and what each one shows.
+const FOOD_TAB_VIEWS = { today: foodToday, progress: foodProgress, eat: foodEat, kitchen: foodKitchen };
 
 // ================= health =================
 

@@ -417,6 +417,18 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       return api.saveFoodAdvice(text, 'You');
     }, 'Advice saved.'),
     clearFoodAdvice: () => act('food', () => api.saveFoodAdvice(null), 'Advice removed.'),
+    // The kitchen form has one tick box per item, named "equipment:Air fryer" or "pantry:Rice".
+    saveKitchen: (f) => act('food', () => api.saveKitchen({
+      equipment: Object.keys(f).filter((k) => k.startsWith('equipment:')).map((k) => k.slice('equipment:'.length)),
+      pantry: Object.keys(f).filter((k) => k.startsWith('pantry:')).map((k) => k.slice('pantry:'.length))
+    }), 'Kitchen saved.'),
+    // A recipe that was cooked: logged with its calories and protein, and saved to your meals.
+    logRecipe(id, meal) {
+      const plan = shown('food').plan;
+      const recipe = [...(plan?.recipes ?? []), ...(plan?.needsEquipment ?? [])].find((r) => r.id === id);
+      if (!recipe) return Promise.resolve(false);
+      return act('food', () => api.logFood({ date: shown('food').date, food: recipe.name, kcal: recipe.kcal, protein: recipe.protein, meal, remember: true }), `${recipe.name} logged.`);
+    },
     // Reads food from a picture. Nothing is saved until the user has checked the list.
     readFoodPicture: (picture) => act(null, async () => {
       state.foodImport = (await api.readFoodPicture(picture.base64, picture.mimeType)).items;

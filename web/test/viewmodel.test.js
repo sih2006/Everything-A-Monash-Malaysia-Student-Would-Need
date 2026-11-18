@@ -622,3 +622,20 @@ test('budget tabs: the open tab and the account picked on each tab are kept for 
   saved.budgetAccount = 'not json';
   assert.deepEqual(createAppViewModel({ api: {}, storage, onChange: () => {} }).state.budgetAccount, { banking: null, investing: null });
 });
+
+test('the kitchen form becomes two lists, and a cooked recipe is logged and saved', async () => {
+  const sent = [];
+  const plan = { recipes: [{ id: 'eggs', name: 'Eggs on toast', kcal: 400, protein: 22 }], needsEquipment: [] };
+  const { vm } = setup({
+    saveKitchen: (k) => { sent.push(['kitchen', k]); return Promise.resolve(overview().food); },
+    logFood: (e) => { sent.push(['log', e]); return Promise.resolve(overview().food); }
+  });
+  await vm.load();
+  vm.state.overview.food = { ...vm.state.overview.food, plan };
+  await vm.saveKitchen({ 'equipment:Air fryer': 'on', 'pantry:Rice': 'on', 'pantry:Eggs': 'on', other: 'x' });
+  assert.deepEqual(sent[0], ['kitchen', { equipment: ['Air fryer'], pantry: ['Rice', 'Eggs'] }]);
+  vm.state.overview.food = { ...vm.state.overview.food, plan };
+  await vm.logRecipe('eggs', 'Dinner');
+  assert.deepEqual(sent[1][1], { date: vm.state.overview.food.date, food: 'Eggs on toast', kcal: 400, protein: 22, meal: 'Dinner', remember: true });
+  assert.equal(await vm.logRecipe('nothing-like-this', 'Dinner'), false);
+});
