@@ -817,14 +817,44 @@ function foodPictureCard(f, state) {
     </div>`;
 }
 
+// Targets worked out from the weight goal. They are only suggested: "Use these" saves them as the targets.
+const ACTIVITY_CHOICES = [['low', 'Low: mostly sitting, under 5,000 steps'], ['light', 'Light: some walking, 2 to 3 workouts a week'], ['moderate', 'Moderate: active most days'], ['high', 'High: hard training most days']];
+const PACE_WORDS = { realistic: ['Realistic pace', 'good'], aggressive: ['Aggressive pace', 'warn'], 'too fast': ['Too fast to be safe', 'warn'], none: ['Nothing to lose', ''] };
+function goalTargetsCard(f, state) {
+  const g = state.goalPlan;
+  const p = f.profile ?? {};
+  return `
+    <section class="card goal-targets">
+      <h2>Targets from your goal</h2>
+      <p class="note">Worked out from your weight, your height and your goal weight on Health. The app only suggests: nothing changes until you press "Use these".</p>
+      <form class="form" data-action="goalTargets">
+        ${field('Age', 'age', `required inputmode="numeric" value="${p.age ?? ''}"`)}
+        ${select('Sex (the formula differs)', 'sex', [['male', 'Male'], ['female', 'Female']], p.sex ?? 'male')}
+        ${select('How active you are', 'activity', ACTIVITY_CHOICES, p.activity ?? 'light')}
+        ${field('Weeks to reach your goal', 'weeks', `required inputmode="numeric" value="${p.weeks ?? ''}"`)}
+        <button class="btn primary" type="submit">Work it out</button>
+      </form>
+      ${g ? `
+      <div class="goal-result">
+        <div class="card-head"><h3>${num(g.toLose)} kg in ${g.profile.weeks} weeks: ${num(g.weekly * 1000) / 1000} kg a week</h3>${chip({ text: PACE_WORDS[g.pace][0], tone: PACE_WORDS[g.pace][1] })}</div>
+        <p>About <strong>${num(g.calories)} kcal</strong> and <strong>${num(g.protein)} g of protein</strong> a day. You burn about ${num(g.maintenance)} kcal a day now.</p>
+        ${g.floorUsed ? `<p class="note warn">Reaching it by then would need fewer calories than is safe, so this uses a floor of ${num(g.calories)} kcal. At that, expect to get there later.</p>` : ''}
+        ${g.pace !== 'realistic' && g.pace !== 'none' ? `<p class="note">A steady 0.75% of your weight a week would take about ${g.steadyWeeks} weeks for the same ${num(g.toLose)} kg, and keeps more muscle.</p>` : ''}
+        <button type="button" class="btn primary" data-action="useGoalTargets">Use these as my targets</button>
+        <p class="note">Estimates from a standard formula, not medical advice.</p>
+      </div>` : ''}
+    </section>`;
+}
+
 // Progress: today, this week and this month, and advice.
-function foodProgress(f) {
+function foodProgress(f, state) {
   const cards = presentFoodPeriods(f.periods, { kcal: f.targetKcal, protein: f.targetProtein });
   return `
     <section class="grid stats" aria-label="How it is going">
       ${cards.map((c) => `<div class="card ${c.tone}"><div class="label">${esc(c.title)}</div><div class="big">${esc(c.big)}</div><p class="note">${esc(c.note)}</p></div>`).join('')}
     </section>
-    ${f.hasTargets ? '' : emptyCard('Set your daily targets', 'With a calorie target, and a protein target if you want one, each day, week and month says whether you are on track. Set them on the Today tab.')}
+    ${f.hasTargets ? '' : emptyCard('Set your daily targets', 'With a calorie target, and a protein target if you want one, each day, week and month says whether you are on track. Work them out from your goal below, or set them on the Today tab.')}
+    ${goalTargetsCard(f, state)}
     ${adviceCard(f.advice, { save: 'saveFoodAdvice', clear: 'clearFoodAdvice', id: 'food-advice-edit', later: 'Later the AI helper will write this from your food, workouts and health.' })}`;
 }
 
@@ -855,6 +885,7 @@ function foodEat(f, state) {
       ${MEAL_TIMES.map((m) => `<button type="button" data-action="setEatMeal" data-meal="${m}" aria-pressed="${m === meal}">${m}</button>`).join('')}
     </div>
     <h2 class="section-title">${meal} ideas</h2>
+    ${p.skipped ? `<p class="note">${p.skipped} ${p.skipped === 1 ? 'recipe is' : 'recipes are'} hidden because ${p.skipped === 1 ? 'it needs' : 'they need'} a food you do not eat.</p>` : ''}
     <p class="note">Home cooking only, 20 minutes or less. All halal: buy meat, cheese and sauces with a halal logo.</p>
     <section class="grid wide recipes">${recipesFor(p.recipes, meal).map(recipeCard).join('') || '<p class="note">Nothing for this meal with your kitchen yet.</p>'}</section>
     ${recipesFor(p.needsEquipment, meal).length ? fold('recipes-more', `With more equipment (${recipesFor(p.needsEquipment, meal).length})`, `
@@ -877,6 +908,15 @@ function foodKitchen(f) {
         <div class="ticks">${f.plan.ingredients.map((x) => box('pantry', x, k.pantry.includes(x))).join('')}</div>
         <button class="btn primary" type="submit">Save kitchen</button>
       </form>
+    </section>
+    <section class="card">
+      <h2>Your preferences</h2>
+      <form class="form" data-action="savePreferences">
+        ${field('Foods I do not eat (separate with commas)', 'avoid', `maxlength="300" value="${esc((f.plan.preferences.avoid ?? []).join(', '))}" placeholder="cucumber, pickles, noodles"`)}
+        ${select('What matters most', 'priority', [['protein', 'High protein'], ['cost', 'Cheapest'], ['time', 'Quickest']], f.plan.preferences.priority ?? 'protein')}
+        <button class="btn primary" type="submit">Save preferences</button>
+      </form>
+      <p class="note">A food you do not eat is left out where it is only a side, and recipes that need it are not suggested. Quick add hides common meals named after it.</p>
     </section>`;
 }
 

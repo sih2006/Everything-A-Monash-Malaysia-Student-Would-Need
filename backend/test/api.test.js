@@ -439,6 +439,21 @@ describe('food and health', () => {
     assert.equal((await app.call('PUT', '/api/food/kitchen', { equipment: 'Air fryer', pantry: [] })).status, 400);
   });
 
+  test('food: preferences hide disliked foods; targets come from the weight goal only when asked', async () => {
+    const day = (await app.call('PUT', '/api/food/preferences', { avoid: ['Cucumber', 'pickles', 'noodles'], priority: 'time' })).body;
+    assert.deepEqual(day.plan.preferences, { avoid: ['cucumber', 'pickles', 'noodles'], priority: 'time' });
+    assert.ok([...day.plan.recipes, ...day.plan.needsEquipment].every((r) => r.ingredients.every((x) => !/cucumber/i.test(x.item))));
+    assert.equal((await app.call('PUT', '/api/food/preferences', { avoid: 'cucumber' })).status, 400);
+    assert.equal((await app.call('POST', '/api/food/goal-targets', { age: 20, sex: 'male', activity: 'light', weeks: 8 })).status, 400);   // no weight yet
+    const targetsBefore = (await app.call('GET', '/api/food')).body.targetKcal;
+    await app.call('PUT', '/api/health/days/2026-11-19', { weightKg: 90 });
+    await app.call('PUT', '/api/health/settings', { heightCm: 180, weightGoalKg: 80 });
+    const plan = (await app.call('POST', '/api/food/goal-targets', { age: 20, sex: 'male', activity: 'light', weeks: 8 })).body;
+    assert.deepEqual([plan.calories, plan.pace, plan.floorUsed, plan.goalKg], [1500, 'aggressive', true, 80]);
+    assert.deepEqual((await app.call('GET', '/api/food')).body.profile, { age: 20, sex: 'male', activity: 'light', weeks: 8 });
+    assert.equal((await app.call('GET', '/api/food')).body.targetKcal, targetsBefore);                       // suggesting changes nothing
+  });
+
   test('food: a remembered food can be forgotten, and what was logged with it stays', async () => {
     const before = (await app.call('GET', '/api/food')).body;
     const id = before.foods.find((f) => f.name === 'Nasi lemak').id;

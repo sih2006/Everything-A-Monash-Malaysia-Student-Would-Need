@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EQUIPMENT, MAX_MINUTES, MEAL_TIMES, RECIPES } from '../src/recipes.js';
 
-import { accountSummary, addDays, budgetSummary, foodPeriods, suggestMeals, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
+import { accountSummary, addDays, budgetSummary, foodPeriods, suggestMeals, targetsFromGoal, incomeSummary, monthlySpending, monthsBetween, reducibleSpending, spendingSpans, foodSummary, healthSummary, isDay, isMonth, monthRange, todayIn, weekRange, weightTrend } from '../src/domain.js';
 
 // ---------- dates ----------
 
@@ -323,6 +323,39 @@ test('what to eat with nothing set up: nothing is hidden, and each recipe still 
   assert.equal(s.kitchenKnown, false);
   assert.deepEqual([s.recipes.length, s.needsEquipment.length, s.recipes[0].lacks], [1, 0, ['Stove']]);
   assert.deepEqual(s.recipes[0].why, ['about RM 1.80 to buy']);                  // no targets: no claim about fitting
+});
+
+test('preferences: a disliked side is left out, a recipe that needs a disliked food is not suggested', () => {
+  const recipes = [
+    { id: 'a', name: 'Chicken and rice', kcal: 600, protein: 45, minutes: 20, equipment: [], ingredients: [{ item: 'Chicken', amount: '1', cost: 4 }, { item: 'Cucumber', amount: 'half', cost: 0.5, optional: true }] },
+    { id: 'b', name: 'Cucumber salad', kcal: 150, protein: 3, minutes: 5, equipment: [], ingredients: [{ item: 'Cucumber', amount: '1', cost: 1 }] },
+    { id: 'c', name: 'Pickle toast', kcal: 300, protein: 8, minutes: 4, equipment: [], ingredients: [{ item: 'Bread', amount: '2', cost: 0.6 }, { item: 'Pickles', amount: '3', cost: 0.5 }] }
+  ];
+  const s = suggestMeals({ recipes, kitchen: { equipment: [], pantry: [] }, left: { kcal: 0, protein: 0 }, targets: { kcal: 0, protein: 0 },
+    preferences: { avoid: ['cucumber', 'Pickle'], priority: 'protein' } });
+  assert.deepEqual(s.recipes.map((r) => r.id), ['a']);
+  assert.equal(s.skipped, 2);
+  assert.deepEqual([s.recipes[0].ingredients.map((x) => x.item), s.recipes[0].cost, s.recipes[0].why.at(-1)], [['Chicken'], 4, 'without cucumber']);
+});
+
+test('priority: quickest or cheapest can change which recipe comes first', () => {
+  const recipes = [
+    { id: 'slow', name: 'Slow protein', kcal: 600, protein: 50, minutes: 20, equipment: [], ingredients: [{ item: 'Beef', amount: '1', cost: 9 }] },
+    { id: 'fast', name: 'Fast toast', kcal: 400, protein: 15, minutes: 4, equipment: [], ingredients: [{ item: 'Bread', amount: '2', cost: 0.6 }] }
+  ];
+  const first = (priority) => suggestMeals({ recipes, kitchen: { equipment: [], pantry: [] }, left: { kcal: 0, protein: 0 }, targets: { kcal: 0, protein: 0 }, preferences: { avoid: [], priority } }).recipes[0].id;
+  assert.deepEqual([first('protein'), first('time'), first('cost')], ['slow', 'fast', 'fast']);
+});
+
+test('targets from a weight goal: worked out, judged, and never below a safe floor', () => {
+  // 90 kg, 180 cm, 20, male, light activity: BMR 1,930; maintenance 2,654.
+  const steady = targetsFromGoal({ weightKg: 90, heightCm: 180, goalKg: 84, age: 20, sex: 'male', activity: 'light', weeks: 10 });
+  assert.deepEqual([steady.maintenance, steady.weekly, steady.deficit, steady.calories, steady.pace, steady.floorUsed], [2654, 0.6, 660, 1990, 'realistic', false]);
+  assert.equal(steady.protein, 160);
+  // 10 kg in 8 weeks: 1.25 kg a week is about 1.4% of body weight, and would need 1,280 kcal, under the floor.
+  const fast = targetsFromGoal({ weightKg: 90, heightCm: 180, goalKg: 80, age: 20, sex: 'male', activity: 'light', weeks: 8 });
+  assert.deepEqual([fast.weekly, fast.pace, fast.calories, fast.floorUsed, fast.steadyWeeks], [1.25, 'aggressive', 1500, true, 15]);
+  assert.equal(targetsFromGoal({ weightKg: 90, heightCm: 180, goalKg: 80, age: 20, sex: 'male', activity: 'light', weeks: 5 }).pace, 'too fast');
 });
 
 test('income: money in during the month by source, without moves between your own accounts', () => {

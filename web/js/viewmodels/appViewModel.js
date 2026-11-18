@@ -62,6 +62,7 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
     budgetTab: BUDGET_TABS.includes(storage.get('budgetTab')) ? storage.get('budgetTab') : 'all', // the Budget tab that is open
     budgetAccount: savedAccounts(storage.get('budgetAccount')),  // the account shown on Banking and on Investing: { banking: id, investing: id }
     foodTab: isFoodTab(storage.get('foodTab')) ? storage.get('foodTab') : 'today',   // the Food tab that is open
+    goalPlan: null,         // targets worked out from the weight goal, shown until the user uses or leaves them
     eatMeal: null,          // the meal What to eat shows; null means "the meal for the time of day"
     foodImport: null,       // food read from a picture, waiting for the user to check: [{ food, kcal, protein }]
     expenseSpan: isSpan(storage.get('expenseSpan')) ? storage.get('expenseSpan') : DEFAULT_SPAN, // the period the Expenses tab looks back over
@@ -424,6 +425,20 @@ export function createAppViewModel({ api, storage, onChange = () => {} }) {
       equipment: Object.keys(f).filter((k) => k.startsWith('equipment:')).map((k) => k.slice('equipment:'.length)),
       pantry: Object.keys(f).filter((k) => k.startsWith('pantry:')).map((k) => k.slice('pantry:'.length))
     }), 'Kitchen saved.'),
+    // "cucumber, pickles" becomes ['cucumber', 'pickles'].
+    savePreferences: (f) => act('food', () => api.savePreferences({
+      avoid: String(f.avoid ?? '').split(',').map((w) => w.trim()).filter(Boolean),
+      priority: f.priority
+    }), 'Preferences saved.'),
+    goalTargets: (f) => act(null, async () => {
+      state.goalPlan = await api.goalTargets({ age: number(f.age, 'Your age'), sex: f.sex, activity: f.activity, weeks: number(f.weeks, 'The number of weeks') });
+    }),
+    useGoalTargets: () => act('food', async () => {
+      const plan = state.goalPlan;
+      const saved = await api.saveFoodTargets({ targetKcal: plan.calories, targetProtein: plan.protein });
+      state.goalPlan = null;
+      return saved;
+    }, 'Targets saved from your goal.'),
     // A recipe that was cooked: logged with its calories and protein, and saved to your meals.
     logRecipe(id, meal) {
       const plan = shown('food').plan;

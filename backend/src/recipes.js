@@ -8,12 +8,14 @@ export const MAX_MINUTES = 20;
 export const MEAL_TIMES = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 const i = (item, amount, cost) => ({ item, amount, cost });
+// A side the recipe works without: left out when the user does not eat it.
+const o = (item, amount, cost) => ({ item, amount, cost, optional: true });
 
 export const RECIPES = [
   {
     id: 'airfryer-chicken-rice', meals: ['Lunch', 'Dinner'], name: 'Air-fryer chicken thighs with rice', kcal: 650, protein: 40, minutes: 20,
     equipment: ['Air fryer', 'Stove'],
-    ingredients: [i('Chicken thigh (boneless)', '200 g', 4.5), i('Rice', '80 g dry', 0.4), i('Soy sauce', '1 tbsp', 0.1), i('Garlic or garlic powder', '2 cloves or 1 tsp', 0.2), i('Cucumber', 'half', 0.5)],
+    ingredients: [i('Chicken thigh (boneless)', '200 g', 4.5), i('Rice', '80 g dry', 0.4), i('Soy sauce', '1 tbsp', 0.1), i('Garlic or garlic powder', '2 cloves or 1 tsp', 0.2), o('Cucumber', 'half', 0.5)],
     steps: ['Rinse the rice and simmer it in the pot with 1.5 times as much water, lid on, for 15 minutes.', 'Meanwhile mix the chicken with soy sauce and crushed garlic.', 'Air-fry at 200 °C for 15 to 18 minutes, turning once.', 'Slice the cucumber and serve.']
   },
   {
@@ -25,13 +27,13 @@ export const RECIPES = [
   {
     id: 'airfryer-tandoori-naan', meals: ['Lunch', 'Dinner'], name: 'Air-fryer tandoori chicken with naan', kcal: 650, protein: 45, minutes: 18,
     equipment: ['Air fryer'],
-    ingredients: [i('Chicken thigh (boneless)', '200 g', 4.5), i('Tandoori paste', '2 tbsp', 1.0), i('Plain yoghurt', '2 tbsp', 0.5), i('Naan (ready-made)', '1', 2.0), i('Cucumber', 'half', 0.5)],
+    ingredients: [i('Chicken thigh (boneless)', '200 g', 4.5), i('Tandoori paste', '2 tbsp', 1.0), i('Plain yoghurt', '2 tbsp', 0.5), i('Naan (ready-made)', '1', 2.0), o('Cucumber', 'half', 0.5)],
     steps: ['Coat the chicken in tandoori paste mixed with yoghurt.', 'Air-fry at 200 °C for 14 to 16 minutes.', 'Warm the naan in the air fryer for the last 2 minutes.']
   },
   {
     id: 'pan-shawarma-wrap', meals: ['Lunch', 'Dinner'], name: 'Pan chicken shawarma wrap', kcal: 600, protein: 38, minutes: 15,
     equipment: ['Stove'],
-    ingredients: [i('Chicken thigh (boneless)', '150 g', 3.4), i('Tortilla wrap', '1', 1.0), i('Cajun rub, paprika or chilli powder', '1 tsp', 0.2), i('Garlic mayo', '1 tbsp', 0.4), i('Tomato', '1', 0.5), i('Cucumber', 'half', 0.5)],
+    ingredients: [i('Chicken thigh (boneless)', '150 g', 3.4), i('Tortilla wrap', '1', 1.0), i('Cajun rub, paprika or chilli powder', '1 tsp', 0.2), i('Garlic mayo', '1 tbsp', 0.4), o('Tomato', '1', 0.5), o('Cucumber', 'half', 0.5)],
     steps: ['Slice the chicken thin and mix with the spice, garlic powder and a pinch of salt.', 'Fry in a hot pan for 6 to 8 minutes until browned and cooked through.', 'Warm the wrap in the pan, then fill with chicken, garlic mayo, tomato and cucumber.']
   },
   {
@@ -49,13 +51,13 @@ export const RECIPES = [
   {
     id: 'tofu-egg-stirfry', meals: ['Lunch', 'Dinner'], name: 'Tofu and egg stir-fry', kcal: 450, protein: 28, minutes: 12,
     equipment: ['Stove'],
-    ingredients: [i('Firm tofu', '1 block', 1.8), i('Eggs', '2', 1.0), i('Spring onion', '1 stalk', 0.2), i('Soy sauce', '1 tbsp', 0.1), i('Cooking oil', '1 tbsp', 0.1)],
+    ingredients: [i('Firm tofu', '1 block', 1.8), i('Eggs', '2', 1.0), o('Spring onion', '1 stalk', 0.2), i('Soy sauce', '1 tbsp', 0.1), i('Cooking oil', '1 tbsp', 0.1)],
     steps: ['Fry cubes of tofu until golden.', 'Add the beaten eggs and stir until set.', 'Finish with soy sauce and spring onion.']
   },
   {
     id: 'airfryer-egg-wrap', meals: ['Breakfast', 'Lunch'], name: 'Air-fryer egg and cheese wrap', kcal: 450, protein: 24, minutes: 10,
     equipment: ['Air fryer'],
-    ingredients: [i('Tortilla wrap', '1', 1.0), i('Eggs', '2', 1.0), i('Cheese (shredded or slices)', '30 g', 0.8), i('Tomato', '1', 0.5)],
+    ingredients: [i('Tortilla wrap', '1', 1.0), i('Eggs', '2', 1.0), i('Cheese (shredded or slices)', '30 g', 0.8), o('Tomato', '1', 0.5)],
     steps: ['Beat the eggs and pour onto the wrap in a small tray.', 'Add cheese and sliced tomato, fold.', 'Air-fry at 180 °C for 6 to 8 minutes.']
   },
   {
@@ -85,7 +87,7 @@ export const RECIPES = [
   {
     id: 'chickpea-tuna-salad', meals: ['Lunch', 'Dinner'], name: 'Chickpea and tuna salad (no cooking)', kcal: 460, protein: 35, minutes: 5,
     equipment: [],
-    ingredients: [i('Canned tuna', '1 can', 4.5), i('Canned chickpeas', 'half a can', 1.5), i('Tomato', '1', 0.5), i('Cucumber', 'half', 0.5), i('Lime or lemon', 'half', 0.3)],
+    ingredients: [i('Canned tuna', '1 can', 4.5), i('Canned chickpeas', 'half a can', 1.5), o('Tomato', '1', 0.5), o('Cucumber', 'half', 0.5), i('Lime or lemon', 'half', 0.3)],
     steps: ['Drain the tuna and chickpeas.', 'Chop the tomato and cucumber.', 'Mix everything with lime juice and a pinch of salt.']
   },
   {

@@ -639,3 +639,21 @@ test('the kitchen form becomes two lists, and a cooked recipe is logged and save
   assert.deepEqual(sent[1][1], { date: vm.state.overview.food.date, food: 'Eggs on toast', kcal: 400, protein: 22, meal: 'Dinner', remember: true });
   assert.equal(await vm.logRecipe('nothing-like-this', 'Dinner'), false);
 });
+
+test('preferences: a comma list becomes a clean list; goal targets are only saved when the user says so', async () => {
+  const sent = [];
+  const { vm } = setup({
+    savePreferences: (p) => { sent.push(['prefs', p]); return Promise.resolve(overview().food); },
+    goalTargets: (a) => { sent.push(['goal', a]); return Promise.resolve({ calories: 1800, protein: 160, profile: a }); },
+    saveFoodTargets: (t) => { sent.push(['targets', t]); return Promise.resolve(overview().food); }
+  });
+  await vm.load();
+  await vm.savePreferences({ avoid: ' Cucumber, pickles,, noodles ', priority: 'time' });
+  assert.deepEqual(sent[0], ['prefs', { avoid: ['Cucumber', 'pickles', 'noodles'], priority: 'time' }]);
+  await vm.goalTargets({ age: '20', sex: 'male', activity: 'light', weeks: '8' });
+  assert.deepEqual(sent[1], ['goal', { age: 20, sex: 'male', activity: 'light', weeks: 8 }]);
+  assert.equal(sent.length, 2);                                    // working it out saves nothing
+  await vm.useGoalTargets();
+  assert.deepEqual(sent[2], ['targets', { targetKcal: 1800, targetProtein: 160 }]);
+  assert.equal(vm.state.goalPlan, null);
+});
